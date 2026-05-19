@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       ...(busca
         ? {
             OR: [
-              { nome: { contains: busca } },
+              { nome: { contains: busca, mode: "insensitive" as const } },
               { telefone1: { contains: busca } },
             ],
           }

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -44,6 +44,8 @@ model TenantConfig {
   id                     String  @id @default(cuid())
   tenantId               String  @unique
   intervaloAgendaMin     Int     @default(30)
+  horaInicioAgenda       Int     @default(6)
+  horaFimAgenda          Int     @default(21)
   whatsappAtivo          Boolean @default(false)
   horarioEnvioWpp        String  @default("08:00")
   toleranciaAtrasoMin    Int     @default(10)
@@ -130,8 +132,12 @@ model Profissional {
   whatsappSessao String?
   whatsappAtivo  Boolean          @default(false)
   registro           String?
+  cpf                String?
+  cnpj               String?
   direcaoComissao    String  @default("CLINICA_PAGA")
   frequenciaComissao String  @default("MENSAL") // DIARIA | SEMANAL | QUINZENAL | MENSAL
+  possuiAgenda       Boolean @default(true)
+  profissionalTerceiro Boolean @default(false)
   ativo              Boolean @default(true)
   criadoEm        DateTime         @default(now())
 

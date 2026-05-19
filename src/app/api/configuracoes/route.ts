@@ -43,12 +43,16 @@ export async function PATCH(req: NextRequest) {
         tenantId: sessao.tenantId,
         intervaloAgendaMin: body.config.intervaloAgendaMin ?? 30,
         horarioEnvioWpp: body.config.horarioEnvioWpp ?? "08:00",
+        horaInicioAgenda: body.config.horaInicioAgenda ?? 6,
+        horaFimAgenda: body.config.horaFimAgenda ?? 21,
       },
       update: {
         intervaloAgendaMin: body.config.intervaloAgendaMin ?? 30,
         horarioEnvioWpp: body.config.horarioEnvioWpp ?? "08:00",
         mensagemConfirmacaoWpp: body.config.mensagemConfirmacaoWpp || null,
         urlNFSe: body.config.urlNFSe || null,
+        horaInicioAgenda: body.config.horaInicioAgenda ?? 6,
+        horaFimAgenda: body.config.horaFimAgenda ?? 21,
       },
     });
   }

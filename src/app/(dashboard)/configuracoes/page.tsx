@@ -20,7 +20,7 @@ Agradeço a compreensão 🥰`;
 
 type Config = {
   tenant: { id: string; nome: string; cnpj: string | null; telefone: string | null; endereco: string | null; corPrimaria: string } | null;
-  config: { intervaloAgendaMin: number; horarioEnvioWpp: string; mensagemConfirmacaoWpp: string | null; urlNFSe: string | null } | null;
+  config: { intervaloAgendaMin: number; horarioEnvioWpp: string; mensagemConfirmacaoWpp: string | null; urlNFSe: string | null; horaInicioAgenda: number; horaFimAgenda: number } | null;
   status: StatusAgenda[];
 };
 
@@ -47,6 +47,8 @@ export default function ConfiguracoesPage() {
   const [intervalo, setIntervalo] = useState(30);
   const [horarioWpp, setHorarioWpp] = useState("08:00");
   const [mensagemWpp, setMensagemWpp] = useState(TEMPLATE_PADRAO);
+  const [horaInicio, setHoraInicio] = useState(6);
+  const [horaFim, setHoraFim] = useState(21);
 
   useEffect(() => {
     fetch("/api/configuracoes")
@@ -64,6 +66,8 @@ export default function ConfiguracoesPage() {
           setHorarioWpp(d.config.horarioEnvioWpp);
           setMensagemWpp(d.config.mensagemConfirmacaoWpp ?? TEMPLATE_PADRAO);
           setUrlNFSe(d.config.urlNFSe ?? "");
+          setHoraInicio(d.config.horaInicioAgenda ?? 6);
+          setHoraFim(d.config.horaFimAgenda ?? 21);
         }
       })
       .finally(() => setCarregando(false));
@@ -76,7 +80,7 @@ export default function ConfiguracoesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tenant: { nome: nomeCli, cnpj, telefone, endereco },
-        config: { intervaloAgendaMin: intervalo, horarioEnvioWpp: horarioWpp, mensagemConfirmacaoWpp: mensagemWpp, urlNFSe },
+        config: { intervaloAgendaMin: intervalo, horarioEnvioWpp: horarioWpp, mensagemConfirmacaoWpp: mensagemWpp, urlNFSe, horaInicioAgenda: horaInicio, horaFimAgenda: horaFim },
       }),
     });
     setSalvando(false);
@@ -155,6 +159,37 @@ export default function ConfiguracoesPage() {
       {/* Seção: Agenda & WhatsApp */}
       {secao === "agenda" && (
         <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 space-y-5 shadow-sm">
+          <div>
+            <Label className="text-xs text-[#9a7d50] mb-2 block">Horário de funcionamento da agenda</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-[#9a7d50] mb-1 block">Início</Label>
+                <select
+                  value={horaInicio}
+                  onChange={(e) => setHoraInicio(Number(e.target.value))}
+                  className="w-full rounded-lg border border-[#B89968]/30 bg-white px-3 py-2 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs text-[#9a7d50] mb-1 block">Fim</Label>
+                <select
+                  value={horaFim}
+                  onChange={(e) => setHoraFim(Number(e.target.value))}
+                  className="w-full rounded-lg border border-[#B89968]/30 bg-white px-3 py-2 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h + 1}>{String(h + 1).padStart(2, "0")}:00</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <p className="text-xs text-[#9a7d50] mt-1">Faixa de horário que aparece na grade da agenda.</p>
+          </div>
+
           <div>
             <Label className="text-xs text-[#9a7d50] mb-2 block">Intervalo de horários na agenda</Label>
             <div className="flex gap-2">

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X, Loader2, Trash2 } from "lucide-react";
+import { X, Loader2, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -19,6 +19,72 @@ const CORES = [
   "#f87171", "#fb923c", "#facc15", "#a3e635", "#22d3ee",
 ];
 
+type Permissoes = {
+  isAdmin: boolean;
+  verAgenda: boolean;
+  realizarAgendamentos: boolean;
+  verContatoCliente: boolean;
+  verValoresServicos: boolean;
+  acessarClientes: boolean;
+  acessarServicos: boolean;
+  acessarProdutos: boolean;
+  acessarDespesas: boolean;
+  acessarFinanceiro: boolean;
+  verComissoesReceber: boolean;
+  verPagamentosComissao: boolean;
+  acessarProntuarios: boolean;
+  acessarRelatorios: boolean;
+};
+
+const PERMISSOES_PADRAO: Permissoes = {
+  isAdmin: false,
+  verAgenda: true,
+  realizarAgendamentos: true,
+  verContatoCliente: true,
+  verValoresServicos: true,
+  acessarClientes: false,
+  acessarServicos: false,
+  acessarProdutos: false,
+  acessarDespesas: false,
+  acessarFinanceiro: false,
+  verComissoesReceber: false,
+  verPagamentosComissao: false,
+  acessarProntuarios: false,
+  acessarRelatorios: false,
+};
+
+const PERMISSOES_LABELS: { key: keyof Permissoes; label: string; grupo: string }[] = [
+  { key: "isAdmin", label: "Administrador (acesso total)", grupo: "ESPECIAL" },
+  { key: "verAgenda", label: "Ver agenda", grupo: "AGENDA" },
+  { key: "realizarAgendamentos", label: "Realizar agendamentos", grupo: "AGENDA" },
+  { key: "verContatoCliente", label: "Ver contato do cliente", grupo: "AGENDA" },
+  { key: "verValoresServicos", label: "Ver valores dos serviços", grupo: "AGENDA" },
+  { key: "acessarClientes", label: "Acessar Clientes", grupo: "MÓDULOS" },
+  { key: "acessarServicos", label: "Acessar Serviços", grupo: "MÓDULOS" },
+  { key: "acessarProdutos", label: "Acessar Produtos", grupo: "MÓDULOS" },
+  { key: "acessarDespesas", label: "Acessar Despesas", grupo: "MÓDULOS" },
+  { key: "acessarFinanceiro", label: "Acessar Financeiro", grupo: "MÓDULOS" },
+  { key: "verComissoesReceber", label: "Ver Comissões a Receber", grupo: "MÓDULOS" },
+  { key: "verPagamentosComissao", label: "Ver Pagamentos de Comissão", grupo: "MÓDULOS" },
+  { key: "acessarProntuarios", label: "Acessar Prontuários", grupo: "MÓDULOS" },
+  { key: "acessarRelatorios", label: "Acessar Relatórios", grupo: "MÓDULOS" },
+];
+
+function mascaraCpf(v: string) {
+  return v.replace(/\D/g, "").slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+function mascaraCnpj(v: string) {
+  return v.replace(/\D/g, "").slice(0, 14)
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
+
 const CAMPOS_VAZIOS = {
   nome: "",
   email: "",
@@ -31,21 +97,36 @@ const CAMPOS_VAZIOS = {
   direcaoComissao: "CLINICA_PAGA" as "CLINICA_PAGA" | "COLABORADORA_PAGA",
   frequenciaComissao: "MENSAL" as "DIARIA" | "SEMANAL" | "QUINZENAL" | "MENSAL",
   cor: "#B89968",
+  // Acesso ao Sistema
+  naoTemLogin: false,
+  loginEmail: "",
+  senha: "",
+  // Documento
+  tipoDocumento: "CPF" as "CPF" | "CNPJ",
+  cpf: "",
+  cnpj: "",
+  // Toggles
+  naoPossuiAgenda: false,
+  profissionalTerceiro: false,
 };
 
 export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }: Props) {
   const ehEdicao = !!profissionalId;
   const [campos, setCampos] = useState(CAMPOS_VAZIOS);
+  const [permissoes, setPermissoes] = useState<Permissoes>(PERMISSOES_PADRAO);
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [erro, setErro] = useState("");
+  const [mostrarAvancado, setMostrarAvancado] = useState(false);
 
   useEffect(() => {
     if (!aberto) {
       setCampos(CAMPOS_VAZIOS);
+      setPermissoes(PERMISSOES_PADRAO);
       setErro("");
       setConfirmarExclusao(false);
+      setMostrarAvancado(false);
       return;
     }
     if (!profissionalId) return;
@@ -54,6 +135,8 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
     fetch(`/api/profissionais/${profissionalId}`)
       .then((r) => r.json())
       .then((p) => {
+        const temUsuario = !!p.usuario;
+        const tipoDoc: "CPF" | "CNPJ" = p.cnpj ? "CNPJ" : "CPF";
         setCampos({
           nome: p.nome ?? "",
           email: p.email ?? "",
@@ -66,7 +149,35 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
           direcaoComissao: p.direcaoComissao ?? "CLINICA_PAGA",
           frequenciaComissao: p.frequenciaComissao ?? "MENSAL",
           cor: p.cor ?? "#B89968",
+          naoTemLogin: !temUsuario,
+          loginEmail: p.usuario?.email ?? "",
+          senha: "",
+          tipoDocumento: tipoDoc,
+          cpf: p.cpf ? mascaraCpf(p.cpf) : "",
+          cnpj: p.cnpj ? mascaraCnpj(p.cnpj) : "",
+          naoPossuiAgenda: p.possuiAgenda === false,
+          profissionalTerceiro: !!p.profissionalTerceiro,
         });
+        if (p.usuario?.permissoes) {
+          const perm = p.usuario.permissoes;
+          setPermissoes({
+            isAdmin: !!perm.isAdmin,
+            verAgenda: !!perm.verAgenda,
+            realizarAgendamentos: !!perm.realizarAgendamentos,
+            verContatoCliente: !!perm.verContatoCliente,
+            verValoresServicos: !!perm.verValoresServicos,
+            acessarClientes: !!perm.acessarClientes,
+            acessarServicos: !!perm.acessarServicos,
+            acessarProdutos: !!perm.acessarProdutos,
+            acessarDespesas: !!perm.acessarDespesas,
+            acessarFinanceiro: !!perm.acessarFinanceiro,
+            verComissoesReceber: !!perm.verComissoesReceber,
+            verPagamentosComissao: !!perm.verPagamentosComissao,
+            acessarProntuarios: !!perm.acessarProntuarios,
+            acessarRelatorios: !!perm.acessarRelatorios,
+          });
+        }
+        if (p.profissionalTerceiro) setMostrarAvancado(true);
       })
       .finally(() => setCarregando(false));
   }, [aberto, profissionalId]);
@@ -75,10 +186,38 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
     setCampos((prev) => ({ ...prev, [campo]: valor }));
   }
 
+  function togglePermissao(key: keyof Permissoes) {
+    setPermissoes((prev) => {
+      const proximo = { ...prev, [key]: !prev[key] };
+      // Se ativou isAdmin, liga todos
+      if (key === "isAdmin" && proximo.isAdmin) {
+        for (const k of Object.keys(PERMISSOES_PADRAO) as (keyof Permissoes)[]) {
+          proximo[k] = true;
+        }
+      }
+      // Se desativou isAdmin, mantém o resto como está
+      return proximo;
+    });
+  }
+
+  const qtdPermissoes = (Object.values(permissoes) as boolean[]).filter(Boolean).length;
+
   async function salvar() {
     if (!campos.nome.trim()) { setErro("Nome é obrigatório."); return; }
+
+    const criarLogin = !campos.naoTemLogin;
+
+    if (criarLogin) {
+      if (!campos.loginEmail.trim()) { setErro("E-mail de login é obrigatório."); return; }
+      if (!ehEdicao && !campos.senha) { setErro("Senha temporária é obrigatória para criar o login."); return; }
+      if (campos.senha && campos.senha.length < 4) { setErro("Senha deve ter ao menos 4 caracteres."); return; }
+    }
+
     setSalvando(true);
     setErro("");
+
+    const cpfNumeros = campos.cpf.replace(/\D/g, "");
+    const cnpjNumeros = campos.cnpj.replace(/\D/g, "");
 
     const payload = {
       nome: campos.nome.trim(),
@@ -92,21 +231,40 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
       direcaoComissao: campos.direcaoComissao,
       frequenciaComissao: campos.frequenciaComissao,
       cor: campos.cor,
+      cpf: campos.tipoDocumento === "CPF" && cpfNumeros ? cpfNumeros : null,
+      cnpj: campos.tipoDocumento === "CNPJ" && cnpjNumeros ? cnpjNumeros : null,
+      possuiAgenda: !campos.naoPossuiAgenda,
+      profissionalTerceiro: campos.profissionalTerceiro,
+      criarLogin,
+      loginEmail: criarLogin ? campos.loginEmail.trim() : null,
+      senha: criarLogin && campos.senha ? campos.senha : null,
+      permissoes: criarLogin ? permissoes : null,
     };
 
     const url = ehEdicao ? `/api/profissionais/${profissionalId}` : "/api/profissionais";
     const method = ehEdicao ? "PATCH" : "POST";
 
-    const r = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const r = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    setSalvando(false);
-    if (!r.ok) { setErro("Erro ao salvar."); return; }
-    onSalvo();
-    onFechar();
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({ erro: "Erro ao salvar." }));
+        setErro(data.erro || "Erro ao salvar.");
+        setSalvando(false);
+        return;
+      }
+
+      onSalvo();
+      onFechar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   async function excluir() {
@@ -188,7 +346,7 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs text-[#9a7d50] mb-1 block">E-mail</Label>
+                  <Label className="text-xs text-[#9a7d50] mb-1 block">E-mail (contato)</Label>
                   <Input
                     type="email"
                     value={campos.email}
@@ -208,8 +366,141 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
                 </div>
               </div>
 
+              {/* ─── Acesso ao Sistema ─── */}
+              <div className="border-t border-[#e8dcc4] pt-4 space-y-3">
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="naoTemLogin"
+                    checked={campos.naoTemLogin}
+                    onChange={(e) => set("naoTemLogin", e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-[#B89968]"
+                  />
+                  <label htmlFor="naoTemLogin" className="text-xs text-[#5a4530] select-none cursor-pointer">
+                    Não preciso de usuário/senha (não terá login)
+                  </label>
+                </div>
+
+                {!campos.naoTemLogin && (
+                  <>
+                    <div>
+                      <Label className="text-xs text-[#9a7d50] mb-1 block">E-mail (que a Profissional usará para login)</Label>
+                      <Input
+                        type="email"
+                        value={campos.loginEmail}
+                        onChange={(e) => set("loginEmail", e.target.value)}
+                        placeholder="login@exemplo.com"
+                        className="border-[#B89968]/30"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-[#9a7d50] mb-1 block">
+                        Senha temporária {ehEdicao ? "(deixe vazio para manter a atual)" : "(obrigatória para primeiro login)"}
+                      </Label>
+                      <Input
+                        type="text"
+                        value={campos.senha}
+                        onChange={(e) => set("senha", e.target.value)}
+                        placeholder="Mínimo 4 caracteres"
+                        className="border-[#B89968]/30 font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-[#9a7d50] mb-1.5 block">
+                        Permissões — o que esta usuária pode acessar
+                        <span className="ml-2 text-[10px] text-[#B89968]">({qtdPermissoes} selecionadas)</span>
+                      </Label>
+                      <div className="border border-[#e8dcc4] rounded-lg p-3 max-h-56 overflow-y-auto space-y-2 bg-[#faf5ee]/30">
+                        {(["ESPECIAL", "AGENDA", "MÓDULOS"] as const).map((grupo) => (
+                          <div key={grupo}>
+                            <p className="text-[10px] font-semibold text-[#9a7d50] uppercase tracking-wide mb-1">
+                              {grupo}
+                            </p>
+                            <div className="space-y-1">
+                              {PERMISSOES_LABELS.filter((p) => p.grupo === grupo).map((p) => (
+                                <label
+                                  key={p.key}
+                                  className={cn(
+                                    "flex items-center gap-2 text-xs text-[#5a4530] cursor-pointer hover:bg-white px-1 py-0.5 rounded",
+                                    p.key !== "isAdmin" && permissoes.isAdmin && "opacity-50 cursor-not-allowed"
+                                  )}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={permissoes[p.key]}
+                                    onChange={() => togglePermissao(p.key)}
+                                    disabled={p.key !== "isAdmin" && permissoes.isAdmin}
+                                    className="w-3.5 h-3.5 accent-[#B89968]"
+                                  />
+                                  <span>{p.label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* ─── Documento ─── */}
+              <div className="border-t border-[#e8dcc4] pt-4 space-y-2">
+                <Label className="text-xs text-[#9a7d50] mb-1 block">Documento</Label>
+                <div className="flex gap-3 mb-2">
+                  {(["CPF", "CNPJ"] as const).map((tipo) => (
+                    <label key={tipo} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="tipoDocumento"
+                        checked={campos.tipoDocumento === tipo}
+                        onChange={() => set("tipoDocumento", tipo)}
+                        className="accent-[#B89968]"
+                      />
+                      <span className="text-xs text-[#5a4530]">{tipo}</span>
+                    </label>
+                  ))}
+                </div>
+                {campos.tipoDocumento === "CPF" ? (
+                  <Input
+                    value={campos.cpf}
+                    onChange={(e) => set("cpf", mascaraCpf(e.target.value))}
+                    placeholder="000.000.000-00"
+                    className="border-[#B89968]/30"
+                  />
+                ) : (
+                  <Input
+                    value={campos.cnpj}
+                    onChange={(e) => set("cnpj", mascaraCnpj(e.target.value))}
+                    placeholder="00.000.000/0000-00"
+                    className="border-[#B89968]/30"
+                  />
+                )}
+              </div>
+
+              {/* ─── Não Possui Agenda ─── */}
+              <div className="border-t border-[#e8dcc4] pt-4">
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="naoPossuiAgenda"
+                    checked={campos.naoPossuiAgenda}
+                    onChange={(e) => set("naoPossuiAgenda", e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-[#B89968]"
+                  />
+                  <label htmlFor="naoPossuiAgenda" className="text-xs text-[#5a4530] select-none cursor-pointer">
+                    <span className="font-medium">Não Possui Agenda</span>
+                    <p className="text-[11px] text-[#9a7d50] mt-0.5">
+                      Marque para profissionais que não atendem (ex: recepção, administrativo). Não aparece como coluna na agenda.
+                    </p>
+                  </label>
+                </div>
+              </div>
+
               {/* Tipo de comissão */}
-              <div>
+              <div className="border-t border-[#e8dcc4] pt-4">
                 <Label className="text-xs text-[#9a7d50] mb-1.5 block">Modelo de remuneração</Label>
                 <div className="grid grid-cols-2 gap-2">
                   {([
@@ -356,6 +647,38 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* ─── Opções avançadas ─── */}
+              <div className="border-t border-[#e8dcc4] pt-4">
+                <button
+                  type="button"
+                  onClick={() => setMostrarAvancado((v) => !v)}
+                  className="flex items-center gap-1 text-xs font-semibold text-[#B89968] hover:text-[#9a7d50]"
+                >
+                  {mostrarAvancado ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  {mostrarAvancado ? "Esconder opções avançadas" : "Ver opções avançadas"}
+                </button>
+
+                {mostrarAvancado && (
+                  <div className="mt-3">
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        id="profissionalTerceiro"
+                        checked={campos.profissionalTerceiro}
+                        onChange={(e) => set("profissionalTerceiro", e.target.checked)}
+                        className="mt-0.5 w-4 h-4 accent-[#B89968]"
+                      />
+                      <label htmlFor="profissionalTerceiro" className="text-xs text-[#5a4530] select-none cursor-pointer">
+                        <span className="font-medium">Profissional terceiro</span>
+                        <p className="text-[11px] text-[#9a7d50] mt-0.5">
+                          As atividades do Profissional terceiro não são incluídas no financeiro da empresa. Perfeito para profissionais que apenas pagam aluguel do espaço.
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

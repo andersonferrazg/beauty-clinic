@@ -144,17 +144,7 @@ function CalendarioPopup({
 }
 
 // ── Constantes de layout ──────────────────────────────────────────────────────
-const HORA_INICIO = 7;
-const HORA_FIM = 21;
 const ALTURA_SLOT = 48; // px por slot de 30min  (= 96px/hora)
-const TOTAL_SLOTS = (HORA_FIM - HORA_INICIO) * 2; // 28 slots
-
-const SLOTS = Array.from({ length: TOTAL_SLOTS }, (_, i) => ({
-  idx: i,
-  hora: HORA_INICIO + Math.floor(i / 2),
-  minuto: (i % 2) * 30,
-  ehHoraCheia: i % 2 === 0,
-}));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatarDataISO(d: Date) {
@@ -168,18 +158,6 @@ function diaSemanaAbrev(d: number) {
 function formatarHora(iso: string) {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function posicaoBloco(inicio: string, fim: string) {
-  const ini = new Date(inicio);
-  const fi = new Date(fim);
-  const totalMin = TOTAL_SLOTS * 30;
-  const minIni = (ini.getHours() - HORA_INICIO) * 60 + ini.getMinutes();
-  const durMin = (fi.getTime() - ini.getTime()) / 60000;
-  return {
-    top: `${(minIni / totalMin) * 100}%`,
-    height: `${Math.max((durMin / totalMin) * 100, 1.8)}%`,
-  };
 }
 
 function iniciais(nome: string) {
@@ -199,7 +177,7 @@ function semanaDosDias(data: Date): Date[] {
 }
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
-type Profissional = { id: string; nome: string; cor: string };
+type Profissional = { id: string; nome: string; cor: string; possuiAgenda?: boolean };
 
 type Agendamento = {
   id: string;
@@ -228,6 +206,8 @@ export default function AgendaPage() {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [templateWpp, setTemplateWpp] = useState(`Oii {primeiro_nome} 💖\n\nPassando para confirmar nosso horário amanhã ({dia_semana}) {data_curta} ás {hora}h\n\nPor gentileza, confirme o recebimento desta mensagem. Caso não haja resposta, o seu horário será automaticamente cancelado.\nTolerância de atraso é de 10 minutos.\n\nAgradeço a compreensão 🥰`);
+  const [horaInicio, setHoraInicio] = useState(6);
+  const [horaFim, setHoraFim] = useState(21);
 
   const [modalAberto, setModalAberto] = useState(false);
   const [modalDataInicial, setModalDataInicial] = useState<Date>(new Date());
@@ -240,6 +220,26 @@ export default function AgendaPage() {
   const ehHoje = formatarDataISO(hoje) === dataStr;
   const diasSemana = semanaDosDias(dataAtual);
 
+  const TOTAL_SLOTS = Math.max((horaFim - horaInicio) * 2, 1);
+  const SLOTS = Array.from({ length: TOTAL_SLOTS }, (_, i) => ({
+    idx: i,
+    hora: horaInicio + Math.floor(i / 2),
+    minuto: (i % 2) * 30,
+    ehHoraCheia: i % 2 === 0,
+  }));
+
+  function posicaoBloco(inicio: string, fim: string) {
+    const ini = new Date(inicio);
+    const fi = new Date(fim);
+    const totalMin = TOTAL_SLOTS * 30;
+    const minIni = (ini.getHours() - horaInicio) * 60 + ini.getMinutes();
+    const durMin = (fi.getTime() - ini.getTime()) / 60000;
+    return {
+      top: `${(minIni / totalMin) * 100}%`,
+      height: `${Math.max((durMin / totalMin) * 100, 1.8)}%`,
+    };
+  }
+
   useEffect(() => {
     try {
       const salvo = localStorage.getItem("agendaData");
@@ -247,11 +247,17 @@ export default function AgendaPage() {
     } catch {}
     fetch("/api/profissionais")
       .then((r) => r.json())
-      .then(setProfissionais)
+      .then((profs: Profissional[]) =>
+        setProfissionais(profs.filter((p) => p.possuiAgenda !== false))
+      )
       .catch(console.error);
     fetch("/api/configuracoes")
       .then((r) => r.json())
-      .then((d) => { if (d.config?.mensagemConfirmacaoWpp) setTemplateWpp(d.config.mensagemConfirmacaoWpp); })
+      .then((d) => {
+        if (d.config?.mensagemConfirmacaoWpp) setTemplateWpp(d.config.mensagemConfirmacaoWpp);
+        if (d.config?.horaInicioAgenda != null) setHoraInicio(d.config.horaInicioAgenda);
+        if (d.config?.horaFimAgenda != null) setHoraFim(d.config.horaFimAgenda);
+      })
       .catch(console.error);
   }, []);
 
@@ -556,7 +562,7 @@ export default function AgendaPage() {
                     {/* Linha do horário atual */}
                     {ehHoje && (() => {
                       const agora = new Date();
-                      const min = (agora.getHours() - HORA_INICIO) * 60 + agora.getMinutes();
+                      const min = (agora.getHours() - horaInicio) * 60 + agora.getMinutes();
                       if (min < 0 || min > TOTAL_SLOTS * 30) return null;
                       const pct = (min / (TOTAL_SLOTS * 30)) * 100;
                       return (

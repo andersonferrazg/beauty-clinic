@@ -59,12 +59,23 @@ type AgendamentoComItens = Awaited<ReturnType<typeof prisma.agendamento.findFirs
     percentualComissao: number | null;
     salarioFixo: number | null;
     direcaoComissao: string;
+    profissionalTerceiro: boolean;
   };
   cliente: { id: string; nome: string } | null;
   lancamentoId: string | null;
 };
 
 async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
+  // Profissional terceiro: atendimento não entra no financeiro da clínica.
+  // Só marca o agendamento como realizado, sem criar receita, comissão ou movimentar estoque.
+  if (agendamento.profissional.profissionalTerceiro) {
+    await prisma.agendamento.update({
+      where: { id: agendamento.id },
+      data: { dataRealizado: new Date() },
+    });
+    return;
+  }
+
   const valorTotal = agendamento.itens.reduce(
     (sum, item) => sum + item.preco * item.quantidade,
     0,
