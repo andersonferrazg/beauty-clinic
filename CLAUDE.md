@@ -78,7 +78,7 @@ lunnaagenda/
 │   ├── seed-financeiro.ts       # seed de lançamentos mai–dez 2026
 │   └── hash-passwords.ts        # script one-shot para migrar senhas plain→bcrypt
 ├── scripts/
-│   └── patch-schema.js          # troca provider sqlite→postgresql antes do build no Vercel
+│   └── patch-schema.js          # troca provider sqlite→postgresql antes do build (Railway/Vercel)
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/login/        # página de login
@@ -187,27 +187,43 @@ export async function GET() {
 
 ---
 
-## Deploy (Vercel + Supabase)
+## Deploy (Railway + Supabase) ✅ PRODUÇÃO ATIVA
+
+**URL de produção:** `https://beauty-clinic-production-d893.up.railway.app`
+**GitHub:** `https://github.com/andersonferrazg/beauty-clinic`
+**Supabase project ref:** `vbtqittceshebajqpjzw`
 
 ### Preparação do código (já feito)
 - `scripts/patch-schema.js` — troca `provider = "sqlite"` → `"postgresql"` quando `DATABASE_PROVIDER=postgresql`
 - `package.json` build: `node scripts/patch-schema.js && prisma generate && next build`
-- `package.json` postinstall: `prisma generate` (necessário para Vercel gerar o client)
+- `package.json` postinstall: `prisma generate` (necessário para Railway gerar o client)
 - `.env.example` — template das variáveis de produção
 
-### Passos para o usuário
-1. **GitHub** — criar repositório privado e enviar o link
-2. **Supabase** — criar projeto em São Paulo, copiar a Connection String (URI)
-3. **Vercel** — conectar ao GitHub, configurar variáveis de ambiente:
-   - `DATABASE_PROVIDER=postgresql`
-   - `DATABASE_URL=<string do Supabase>`
-   - `SESSION_SECRET=<string aleatória longa>`
+### Variáveis no Railway (já configuradas)
+```
+DATABASE_PROVIDER=postgresql
+DATABASE_URL=postgresql://postgres.vbtqittceshebajqpjzw:%2ALa191218mari@aws-1-sa-east-1.pooler.supabase.com:5432/postgres
+SESSION_SECRET=<string aleatória configurada>
+```
 
-### Seed em produção
-Após o deploy, rodar via Vercel CLI ou painel:
-```bash
+**IMPORTANTE sobre o DATABASE_URL:**
+- Usar **session pooler** (`pooler.supabase.com:5432`), NÃO a conexão direta (`db.xxx.supabase.co:5432`)
+- A conexão direta do Supabase não é acessível externamente pelo Railway
+- O `*` na senha deve ser URL-encoded como `%2A`
+- Formato: `postgresql://postgres.{PROJECT_REF}:{SENHA_ENCODED}@aws-1-sa-east-1.pooler.supabase.com:5432/postgres`
+
+### Fluxo de deploy
+- Railway conectado ao GitHub (`main` branch) — **auto-deploys** a cada push
+- Para re-deployar manualmente: Railway → beauty-clinic → Deployments → botão redeploy
+
+### Seed em produção (já executado)
+O banco Supabase já tem schema e dados seed. Se precisar refazer:
+```powershell
+# Com DATABASE_URL apontando para o Supabase (não sqlite)
+$env:DATABASE_URL="postgresql://postgres.vbtqittceshebajqpjzw:%2ALa191218mari@aws-1-sa-east-1.pooler.supabase.com:5432/postgres"
+$env:DATABASE_PROVIDER="postgresql"
 npx prisma db push
-npx prisma db seed
+npx tsx prisma/seed.ts
 ```
 
 ---
