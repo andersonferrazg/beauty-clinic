@@ -1,0 +1,320 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Check, Palette, Building2, Calendar, Download, Database, Users, Package, ShoppingBag } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type StatusAgenda = { id: string; nome: string; cor: string; ordem: number; contaConfirmado: boolean };
+
+const TEMPLATE_PADRAO = `Oii {primeiro_nome} 💖
+
+Passando para confirmar nosso horário amanhã ({dia_semana}) {data_curta} ás {hora}h
+
+Por gentileza, confirme o recebimento desta mensagem. Caso não haja resposta, o seu horário será automaticamente cancelado.
+Tolerância de atraso é de 10 minutos.
+
+Agradeço a compreensão 🥰`;
+
+type Config = {
+  tenant: { id: string; nome: string; cnpj: string | null; telefone: string | null; endereco: string | null; corPrimaria: string } | null;
+  config: { intervaloAgendaMin: number; horarioEnvioWpp: string; mensagemConfirmacaoWpp: string | null; urlNFSe: string | null } | null;
+  status: StatusAgenda[];
+};
+
+const INTERVALOS = [15, 30, 60];
+
+export default function ConfiguracoesPage() {
+  const [dados, setDados] = useState<Config | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [salvoOk, setSalvoOk] = useState(false);
+  const [secao, setSecao] = useState<"clinica" | "agenda" | "status" | "backup">("clinica");
+  const [baixandoBackup, setBaixandoBackup] = useState(false);
+
+  // Campos da clínica
+  const [nomeCli, setNomeCli] = useState("");
+  const [cnpj, setCnpj] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [endereco, setEndereco] = useState("");
+
+  // Campos NF
+  const [urlNFSe, setUrlNFSe] = useState("");
+
+  // Campos de agenda
+  const [intervalo, setIntervalo] = useState(30);
+  const [horarioWpp, setHorarioWpp] = useState("08:00");
+  const [mensagemWpp, setMensagemWpp] = useState(TEMPLATE_PADRAO);
+
+  useEffect(() => {
+    fetch("/api/configuracoes")
+      .then((r) => r.json())
+      .then((d: Config) => {
+        setDados(d);
+        if (d.tenant) {
+          setNomeCli(d.tenant.nome);
+          setCnpj(d.tenant.cnpj ?? "");
+          setTelefone(d.tenant.telefone ?? "");
+          setEndereco(d.tenant.endereco ?? "");
+        }
+        if (d.config) {
+          setIntervalo(d.config.intervaloAgendaMin);
+          setHorarioWpp(d.config.horarioEnvioWpp);
+          setMensagemWpp(d.config.mensagemConfirmacaoWpp ?? TEMPLATE_PADRAO);
+          setUrlNFSe(d.config.urlNFSe ?? "");
+        }
+      })
+      .finally(() => setCarregando(false));
+  }, []);
+
+  async function salvar() {
+    setSalvando(true);
+    await fetch("/api/configuracoes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenant: { nome: nomeCli, cnpj, telefone, endereco },
+        config: { intervaloAgendaMin: intervalo, horarioEnvioWpp: horarioWpp, mensagemConfirmacaoWpp: mensagemWpp, urlNFSe },
+      }),
+    });
+    setSalvando(false);
+    setSalvoOk(true);
+    setTimeout(() => setSalvoOk(false), 2500);
+  }
+
+  if (carregando) {
+    return (
+      <div className="flex items-center justify-center h-full py-20">
+        <Loader2 size={24} className="animate-spin text-[#B89968]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-2xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-serif font-semibold text-[#5a4530]">Configurações</h1>
+        <p className="text-sm text-[#9a7d50] mt-1">Gerencie as configurações da clínica</p>
+      </div>
+
+      {/* Navegação por seções */}
+      <div className="flex gap-2 mb-6 border-b border-[#e8dcc4] pb-0">
+        {([
+          { id: "clinica", label: "Dados da Clínica", icon: Building2 },
+          { id: "agenda", label: "Agenda & WhatsApp", icon: Calendar },
+          { id: "status", label: "Status de Agenda", icon: Palette },
+          { id: "backup", label: "Backup", icon: Database },
+        ] as const).map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setSecao(id)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+              secao === id
+                ? "border-[#B89968] text-[#B89968]"
+                : "border-transparent text-[#9a7d50] hover:text-[#5a4530]"
+            )}
+          >
+            <Icon size={14} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Seção: Dados da Clínica */}
+      {secao === "clinica" && (
+        <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 space-y-4 shadow-sm">
+          <div>
+            <Label className="text-xs text-[#9a7d50] mb-1 block">Nome da Clínica</Label>
+            <Input value={nomeCli} onChange={(e) => setNomeCli(e.target.value)} placeholder="LB Beauty Clinic" className="border-[#B89968]/30" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs text-[#9a7d50] mb-1 block">CNPJ</Label>
+              <Input value={cnpj} onChange={(e) => setCnpj(e.target.value)} placeholder="00.000.000/0001-00" className="border-[#B89968]/30" />
+            </div>
+            <div>
+              <Label className="text-xs text-[#9a7d50] mb-1 block">Telefone</Label>
+              <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" className="border-[#B89968]/30" />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs text-[#9a7d50] mb-1 block">Endereço</Label>
+            <Input value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua, número, bairro, cidade" className="border-[#B89968]/30" />
+          </div>
+          <div>
+            <Label className="text-xs text-[#9a7d50] mb-1 block">Link do sistema de Nota Fiscal (indicado pelo seu contador)</Label>
+            <Input value={urlNFSe} onChange={(e) => setUrlNFSe(e.target.value)} placeholder="https://..." className="border-[#B89968]/30" />
+            <p className="text-xs text-[#9a7d50] mt-1">Ex: Florianópolis usa <span className="font-mono">e-gov.betha.com.br/e-nota</span> — cole o link que seu contador indicar.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Seção: Agenda & WhatsApp */}
+      {secao === "agenda" && (
+        <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 space-y-5 shadow-sm">
+          <div>
+            <Label className="text-xs text-[#9a7d50] mb-2 block">Intervalo de horários na agenda</Label>
+            <div className="flex gap-2">
+              {INTERVALOS.map((min) => (
+                <button
+                  key={min}
+                  onClick={() => setIntervalo(min)}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
+                    intervalo === min
+                      ? "bg-[#B89968] text-white border-[#B89968]"
+                      : "bg-white text-[#9a7d50] border-[#e8dcc4] hover:border-[#B89968]/50"
+                  )}
+                >
+                  {min} min
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs text-[#9a7d50] mb-1 block">Horário de envio das confirmações (WhatsApp)</Label>
+            <Input
+              type="time"
+              value={horarioWpp}
+              onChange={(e) => setHorarioWpp(e.target.value)}
+              className="border-[#B89968]/30 w-32"
+            />
+            <p className="text-xs text-[#9a7d50] mt-1">Mensagens de confirmação serão enviadas neste horário, um dia antes do agendamento.</p>
+          </div>
+
+          <div>
+            <Label className="text-xs text-[#9a7d50] mb-1 block">Mensagem de confirmação (WhatsApp)</Label>
+            <textarea
+              value={mensagemWpp}
+              onChange={(e) => setMensagemWpp(e.target.value)}
+              rows={10}
+              className="w-full rounded-lg border border-[#B89968]/30 bg-white px-3 py-2 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968] resize-none font-mono"
+            />
+            <div className="mt-1.5 text-xs text-[#9a7d50] space-y-0.5">
+              <p className="font-medium text-[#9a7d50]">Variáveis disponíveis:</p>
+              <p><span className="font-mono bg-[#faf5ee] px-1 rounded">{"{primeiro_nome}"}</span> — primeiro nome da cliente</p>
+              <p><span className="font-mono bg-[#faf5ee] px-1 rounded">{"{dia_semana}"}</span> — ex: Terça-feira</p>
+              <p><span className="font-mono bg-[#faf5ee] px-1 rounded">{"{data_curta}"}</span> — ex: 19/05</p>
+              <p><span className="font-mono bg-[#faf5ee] px-1 rounded">{"{hora}"}</span> — ex: 15:30</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMensagemWpp(TEMPLATE_PADRAO)}
+              className="mt-2 text-xs text-[#B89968] hover:underline"
+            >
+              Restaurar mensagem padrão
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Seção: Status da Agenda */}
+      {secao === "status" && (
+        <div className="bg-white rounded-xl border border-[#e8dcc4] overflow-hidden shadow-sm">
+          <div className="px-4 py-3 bg-[#faf5ee] border-b border-[#e8dcc4]">
+            <p className="text-sm text-[#9a7d50]">Status cadastrados para a agenda da clínica</p>
+          </div>
+          {dados?.status.map((s) => (
+            <div key={s.id} className="flex items-center gap-3 px-4 py-3 border-b border-[#e8dcc4] last:border-b-0">
+              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: s.cor }} />
+              <span className="text-sm font-medium text-[#5a4530] flex-1">{s.nome}</span>
+              {s.contaConfirmado && (
+                <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">confirmado</span>
+              )}
+            </div>
+          ))}
+          <div className="px-4 py-3 text-xs text-[#9a7d50]">
+            A customização avançada de status (criar, editar, reordenar) será disponibilizada em breve.
+          </div>
+        </div>
+      )}
+
+      {/* Seção: Backup */}
+      {secao === "backup" && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-[#5a4530] mb-1 flex items-center gap-2">
+              <Database size={15} className="text-[#B89968]" />
+              Backup Completo
+            </h3>
+            <p className="text-xs text-[#9a7d50] mb-4">
+              Exporta todos os dados do sistema em formato JSON. Inclui clientes, agendamentos, lançamentos financeiros, comissões e produtos.
+            </p>
+            <div className="grid grid-cols-2 gap-2 mb-4 text-xs text-[#9a7d50]">
+              {[
+                { icon: Users, label: "Clientes e dados pessoais" },
+                { icon: Calendar, label: "Histórico de agendamentos" },
+                { icon: Database, label: "Lançamentos financeiros" },
+                { icon: ShoppingBag, label: "Comissões e pagamentos" },
+                { icon: Package, label: "Produtos e estoque" },
+                { icon: Building2, label: "Profissionais e serviços" },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <Icon size={12} className="text-[#B89968]" />
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={async () => {
+                setBaixandoBackup(true);
+                try {
+                  const r = await fetch("/api/backup");
+                  if (!r.ok) throw new Error("Erro ao gerar backup");
+                  const blob = await r.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  const dataHoje = new Date().toISOString().slice(0, 10);
+                  a.download = `backup-beauty-clinic-${dataHoje}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch {
+                  alert("Erro ao gerar backup. Tente novamente.");
+                } finally {
+                  setBaixandoBackup(false);
+                }
+              }}
+              disabled={baixandoBackup}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#B89968] hover:bg-[#9a7d50] text-white text-sm font-medium disabled:opacity-50 transition-colors"
+            >
+              {baixandoBackup ? (
+                <><Loader2 size={15} className="animate-spin" /> Gerando backup...</>
+              ) : (
+                <><Download size={15} /> Baixar Backup Completo</>
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-[#9a7d50] px-1">
+            Recomendamos fazer backup semanalmente. Guarde o arquivo em um local seguro (Google Drive, OneDrive ou HD externo).
+          </p>
+        </div>
+      )}
+
+      {/* Botão salvar (exceto status e backup) */}
+      {secao !== "status" && secao !== "backup" && (
+        <div className="flex items-center justify-end gap-3 mt-5">
+          {salvoOk && (
+            <span className="flex items-center gap-1 text-sm text-green-600">
+              <Check size={14} />
+              Salvo com sucesso!
+            </span>
+          )}
+          <Button
+            onClick={salvar}
+            disabled={salvando}
+            className="bg-[#B89968] hover:bg-[#9a7d50] text-white"
+          >
+            {salvando ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+            Salvar Configurações
+          </Button>
+        </div>
+      )}
+
+    </div>
+  );
+}

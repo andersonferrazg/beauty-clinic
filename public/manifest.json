@@ -1,0 +1,42 @@
+{
+  "name": "Beauty Clinic",
+  "short_name": "Beauty Clinic",
+  "description": "Sistema de gestão para clínica de estética",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f5f0e8",
+  "theme_color": "#B89968",
+  "orientation": "portrait-primary",
+  "categories": ["business", "health"],
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/api/icons/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/api/icons/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Agenda",
+      "short_name": "Agenda",
+      "description": "Abrir agenda do dia",
+      "url": "/agenda",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Confirmações",
+      "short_name": "Confirm.",
+      "description": "Enviar confirmações WhatsApp",
+      "url": "/confirmacoes",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
