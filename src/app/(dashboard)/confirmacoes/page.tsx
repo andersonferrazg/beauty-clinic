@@ -47,7 +47,12 @@ function formatarDataISO(d: Date) {
 function gerarLinkWA(telefone: string, mensagem: string) {
   const numero = telefone.replace(/\D/g, "");
   const comDDI = numero.startsWith("55") ? numero : `55${numero}`;
-  return `https://wa.me/${comDDI}?text=${encodeURIComponent(mensagem)}`;
+  const texto = encodeURIComponent(mensagem);
+  const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  // Mobile: scheme direto ao app (preserva emoji). Desktop: WhatsApp Web (preserva emoji no browser)
+  return isMobile
+    ? `whatsapp://send?phone=${comDDI}&text=${texto}`
+    : `https://web.whatsapp.com/send?phone=${comDDI}&text=${texto}`;
 }
 
 function preencherTemplate(ag: Agendamento, tmpl: string) {
