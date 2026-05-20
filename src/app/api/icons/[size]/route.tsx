@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
 
@@ -8,6 +8,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ size
   const px = size === "512" ? 512 : 192;
   const fontSize = size === "512" ? 180 : 68;
 
+  // Se o tenant tem logo customizada, redireciona para ela.
+  // Funciona multi-tenant: cada clínica pode subir a própria logo.
+  try {
+    const tenantRes = await fetch(new URL("/api/tenant-publico", req.url));
+    if (tenantRes.ok) {
+      const tenant = await tenantRes.json();
+      if (tenant.logoUrl) {
+        return NextResponse.redirect(new URL(tenant.logoUrl, req.url), 307);
+      }
+    }
+  } catch {
+    // Cai no fallback abaixo (gera ícone com "BC")
+  }
+
+  // Fallback: gera ícone com "BC" (marca do sistema) — usado quando a clínica
+  // não subiu logo própria ainda.
   return new ImageResponse(
     (
       <div
