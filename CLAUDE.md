@@ -187,34 +187,42 @@ export async function GET() {
 
 ---
 
-## Deploy (Railway + Supabase) ✅ PRODUÇÃO ATIVA
+## Deploy (Vercel + Supabase) ✅ PRODUÇÃO ATIVA
 
-**URL de produção:** `https://beauty-clinic-production-d893.up.railway.app`
-**GitHub:** `https://github.com/andersonferrazg/beauty-clinic`
+**URL de produção:** `https://beauty-clinic-beige.vercel.app`
+**GitHub:** `https://github.com/andersonferrazg/beauty-clinic` (push para `main` → auto-deploy)
 **Supabase project ref:** `vbtqittceshebajqpjzw`
 
-### Preparação do código (já feito)
-- `scripts/patch-schema.js` — troca `provider = "sqlite"` → `"postgresql"` quando `DATABASE_PROVIDER=postgresql`
-- `package.json` build: `node scripts/patch-schema.js && prisma generate && next build`
-- `package.json` postinstall: `prisma generate` (necessário para Railway gerar o client)
-- `.env.example` — template das variáveis de produção
+### Histórico
+- **Antes (até 2026-05-19):** Railway (`beauty-clinic-production-d893.up.railway.app`)
+- **Por que migrou:** Railway está no plano TRIAL gratuito ($5 de crédito); quando o crédito acabou, deploys foram pausados ("Limited Access"). Migrado para Vercel (plano Hobby/Passatempo, gratuito).
+- **Railway ainda existe** mas não é mais usado; pode ser deletado quando Anderson decidir.
 
-### Variáveis no Railway (já configuradas)
+### Preparação do código (já feito)
+- `scripts/patch-schema.js` — troca `provider = "sqlite"` → `"postgresql"` quando `DATABASE_PROVIDER=postgresql` (já escrito pensando em Vercel, comentário no topo do arquivo)
+- `package.json` build: `node scripts/patch-schema.js && prisma generate && next build`
+- `package.json` postinstall: `prisma generate` (necessário para Vercel gerar o client)
+- `.env.example` — template das variáveis de produção
+- **Sem arquivos específicos de Vercel** — detecção automática de Next.js
+
+### Variáveis no Vercel (configuradas em Environment Variables, ambientes "Produção e Pré-visualização")
 ```
 DATABASE_PROVIDER=postgresql
 DATABASE_URL=postgresql://postgres.vbtqittceshebajqpjzw:%2ALa191218mari@aws-1-sa-east-1.pooler.supabase.com:5432/postgres
-SESSION_SECRET=<string aleatória configurada>
+SESSION_SECRET=<string aleatória gerada via openssl rand -hex 32>
 ```
 
 **IMPORTANTE sobre o DATABASE_URL:**
 - Usar **session pooler** (`pooler.supabase.com:5432`), NÃO a conexão direta (`db.xxx.supabase.co:5432`)
-- A conexão direta do Supabase não é acessível externamente pelo Railway
+- A conexão direta do Supabase tem mais restrições para conexões externas
 - O `*` na senha deve ser URL-encoded como `%2A`
 - Formato: `postgresql://postgres.{PROJECT_REF}:{SENHA_ENCODED}@aws-1-sa-east-1.pooler.supabase.com:5432/postgres`
 
 ### Fluxo de deploy
-- Railway conectado ao GitHub (`main` branch) — **auto-deploys** a cada push
-- Para re-deployar manualmente: Railway → beauty-clinic → Deployments → botão redeploy
+- Vercel conectado ao GitHub (`main` branch) — **auto-deploys** a cada push
+- Painel: https://vercel.com/andersonferrazg/beauty-clinic
+- Cada deploy fica acessível por URL única (ex: `clínica-de-beleza-69oe6tc9w-andersonferrazg.vercel.app`); a URL "estável" é `beauty-clinic-beige.vercel.app`
+- Para re-deployar manualmente: Vercel → projeto → Deployments → menu `⋯` no deploy → "Redeploy"
 
 ### Seed em produção (já executado)
 O banco Supabase já tem schema e dados seed. Se precisar refazer:
