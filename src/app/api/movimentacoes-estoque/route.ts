@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 // body: { produtoId, tipo: "ENTRADA"|"AJUSTE", quantidade, motivo?, custoUnitario? }
 export async function POST(req: NextRequest) {
   const sessao = await exigirSessao();
-  if (!sessao.isAdmin) {
+  if (!sessao.permissoes.isAdmin) {
     return NextResponse.json({ erro: "Apenas administrador pode registrar movimentações" }, { status: 403 });
   }
 

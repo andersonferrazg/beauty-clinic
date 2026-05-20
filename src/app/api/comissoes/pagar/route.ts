@@ -7,7 +7,7 @@ import { exigirSessao } from "@/lib/session";
 // Cria uma DESPESA agregada e marca todas as comissões selecionadas como pagas.
 export async function POST(req: NextRequest) {
   const sessao = await exigirSessao();
-  if (!sessao.isAdmin) {
+  if (!sessao.permissoes.isAdmin) {
     return NextResponse.json({ erro: "Apenas administrador pode pagar comissões" }, { status: 403 });
   }
 

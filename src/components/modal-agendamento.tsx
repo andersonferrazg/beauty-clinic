@@ -94,6 +94,14 @@ export function ModalAgendamento({
   const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
   const [mostrarSugestoesItem, setMostrarSugestoesItem] = useState<boolean[]>([]);
 
+  // ── Sessão do usuário logado ───────────────────────────────────────────────
+  type SessaoSimples = { permissoes?: { isAdmin?: boolean }; profissionalId?: string | null };
+  const [minhaSessao, setMinhaSessao] = useState<SessaoSimples | null>(null);
+
+  useEffect(() => {
+    fetch("/api/me/sessao").then((r) => r.json()).then(setMinhaSessao).catch(() => {});
+  }, []);
+
   // ── Estado ─────────────────────────────────────────────────────────────────
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
@@ -122,14 +130,22 @@ export function ModalAgendamento({
     if (aberto && !agendamentoId) {
       setDataStr(dataParaLocalStr(dataInicial ?? new Date()));
       setHoraStr(minutosParaHora(horaInicial));
-      setProfissionalId(profissionalInicial ?? "");
+      const profId = profissionalInicial || (!minhaSessao?.permissoes?.isAdmin && minhaSessao?.profissionalId ? minhaSessao.profissionalId : "");
+      setProfissionalId(profId ?? "");
     }
-  }, [aberto, agendamentoId, dataInicial, horaInicial, profissionalInicial]);
+  }, [aberto, agendamentoId, dataInicial, horaInicial, profissionalInicial, minhaSessao]);
 
   // ── Carregar listas ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!aberto) return;
-    fetch("/api/profissionais").then((r) => r.json()).then(setProfissionais);
+    fetch("/api/profissionais").then((r) => r.json()).then((lista: Profissional[]) => {
+      // Não-admin vê apenas si mesmo na lista
+      if (!minhaSessao?.permissoes?.isAdmin && minhaSessao?.profissionalId) {
+        setProfissionais(lista.filter((p) => p.id === minhaSessao.profissionalId));
+      } else {
+        setProfissionais(lista);
+      }
+    });
     fetch("/api/status-agenda").then((r) => r.json()).then((lista) => {
       setStatusOpcoes(lista);
       if (!statusId && lista.length) setStatusId(lista[0].id);
@@ -431,7 +447,8 @@ export function ModalAgendamento({
             <select
               value={profissionalId}
               onChange={(e) => setProfissionalId(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-[#B89968]/30 bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B89968]"
+              disabled={!minhaSessao?.permissoes?.isAdmin && !!minhaSessao?.profissionalId}
+              className="flex h-9 w-full rounded-md border border-[#B89968]/30 bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B89968] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <option value="">Selecionar profissional...</option>
               {profissionais.map((p) => (
@@ -465,7 +482,7 @@ export function ModalAgendamento({
                     }}
                     className="text-xs text-[#B89968] border border-[#B89968]/40 px-2.5 py-0.5 rounded-md hover:bg-[#B89968]/10 transition-colors font-medium"
                   >
-                    NOVA COMANDA
+                    ADICIONAR CLIENTE
                   </button>
                 </div>
                 <div className="relative">

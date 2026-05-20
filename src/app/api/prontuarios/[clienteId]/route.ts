@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { exigirSessao } from "@/lib/session";
+import { exigirPermissao } from "@/lib/session";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ clienteId: string }> }) {
-  const sessao = await exigirSessao();
+  const sessao = await exigirPermissao("acessarProntuarios");
   const { clienteId } = await params;
 
   const cliente = await prisma.cliente.findFirst({

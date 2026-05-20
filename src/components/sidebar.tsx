@@ -26,33 +26,44 @@ import {
   Send,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { Permissoes } from "@/lib/session";
 
-const navegacao = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/agenda", label: "Agenda", icon: Calendar },
-  { href: "/clientes", label: "Clientes", icon: Users },
-  { href: "/prontuarios", label: "Prontuários", icon: FileText },
-  { href: "/servicos", label: "Serviços & Pacotes", icon: Scissors },
-  { href: "/produtos", label: "Produtos & Estoque", icon: Package },
-  { href: "/financeiro", label: "Cobranças", icon: Receipt },
-  { href: "/gastos/clinica", label: "Gastos Clínica", icon: Building2 },
-  { href: "/gastos/casa", label: "Gastos Pessoal", icon: Home },
-  { href: "/comissoes", label: "Comissões", icon: Wallet },
-  { href: "/comandas", label: "Comandas", icon: ClipboardList },
-  { href: "/confirmacoes", label: "Confirmações WA", icon: Send },
-  { href: "/mensagens", label: "Msgs Pré-definidas", icon: MessageSquare },
-  { href: "/profissionais", label: "Profissionais", icon: Users },
+type ItemNav = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number }>;
+  // Função que recebe as permissões do usuário e decide se mostra o item.
+  // Admin sempre vê tudo (verificado dentro da função).
+  visivel: (p: Permissoes) => boolean;
+};
+type ItemDivisor = { divisor: true; label: string };
+type NavItem = ItemNav | ItemDivisor;
+
+const sempre = () => true;
+const admin = (p: Permissoes) => p.isAdmin;
+
+const navegacao: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, visivel: sempre },
+  { href: "/agenda", label: "Agenda", icon: Calendar, visivel: (p) => p.isAdmin || p.verAgenda },
+  { href: "/clientes", label: "Clientes", icon: Users, visivel: (p) => p.isAdmin || p.acessarClientes },
+  { href: "/prontuarios", label: "Prontuários", icon: FileText, visivel: (p) => p.isAdmin || p.acessarProntuarios },
+  { href: "/servicos", label: "Serviços & Pacotes", icon: Scissors, visivel: (p) => p.isAdmin || p.acessarServicos },
+  { href: "/produtos", label: "Produtos & Estoque", icon: Package, visivel: (p) => p.isAdmin || p.acessarProdutos },
+  { href: "/financeiro", label: "Cobranças", icon: Receipt, visivel: (p) => p.isAdmin || p.acessarFinanceiro },
+  { href: "/gastos/clinica", label: "Gastos Clínica", icon: Building2, visivel: (p) => p.isAdmin || p.acessarDespesas },
+  { href: "/gastos/casa", label: "Gastos Pessoal", icon: Home, visivel: (p) => p.isAdmin || p.acessarDespesas },
+  { href: "/comissoes", label: "Comissões", icon: Wallet, visivel: (p) => p.isAdmin || p.verComissoesReceber || p.verPagamentosComissao },
+  { href: "/comandas", label: "Comandas", icon: ClipboardList, visivel: (p) => p.isAdmin || p.acessarFinanceiro },
+  { href: "/confirmacoes", label: "Confirmações WA", icon: Send, visivel: (p) => p.isAdmin || p.verAgenda },
+  { href: "/mensagens", label: "Msgs Pré-definidas", icon: MessageSquare, visivel: (p) => p.isAdmin || p.acessarServicos },
+  { href: "/profissionais", label: "Profissionais", icon: Users, visivel: admin },
   { divisor: true, label: "Relatórios" },
-  { href: "/relatorios/performance", label: "Performance", icon: BarChart2 },
-  { href: "/relatorios/financeiro", label: "Resumo Financeiro", icon: DollarSign },
-  { href: "/relatorios/clientes", label: "Melhores Clientes", icon: Users },
+  { href: "/relatorios/performance", label: "Performance", icon: BarChart2, visivel: (p) => p.isAdmin || p.acessarRelatorios },
+  { href: "/relatorios/financeiro", label: "Resumo Financeiro", icon: DollarSign, visivel: (p) => p.isAdmin || p.acessarRelatorios },
+  { href: "/relatorios/clientes", label: "Melhores Clientes", icon: Users, visivel: (p) => p.isAdmin || p.acessarRelatorios },
   { divisor: true, label: "" },
-  { href: "/configuracoes", label: "Configurações", icon: Settings },
-] as const;
-
-type NavItem =
-  | { href: string; label: string; icon: React.ComponentType<{ size?: number }> }
-  | { divisor: true; label: string };
+  { href: "/configuracoes", label: "Configurações", icon: Settings, visivel: admin },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -60,11 +71,19 @@ export function Sidebar() {
   const [aberto, setAberto] = useState(false);
   const [saindo, setSaindo] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [permissoes, setPermissoes] = useState<Permissoes | null>(null);
 
   useEffect(() => {
     fetch("/api/tenant-publico")
       .then((r) => r.json())
       .then((data) => setLogoUrl(data.logoUrl))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/me/sessao")
+      .then((r) => r.json())
+      .then((s) => { if (s?.permissoes) setPermissoes(s.permissoes); })
       .catch(() => {});
   }, []);
 
@@ -129,7 +148,13 @@ export function Sidebar() {
 
         {/* Navegação */}
         <nav className="flex-1 overflow-y-auto py-3 px-2">
-          {(navegacao as unknown as NavItem[]).map((item, i) => {
+          {navegacao
+            .filter((item) => {
+              if (!permissoes) return false;
+              if ("divisor" in item) return true;
+              return item.visivel(permissoes);
+            })
+            .map((item, i) => {
             if ("divisor" in item) {
               return (
                 <div key={i} className="px-3 pt-4 pb-1">

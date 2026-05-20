@@ -4,7 +4,7 @@ import { exigirSessao } from "@/lib/session";
 
 export async function GET() {
   const sessao = await exigirSessao();
-  if (!sessao.isAdmin) {
+  if (!sessao.permissoes.isAdmin) {
     return NextResponse.json({ erro: "Apenas administradores podem fazer backup" }, { status: 403 });
   }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { exigirSessao } from "@/lib/session";
+import { exigirSessao, exigirPermissao } from "@/lib/session";
 import bcrypt from "bcryptjs";
 
 const PERMISSOES_KEYS = [
@@ -81,7 +81,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const sessao = await exigirSessao();
+  const sessao = await exigirPermissao("isAdmin");
   const body = await req.json();
 
   if (!body.nome || typeof body.nome !== "string") {

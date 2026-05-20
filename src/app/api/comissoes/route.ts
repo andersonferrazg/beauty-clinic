@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   if (pagoParam === "false") where.pago = false;
 
   // Profissional vê só as próprias comissões
-  if (!sessao.isAdmin && sessao.profissionalId) {
+  if (!sessao.permissoes.isAdmin && sessao.profissionalId) {
     where.profissionalId = sessao.profissionalId;
   }
 

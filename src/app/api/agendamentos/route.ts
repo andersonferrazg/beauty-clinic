@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   };
 
   // Profissional vê apenas seus próprios agendamentos; admin vê todos
-  if (!sessao.isAdmin && sessao.profissionalId) {
+  if (!sessao.permissoes.isAdmin && sessao.profissionalId) {
     where.profissionalId = sessao.profissionalId;
   } else if (profissionalId) {
     where.profissionalId = profissionalId;

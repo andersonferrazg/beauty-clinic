@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { exigirSessao } from "@/lib/session";
+import { exigirSessao, exigirPermissao } from "@/lib/session";
 
 export async function GET() {
   const sessao = await exigirSessao();
@@ -21,7 +21,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const sessao = await exigirSessao();
+  const sessao = await exigirPermissao("isAdmin");
   const body = await req.json();
 
   if (body.tenant) {

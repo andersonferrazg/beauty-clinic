@@ -245,11 +245,18 @@ export default function AgendaPage() {
       const salvo = localStorage.getItem("agendaData");
       if (salvo) { const d = new Date(salvo + "T12:00"); if (!isNaN(d.getTime())) setDataAtual(d); }
     } catch {}
-    fetch("/api/profissionais")
-      .then((r) => r.json())
-      .then((profs: Profissional[]) =>
-        setProfissionais(profs.filter((p) => p.possuiAgenda !== false))
-      )
+    Promise.all([
+      fetch("/api/profissionais").then((r) => r.json()),
+      fetch("/api/me/sessao").then((r) => r.json()),
+    ])
+      .then(([profs, sessao]: [Profissional[], { permissoes?: { isAdmin?: boolean }; profissionalId?: string | null }]) => {
+        const comAgenda = (profs as Profissional[]).filter((p) => p.possuiAgenda !== false);
+        if (!sessao?.permissoes?.isAdmin && sessao?.profissionalId) {
+          setProfissionais(comAgenda.filter((p) => p.id === sessao.profissionalId));
+        } else {
+          setProfissionais(comAgenda);
+        }
+      })
       .catch(console.error);
     fetch("/api/configuracoes")
       .then((r) => r.json())

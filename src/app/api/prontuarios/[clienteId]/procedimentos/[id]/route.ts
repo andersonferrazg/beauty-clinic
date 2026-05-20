@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { exigirSessao } from "@/lib/session";
+import { exigirPermissao } from "@/lib/session";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sessao = await exigirSessao();
+  const sessao = await exigirPermissao("acessarProntuarios");
   const { id } = await params;
 
   const procedimento = await prisma.procedimento.findFirst({
@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sessao = await exigirSessao();
+  const sessao = await exigirPermissao("acessarProntuarios");
   const { id } = await params;
   const body = await req.json();
 
@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sessao = await exigirSessao();
+  const sessao = await exigirPermissao("acessarProntuarios");
   const { id } = await params;
 
   await prisma.procedimento.delete({ where: { id, tenantId: sessao.tenantId } });

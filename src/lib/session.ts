@@ -1,13 +1,47 @@
 import { cookies } from "next/headers";
 import { createHmac } from "crypto";
 
+export type Permissoes = {
+  isAdmin: boolean;
+  verAgenda: boolean;
+  realizarAgendamentos: boolean;
+  verContatoCliente: boolean;
+  verValoresServicos: boolean;
+  acessarClientes: boolean;
+  acessarServicos: boolean;
+  acessarProdutos: boolean;
+  acessarDespesas: boolean;
+  acessarFinanceiro: boolean;
+  verComissoesReceber: boolean;
+  verPagamentosComissao: boolean;
+  acessarProntuarios: boolean;
+  acessarRelatorios: boolean;
+};
+
+export const PERMISSOES_VAZIAS: Permissoes = {
+  isAdmin: false,
+  verAgenda: false,
+  realizarAgendamentos: false,
+  verContatoCliente: false,
+  verValoresServicos: false,
+  acessarClientes: false,
+  acessarServicos: false,
+  acessarProdutos: false,
+  acessarDespesas: false,
+  acessarFinanceiro: false,
+  verComissoesReceber: false,
+  verPagamentosComissao: false,
+  acessarProntuarios: false,
+  acessarRelatorios: false,
+};
+
 export type Sessao = {
   usuarioId: string;
   tenantId: string;
   nome: string;
   email: string;
-  isAdmin: boolean;
   profissionalId: string | null;
+  permissoes: Permissoes;
 };
 
 function segredo() {
@@ -38,7 +72,13 @@ export async function getSessao(): Promise<Sessao | null> {
   try {
     const payload = verificar(raw);
     if (!payload) return null;
-    return JSON.parse(payload) as Sessao;
+    const parsed = JSON.parse(payload) as Sessao;
+    // Compatibilidade com sessões antigas (sem o objeto permissoes):
+    // se faltar, considera tudo false (forçar relogar).
+    if (!parsed.permissoes) {
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -47,6 +87,29 @@ export async function getSessao(): Promise<Sessao | null> {
 export async function exigirSessao(): Promise<Sessao> {
   const sessao = await getSessao();
   if (!sessao) throw new Error("Não autenticado");
+  return sessao;
+}
+
+/**
+ * Verifica se a sessão tem uma permissão específica.
+ * Admin (`isAdmin: true`) sempre passa em qualquer verificação.
+ */
+export function temPermissao(sessao: Sessao, chave: keyof Permissoes): boolean {
+  if (sessao.permissoes.isAdmin) return true;
+  return sessao.permissoes[chave] === true;
+}
+
+/**
+ * Exige uma permissão específica. Lança Error 403 se não tiver.
+ * Use no início de API routes que precisam de permissão granular.
+ */
+export async function exigirPermissao(chave: keyof Permissoes): Promise<Sessao> {
+  const sessao = await exigirSessao();
+  if (!temPermissao(sessao, chave)) {
+    const err = new Error("Sem permissão");
+    (err as Error & { status?: number }).status = 403;
+    throw err;
+  }
   return sessao;
 }
 

@@ -6,7 +6,7 @@ import { exigirSessao } from "@/lib/session";
 // body: { valorComissao?: number, pago?: boolean, pagoEm?: string | null }
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sessao = await exigirSessao();
-  if (!sessao.isAdmin) {
+  if (!sessao.permissoes.isAdmin) {
     return NextResponse.json({ erro: "Apenas administrador pode editar comissões" }, { status: 403 });
   }
 

@@ -4,7 +4,8 @@ import { exigirSessao } from "@/lib/session";
 
 export async function GET() {
   const sessao = await exigirSessao();
-  const { tenantId, isAdmin, profissionalId, nome } = sessao;
+  const { tenantId, profissionalId, nome } = sessao;
+  const isAdmin = sessao.permissoes.isAdmin;
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
