@@ -15,16 +15,12 @@ export default function LoginPage() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
-  const [tenant, setTenant] = useState<{ nome: string; iniciais: string; logoUrl: string | null }>({
-    nome: "Beauty Clinic",
-    iniciais: "BC",
-    logoUrl: null,
-  });
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/tenant-publico")
       .then((r) => r.json())
-      .then((data) => setTenant({ nome: data.nome, iniciais: data.iniciais, logoUrl: data.logoUrl }))
+      .then((data) => setLogoUrl(data.logoUrl))
       .catch(() => {});
   }, []);
 
@@ -66,19 +62,19 @@ export default function LoginPage() {
 
       <Card className="w-full max-w-md relative shadow-xl border-[#B89968]/20">
         <CardHeader className="text-center pb-2">
-          {/* Logo do tenant */}
+          {/* Logo da clínica (se houver upload) OU iniciais BC do sistema */}
           <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-gradient-to-br from-[#B89968] to-[#9a7d50] flex items-center justify-center shadow-lg overflow-hidden">
-            {tenant.logoUrl ? (
+            {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={tenant.logoUrl} alt={tenant.nome} className="w-full h-full object-cover" />
+              <img src={logoUrl} alt="Logo da clínica" className="w-full h-full object-cover" />
             ) : (
               <span className="text-white font-serif text-2xl font-bold tracking-wider">
-                {tenant.iniciais}
+                BC
               </span>
             )}
           </div>
           <CardTitle className="text-2xl font-serif text-[#5a4530]">
-            {tenant.nome}
+            Beauty Clinic
           </CardTitle>
           <CardDescription className="text-[#9a7d50] tracking-widest text-xs uppercase mt-1">
             Sistema de Gestão
@@ -151,7 +147,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-xs text-[#9a7d50] mt-6">
-            {tenant.nome} © {new Date().getFullYear()}
+            Beauty Clinic © {new Date().getFullYear()}
           </p>
         </CardContent>
       </Card>

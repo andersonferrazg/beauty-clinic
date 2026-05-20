@@ -59,16 +59,12 @@ export function Sidebar() {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [saindo, setSaindo] = useState(false);
-  const [tenant, setTenant] = useState<{ nome: string; iniciais: string; logoUrl: string | null }>({
-    nome: "Beauty Clinic",
-    iniciais: "BC",
-    logoUrl: null,
-  });
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/tenant-publico")
       .then((r) => r.json())
-      .then((data) => setTenant({ nome: data.nome, iniciais: data.iniciais, logoUrl: data.logoUrl }))
+      .then((data) => setLogoUrl(data.logoUrl))
       .catch(() => {});
   }, []);
 
@@ -109,16 +105,16 @@ export function Sidebar() {
         <div className="flex items-center justify-between px-4 py-5 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#B89968] to-[#9a7d50] flex items-center justify-center flex-shrink-0 shadow overflow-hidden">
-              {tenant.logoUrl ? (
+              {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={tenant.logoUrl} alt={tenant.nome} className="w-full h-full object-cover" />
+                <img src={logoUrl} alt="Logo da clínica" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-white font-serif text-sm font-bold">{tenant.iniciais}</span>
+                <span className="text-white font-serif text-sm font-bold">BC</span>
               )}
             </div>
             <div>
               <p className="text-[#B89968] font-serif font-semibold text-sm leading-none">
-                {tenant.nome}
+                Beauty Clinic
               </p>
               <p className="text-white/40 text-xs mt-0.5">Sistema de Gestão</p>
             </div>
