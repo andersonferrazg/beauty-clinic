@@ -191,11 +191,16 @@ export default function ImprimirProntuarioPage({
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [prontuario, setProntuario] = useState<Prontuario | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [nomeClinica, setNomeClinica] = useState("Beauty Clinic");
 
   useEffect(() => {
     fetch(`/api/prontuarios/${clienteId}`)
       .then((r) => r.json())
       .then((d) => { setCliente(d.cliente); setProntuario(d.prontuario); setCarregando(false); });
+    fetch("/api/tenant-publico")
+      .then((r) => r.json())
+      .then((d) => setNomeClinica(d.nome))
+      .catch(() => {});
   }, [clienteId]);
 
   if (carregando) {
@@ -233,7 +238,7 @@ export default function ImprimirProntuarioPage({
         <div className="max-w-3xl mx-auto bg-white p-10 my-6 shadow-sm print:shadow-none print:my-0 print:p-0">
           {/* Cabeçalho */}
           <div className="text-center border-b-2 border-[#B89968] pb-3 mb-5">
-            <p className="text-2xl font-serif font-bold text-[#B89968] tracking-wide">LB Beauty Clinic</p>
+            <p className="text-2xl font-serif font-bold text-[#B89968] tracking-wide">{nomeClinica}</p>
             <p className="text-sm text-gray-600 mt-1">Prontuário do(a) Paciente</p>
             <p className="text-xs text-gray-500 mt-0.5">Emitido em: {new Date().toLocaleDateString("pt-BR")}</p>
           </div>

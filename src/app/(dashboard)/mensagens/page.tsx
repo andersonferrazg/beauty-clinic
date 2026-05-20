@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Copy, Check, Edit3 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,7 @@ Passando para confirmar seu agendamento amanhã:
 📅 *{data}* às *{hora}*
 💆 Serviço: *{servico}*
 👩 Profissional: *{profissional}*
-📍 LB Beauty Clinic
+📍 {nome_clinica}
 
 Confirme sua presença respondendo:
 ✅ *SIM* - Confirmado
@@ -48,7 +48,7 @@ Lembrando do seu agendamento hoje:
 👩 Com {profissional}
 
 Te esperamos! 🌸
-LB Beauty Clinic`,
+{nome_clinica}`,
   },
   {
     id: "3",
@@ -64,7 +64,7 @@ Como presente especial, você ganhou *{desconto}% de desconto* no seu próximo a
 Validade: até {data_validade}
 
 Com carinho,
-LB Beauty Clinic 💛`,
+{nome_clinica} 💛`,
   },
   {
     id: "4",
@@ -77,12 +77,13 @@ Seu agendamento do dia *{data}* às *{hora}* foi cancelado conforme solicitado.
 
 Para reagendar, entre em contato conosco! 📲
 
-LB Beauty Clinic 💛`,
+{nome_clinica} 💛`,
   },
 ];
 
 const VARS = [
   { var: "{nome_cliente}", desc: "Nome da cliente" },
+  { var: "{nome_clinica}", desc: "Nome da clínica (configurado em Configurações)" },
   { var: "{data}", desc: "Data do agendamento" },
   { var: "{hora}", desc: "Horário" },
   { var: "{servico}", desc: "Nome do serviço" },
@@ -91,14 +92,26 @@ const VARS = [
   { var: "{data_validade}", desc: "Data de validade da oferta" },
 ];
 
+function aplicarNomeClinica(texto: string, nome: string): string {
+  return texto.replace(/\{nome_clinica\}/g, nome);
+}
+
 export default function MensagensPage() {
   const [selecionado, setSelecionado] = useState<MsgTemplate>(TEMPLATES_PADRAO[0]);
   const [editando, setEditando] = useState(false);
   const [conteudoEdit, setConteudoEdit] = useState("");
   const [copiado, setCopiado] = useState(false);
+  const [nomeClinica, setNomeClinica] = useState("Beauty Clinic");
+
+  useEffect(() => {
+    fetch("/api/tenant-publico")
+      .then((r) => r.json())
+      .then((d) => setNomeClinica(d.nome))
+      .catch(() => {});
+  }, []);
 
   function copiar(texto: string) {
-    navigator.clipboard.writeText(texto);
+    navigator.clipboard.writeText(aplicarNomeClinica(texto, nomeClinica));
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   }
@@ -198,7 +211,7 @@ export default function MensagensPage() {
                 {/* Simulação de bolha do WhatsApp */}
                 <div className="bg-[#dcf8c6] rounded-xl rounded-tl-none p-4 max-w-sm shadow-sm ml-2">
                   <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
-                    {selecionado.conteudo}
+                    {aplicarNomeClinica(selecionado.conteudo, nomeClinica)}
                   </pre>
                   <p className="text-xs text-gray-400 text-right mt-2">09:27 ✓✓</p>
                 </div>

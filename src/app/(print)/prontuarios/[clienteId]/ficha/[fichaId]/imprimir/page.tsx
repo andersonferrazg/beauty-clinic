@@ -58,6 +58,7 @@ export default function ImprimirFichaPage({
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [proc, setProc] = useState<Procedimento | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [nomeClinica, setNomeClinica] = useState("Beauty Clinic");
 
   useEffect(() => {
     Promise.all([
@@ -68,6 +69,10 @@ export default function ImprimirFichaPage({
       setProc(dadosProc);
       setCarregando(false);
     });
+    fetch("/api/tenant-publico")
+      .then((r) => r.json())
+      .then((d) => setNomeClinica(d.nome))
+      .catch(() => {});
   }, [clienteId, fichaId]);
 
   if (carregando) {
@@ -122,7 +127,7 @@ export default function ImprimirFichaPage({
 
           {/* Cabeçalho */}
           <div className="text-center border-b-2 border-[#B89968] pb-3 mb-5">
-            <p className="text-2xl font-serif font-bold text-[#B89968] tracking-wide">LB Beauty Clinic</p>
+            <p className="text-2xl font-serif font-bold text-[#B89968] tracking-wide">{nomeClinica}</p>
             <p className="text-sm text-gray-600 mt-1">{tituloTipo(proc.tipo)}</p>
             <p className="text-xs text-gray-500 mt-0.5">Data: {formatarData(proc.data)}</p>
           </div>

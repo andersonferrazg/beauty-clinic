@@ -289,6 +289,12 @@ O body do modal inclui `tipo` ("agendamento" | "bloqueio"), mas esse campo **nã
 O PATCH handler **desestrutura e descarta `tipo` explicitamente** — nunca passar direto ao Prisma.
 O mesmo vale para `motivoBloqueio` — mapeado para `observacao` no banco.
 
+### Profissional terceiro — não gera financeiro
+
+Quando `Profissional.profissionalTerceiro = true`, a função `finalizar` em `src/lib/finalizar-agendamento.ts` **retorna cedo** após marcar `dataRealizado`, **sem** criar `Lancamento` de RECEITA, **sem** criar `ComissaoLancamento` e **sem** dar baixa de estoque. Isso é intencional — esses profissionais pagam aluguel do espaço por fora e não devem entrar no DRE da clínica.
+
+Se for adicionar nova lógica em `finalizar()` (ex: integração contábil, notificação), respeitar o early-return.
+
 ### localStorage e SSR (BUG CORRIGIDO — não reverter)
 
 Nunca acessar `localStorage` dentro de `useState()` ou durante o render — causa erro de hidratação.
@@ -374,7 +380,7 @@ useEffect(() => {
 ### `/configuracoes`
 - **4 abas:**
   - **Dados da Clínica** — nome, CNPJ, telefone, endereço, link NFSe
-  - **Agenda & WhatsApp** — intervalo de horários (15/30/60 min), horário de envio, template da mensagem de confirmação (editável com variáveis `{primeiro_nome}`, `{dia_semana}`, `{data_curta}`, `{hora}`)
+  - **Agenda & WhatsApp** — **horário de funcionamento da agenda (Início/Fim, configurável por tenant — default 06:00 às 21:00)**, intervalo de horários (15/30/60 min), horário de envio, template da mensagem de confirmação (editável com variáveis `{primeiro_nome}`, `{dia_semana}`, `{data_curta}`, `{hora}`)
   - **Status de Agenda** — visualização dos status cadastrados (customização avançada futura)
   - **Backup** — exporta todos os dados do sistema em JSON via `/api/backup`
 
@@ -453,7 +459,18 @@ Todos os modais usam **overlay fixo** (não Radix Dialog) — `fixed inset-0 z-5
 - Campos: nome, categoria (autocomplete), duração (pílulas), preço, cor, precoVariavel (toggle)
 
 ### `ModalProfissional`
-- Campos: nome, email, telefone, especialidade, registro profissional, cor (color picker), tipo de comissão
+- **Identificação:** nome, especialidade, registro profissional (CRM/CRBM/CRF), email de contato, telefone, cor (color picker)
+- **Acesso ao Sistema** (espelhando minhaagendaapp):
+  - Toggle INVERSO "Não preciso de usuário/senha" (padrão = tem login)
+  - E-mail de login (único por tenant)
+  - Senha temporária (obrigatória na criação, opcional em edição)
+  - **Permissões** — multi-select com 14 flags agrupadas em ESPECIAL / AGENDA / MÓDULOS (Administrador desabilita os outros e liga tudo)
+  - Cria `Profissional` + `Usuario` + `UsuarioPermissao` em uma única transação
+- **Documento:** radio CPF / CNPJ com máscara automática
+- **Não Possui Agenda:** toggle inverso — quando marcado, profissional NÃO aparece como coluna na `/agenda` (útil pra recepção/admin)
+- **Tipo de comissão:** PERCENTUAL / SALARIO_FIXO / INTEGRAL / SEM_COMISSAO, com direção (CLINICA_PAGA / COLABORADORA_PAGA) e frequência de acerto (Diário/Semanal/15 dias/Mensal)
+- **Opções avançadas (colapsável):**
+  - **Profissional terceiro** — atendimentos NÃO geram receita/comissão/baixa de estoque no financeiro da clínica (útil para profissionais que pagam aluguel)
 - Preview do avatar com inicial e cor escolhida
 
 ---
@@ -504,6 +521,27 @@ Todos os modais usam **overlay fixo** (não Radix Dialog) — `fixed inset-0 z-5
 
 ---
 
+## Fase 5 — Correções pós-deploy + Cadastro com login (CONCLUÍDA ✅)
+
+Commit `4db946d` — entregue após o sistema entrar em produção no Railway. Foco em alinhar o sistema com o fluxo do `minhaagendaapp` e preparar terreno multi-tenant SaaS.
+
+### O que foi construído
+- **Busca de clientes case-insensitive** (`mode: "insensitive"` no PostgreSQL) — buscar "lunna", "LUNNA" e "Lunna" retorna os mesmos resultados
+- **Horário de funcionamento da agenda configurável por tenant** — novos campos `horaInicioAgenda` (default 6) e `horaFimAgenda` (default 21) em `TenantConfig`; UI em Configurações → Agenda & WhatsApp; a `/agenda` carrega do config
+- **Cadastro de profissional com login no mesmo modal** — `ModalProfissional` agora cria `Profissional` + `Usuario` + `UsuarioPermissao` em transação. Espelha o fluxo do minhaagendaapp (toggle inverso "Não preciso de usuário/senha", multi-select de 14 permissões)
+- **Documento CPF ou CNPJ** — novos campos `cpf` e `cnpj` (String?) em `Profissional`, com radio + máscara automática
+- **"Não Possui Agenda"** — novo campo `possuiAgenda Boolean @default(true)` em `Profissional`. Quando `false`, a profissional não aparece como coluna na `/agenda` (útil pra recepção/administrativo)
+- **"Profissional terceiro"** — novo campo `profissionalTerceiro Boolean @default(false)` em `Profissional`. Quando `true`, atendimentos finalizados NÃO criam `Lancamento` de RECEITA, NÃO geram `ComissaoLancamento` e NÃO baixam estoque — apenas marcam `dataRealizado`. Implementado em `src/lib/finalizar-agendamento.ts` linhas 70-77
+
+### Schema implementado (Fase 5)
+- `TenantConfig`: + `horaInicioAgenda Int @default(6)`, `horaFimAgenda Int @default(21)`
+- `Profissional`: + `cpf String?`, `cnpj String?`, `possuiAgenda Boolean @default(true)`, `profissionalTerceiro Boolean @default(false)`
+
+### Migration em produção
+Schema aplicado no Supabase via `npx prisma db push` apontando para o pooler.
+
+---
+
 ## Segurança implementada ✅
 
 - **Senhas:** bcrypt (hash custo 10) — implementado em `bcryptjs`
@@ -516,10 +554,15 @@ Todos os modais usam **overlay fixo** (não Radix Dialog) — `fixed inset-0 z-5
 
 ## O que ainda NÃO foi construído
 
-### Infraestrutura pendente
-- **Deploy** — Vercel + Supabase (etapas manuais pendentes: criar contas, configurar env vars)
+### Pendente para SaaS multi-tenant
+- **Logo/marca dinâmica por tenant** — hoje "BC" e "LB Beauty Clinic" estão hardcoded no Login, Sidebar, ícone PWA, páginas de impressão e templates WhatsApp. Schema já tem `Tenant.logoUrl` e `Tenant.nome` — falta usar. (Parte A: iniciais dinâmicas + nome dinâmico. Parte B: upload de imagem.)
+- **Página pública de signup** — cadastro self-service de nova clínica (cria Tenant + admin)
+- **Billing recorrente** — Stripe / Pagar.me / Asaas para mensalidade SaaS
+- **Painel super-admin** — visão de todos os tenants, status de pagamento, uso
+- **Subdomínios por clínica** — `clinica-x.beautyclinic.com.br` em vez de URL única
+
+### Infraestrutura/features pendentes
 - **WhatsApp real** — `whatsapp-web.js` com QR code e job diário 08:00h (envio atual é manual via link)
-- **Migração de dados** — importar clientes do minhaagendaapp (usuário precisa exportar CSV)
 - **Repetir Agendamento** — UI pronta no modal, lógica de recorrência não implementada
 
 ---
