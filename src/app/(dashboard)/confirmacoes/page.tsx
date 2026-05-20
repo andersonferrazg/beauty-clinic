@@ -106,7 +106,7 @@ export default function ConfirmacoesPage() {
       .then((dados) => {
         const lista: Agendamento[] = Array.isArray(dados) ? dados : [];
         setAgendamentos(lista);
-        setEnviados(new Set(lista.filter((ag) => !ag.confirmacaoManualPendente).map((ag) => ag.id)));
+        setEnviados(new Set(lista.filter((ag) => ag.confirmacaoManualPendente).map((ag) => ag.id)));
       })
       .finally(() => setCarregando(false));
   }, [dataStr]);
@@ -270,7 +270,7 @@ export default function ConfirmacoesPage() {
                               fetch(`/api/agendamentos/${ag.id}`, {
                                 method: "PATCH",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ confirmacaoManualPendente: false }),
+                                body: JSON.stringify({ confirmacaoManualPendente: true }),
                               }).catch(() => {});
                             }}
                             className={cn(
