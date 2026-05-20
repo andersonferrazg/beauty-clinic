@@ -252,7 +252,9 @@ export default function AgendaPage() {
       .then(([profs, sessao]: [Profissional[], { permissoes?: { isAdmin?: boolean }; profissionalId?: string | null }]) => {
         const comAgenda = (profs as Profissional[]).filter((p) => p.possuiAgenda !== false);
         if (!sessao?.permissoes?.isAdmin && sessao?.profissionalId) {
-          setProfissionais(comAgenda.filter((p) => p.id === sessao.profissionalId));
+          const propria = comAgenda.filter((p) => p.id === sessao.profissionalId);
+          // se a profissional não tem coluna na agenda (ex: recepcionista), vê todas
+          setProfissionais(propria.length > 0 ? propria : comAgenda);
         } else {
           setProfissionais(comAgenda);
         }
