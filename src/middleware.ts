@@ -7,9 +7,14 @@ export function middleware(req: NextRequest) {
 
   const ehPublica = ROTAS_PUBLICAS.some((r) => pathname.startsWith(r));
   const ehApi = pathname.startsWith("/api");
-  const ehStatic = pathname.startsWith("/_next") || pathname.startsWith("/favicon");
+  // Qualquer rota com extensão de arquivo (ex: /logo.jpeg, /file.svg, /manifest.json)
+  // serve arquivos estáticos de /public — não devem exigir autenticação.
+  const ehArquivoEstatico =
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    /\.[a-zA-Z0-9]{2,5}$/.test(pathname);
 
-  if (ehPublica || ehApi || ehStatic) return NextResponse.next();
+  if (ehPublica || ehApi || ehArquivoEstatico) return NextResponse.next();
 
   const sessao = req.cookies.get("sessao")?.value;
   if (!sessao) {
