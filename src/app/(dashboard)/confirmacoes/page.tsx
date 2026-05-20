@@ -47,7 +47,7 @@ function formatarDataISO(d: Date) {
 function gerarLinkWA(telefone: string, mensagem: string) {
   const numero = telefone.replace(/\D/g, "");
   const comDDI = numero.startsWith("55") ? numero : `55${numero}`;
-  return `https://web.whatsapp.com/send?phone=${comDDI}&text=${encodeURIComponent(mensagem)}`;
+  return `https://wa.me/${comDDI}?text=${encodeURIComponent(mensagem)}`;
 }
 
 function preencherTemplate(ag: Agendamento, tmpl: string) {

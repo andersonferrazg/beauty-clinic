@@ -504,7 +504,7 @@ export default function AgendaPage() {
                           .replace(/\{hora\}/g, hora);
                         const numero = ag.cliente.telefone1.replace(/\D/g,"");
                         const comDDI = numero.startsWith("55") ? numero : `55${numero}`;
-                        return `https://web.whatsapp.com/send?phone=${comDDI}&text=${encodeURIComponent(msg)}`;
+                        return `https://wa.me/${comDDI}?text=${encodeURIComponent(msg)}`;
                       }
 
                       return (

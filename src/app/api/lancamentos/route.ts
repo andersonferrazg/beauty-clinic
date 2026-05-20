@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { exigirSessao } from "@/lib/session";
+import { exigirSessao, temPermissao } from "@/lib/session";
 import { processarRecorrenciasMensais } from "@/lib/recorrencia-financeira";
 
 export async function GET(req: NextRequest) {
@@ -24,6 +24,13 @@ export async function GET(req: NextRequest) {
     dataFim = new Date(ano, m, 0, 23, 59, 59);
   }
 
+  // Não-admin: vê apenas os lançamentos gerados pelos próprios agendamentos
+  const ehAdmin = temPermissao(sessao, "isAdmin");
+  const filtroProfissional =
+    !ehAdmin && sessao.profissionalId
+      ? { agendamento: { profissionalId: sessao.profissionalId } }
+      : {};
+
   const lancamentos = await prisma.lancamento.findMany({
     where: {
       tenantId: sessao.tenantId,
@@ -36,6 +43,7 @@ export async function GET(req: NextRequest) {
             ],
           }
         : {}),
+      ...filtroProfissional,
     },
     orderBy: [{ vencimento: "asc" }, { criadoEm: "desc" }],
     take: 200,
