@@ -39,6 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     observacao,
     formaPagamento,
     valorTotal,
+    confirmacaoManualPendente,
   } = body;
 
   // tipo é ignorado; motivoBloqueio vai para observacao (igual ao POST)
@@ -59,6 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         : {}),
       ...(formaPagamento !== undefined ? { formaPagamento: formaPagamento || null } : {}),
       ...(valorTotal !== undefined ? { valorTotal: valorTotal || null } : {}),
+      ...(confirmacaoManualPendente !== undefined ? { confirmacaoManualPendente } : {}),
       ...(itens !== undefined
         ? {
             itens: {

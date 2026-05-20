@@ -103,9 +103,12 @@ export default function ConfirmacoesPage() {
     setCarregando(true);
     fetch(`/api/agendamentos?data=${dataStr}`)
       .then((r) => r.json())
-      .then((dados) => setAgendamentos(Array.isArray(dados) ? dados : []))
+      .then((dados) => {
+        const lista: Agendamento[] = Array.isArray(dados) ? dados : [];
+        setAgendamentos(lista);
+        setEnviados(new Set(lista.filter((ag) => !ag.confirmacaoManualPendente).map((ag) => ag.id)));
+      })
       .finally(() => setCarregando(false));
-    setEnviados(new Set());
   }, [dataStr]);
 
   function navegar(delta: number) {
@@ -262,7 +265,14 @@ export default function ConfirmacoesPage() {
                             href={link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={() => setEnviados((prev) => new Set(prev).add(ag.id))}
+                            onClick={() => {
+                              setEnviados((prev) => new Set(prev).add(ag.id));
+                              fetch(`/api/agendamentos/${ag.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ confirmacaoManualPendente: false }),
+                              }).catch(() => {});
+                            }}
                             className={cn(
                               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0",
                               enviado
