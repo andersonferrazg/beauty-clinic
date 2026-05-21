@@ -164,7 +164,7 @@ function formatarSexo(s: string | null) {
 }
 
 // ── Card de procedimento (timeline) ───────────────────────────────────────────
-function CardFicha({ proc, clienteId }: { proc: Procedimento; clienteId: string }) {
+function CardFicha({ proc, clienteId, onVerFoto }: { proc: Procedimento; clienteId: string; onVerFoto: (url: string) => void }) {
   const [expandido, setExpandido] = useState(false);
   const visual = visualPorTipo(proc.tipo);
   const Icon = visual.Icon;
@@ -303,7 +303,7 @@ function CardFicha({ proc, clienteId }: { proc: Procedimento; clienteId: string 
               <p className="text-xs font-semibold text-[#B89968] uppercase tracking-wide mb-2">Fotos</p>
               <div className="grid grid-cols-3 gap-2">
                 {proc.fotos.map((f) => (
-                  <button key={f.id} onClick={() => setLightboxUrl(f.url)} className="rounded-lg overflow-hidden border border-[#e8dcc4] block w-full text-left">
+                  <button key={f.id} onClick={() => onVerFoto(f.url)} className="rounded-lg overflow-hidden border border-[#e8dcc4] block w-full text-left">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={f.url} alt={f.tag} className="w-full h-24 object-cover" />
                     <p className="px-1.5 py-0.5 text-[10px] text-[#9a7d50] capitalize bg-[#faf5ee]">{f.tag}</p>
@@ -776,7 +776,7 @@ export default function ProntuarioClientePage({
       ) : (
         <div className="space-y-2">
           {prontuario.procedimentos.map((proc) => (
-            <CardFicha key={proc.id} proc={proc} clienteId={clienteId} />
+            <CardFicha key={proc.id} proc={proc} clienteId={clienteId} onVerFoto={setLightboxUrl} />
           ))}
         </div>
       )}
