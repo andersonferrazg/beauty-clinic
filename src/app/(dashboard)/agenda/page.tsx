@@ -232,8 +232,9 @@ export default function AgendaPage() {
     const ini = new Date(inicio);
     const fi = new Date(fim);
     const totalMin = TOTAL_SLOTS * 30;
-    const minIni = (ini.getHours() - horaInicio) * 60 + ini.getMinutes();
-    const durMin = (fi.getTime() - ini.getTime()) / 60000;
+    const minIni = Math.max(0, (ini.getHours() - horaInicio) * 60 + ini.getMinutes());
+    const minFim = Math.min(totalMin, (fi.getHours() - horaInicio) * 60 + fi.getMinutes() + (fi.getDate() !== ini.getDate() ? 24 * 60 : 0));
+    const durMin = Math.max(0, minFim - minIni);
     return {
       top: `${(minIni / totalMin) * 100}%`,
       height: `${Math.max((durMin / totalMin) * 100, 1.8)}%`,
@@ -490,9 +491,10 @@ export default function AgendaPage() {
                     {/* Blocos de agendamento */}
                     {agsDaProf.map((ag) => {
                       const { top, height } = posicaoBloco(ag.inicio, ag.fim);
-                      const cor = ag.corCustom || ag.status?.cor || ag.profissional.cor;
-                      const nomeServico = ag.itens[0]?.servico.nome ?? (ag.motivoBloqueio || "Bloqueio");
                       const ehBloqueio = !ag.cliente;
+                      const cor = ehBloqueio ? "#d1d5db" : (ag.corCustom || ag.status?.cor || ag.profissional.cor);
+                      const corTexto = ehBloqueio ? "#6b7280" : "#fff";
+                      const nomeServico = ag.itens[0]?.servico.nome ?? (ag.motivoBloqueio || "Bloqueio");
                       const temTelefone = !!ag.cliente?.telefone1;
 
                       function gerarLinkWA() {
@@ -526,7 +528,7 @@ export default function AgendaPage() {
                         >
                           <div
                             className="h-full px-2 py-1.5 flex flex-col gap-0.5 relative"
-                            style={{ backgroundColor: cor, color: "#fff" }}
+                            style={{ backgroundColor: cor, color: corTexto }}
                           >
                             {/* Linha 1: horário + status */}
                             <div className="flex items-center justify-between gap-1">

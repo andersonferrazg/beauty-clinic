@@ -54,6 +54,45 @@ function formatarDuracao(min: number) {
   return m === 0 ? `${h}h` : `${h}h${m}min`;
 }
 
+function DuracaoSelect({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAberto(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  const opcoes = [...DURACOES, ...(!DURACOES.includes(value) ? [value] : [])].sort((a, b) => a - b);
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setAberto((p) => !p)}
+        className="flex h-9 w-full items-center justify-between rounded-md border border-[#B89968]/30 bg-transparent px-3 py-1 text-sm text-[#5a4530] focus:outline-none focus:ring-2 focus:ring-[#B89968]"
+      >
+        {formatarDuracao(value)}
+        <ChevronDown size={14} className="text-[#9a7d50]" />
+      </button>
+      {aberto && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-[200] bg-white border border-[#e8dcc4] rounded-md shadow-lg max-h-48 overflow-y-auto">
+          {opcoes.map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => { onChange(d); setAberto(false); }}
+              className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-[#faf5ee] transition-colors", value === d ? "text-[#B89968] font-semibold" : "text-[#5a4530]")}
+            >
+              {formatarDuracao(d)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ModalAgendamento({
   aberto,
   onFechar,
@@ -652,18 +691,7 @@ export function ModalAgendamento({
                   </Label>
                   <span className="text-xs text-[#9a7d50]">Término: {fimCalculado}</span>
                 </div>
-                <select
-                  value={duracaoMin}
-                  onChange={(e) => setDuracaoMin(Number(e.target.value))}
-                  className="flex h-9 w-full rounded-md border border-[#B89968]/30 bg-transparent px-3 py-1 text-sm text-[#5a4530] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B89968]"
-                >
-                  {DURACOES.map((d) => (
-                    <option key={d} value={d}>{formatarDuracao(d)}</option>
-                  ))}
-                  {!DURACOES.includes(duracaoMin) && (
-                    <option value={duracaoMin}>{formatarDuracao(duracaoMin)}</option>
-                  )}
-                </select>
+                <DuracaoSelect value={duracaoMin} onChange={setDuracaoMin} />
               </div>
 
               {/* Status */}
@@ -761,18 +789,7 @@ export function ModalAgendamento({
                     <Label className="text-[#5a4530]">Duração</Label>
                     <span className="text-xs text-[#9a7d50]">Término: {fimCalculado}</span>
                   </div>
-                  <select
-                    value={duracaoMin}
-                    onChange={(e) => setDuracaoMin(Number(e.target.value))}
-                    className="flex h-9 w-full rounded-md border border-[#B89968]/30 bg-transparent px-3 py-1 text-sm text-[#5a4530] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B89968]"
-                  >
-                    {DURACOES.map((d) => (
-                      <option key={d} value={d}>{formatarDuracao(d)}</option>
-                    ))}
-                    {!DURACOES.includes(duracaoMin) && (
-                      <option value={duracaoMin}>{formatarDuracao(duracaoMin)}</option>
-                    )}
-                  </select>
+                  <DuracaoSelect value={duracaoMin} onChange={setDuracaoMin} />
                 </div>
               )}
             </div>
