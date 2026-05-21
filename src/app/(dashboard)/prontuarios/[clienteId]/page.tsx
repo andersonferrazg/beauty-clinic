@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Calendar, User, Camera, FileText, IdCard,
   ChevronDown, ChevronUp, Loader2, ClipboardList, Syringe, ScrollText,
-  Pencil, Printer, Upload, MapPin, Phone, FileSearch, BookOpen, Activity,
+  Pencil, Printer, Upload, MapPin, Phone, FileSearch, BookOpen, Activity, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModalCliente } from "@/components/modal-cliente";
@@ -303,11 +303,11 @@ function CardFicha({ proc, clienteId }: { proc: Procedimento; clienteId: string 
               <p className="text-xs font-semibold text-[#B89968] uppercase tracking-wide mb-2">Fotos</p>
               <div className="grid grid-cols-3 gap-2">
                 {proc.fotos.map((f) => (
-                  <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer" className="rounded-lg overflow-hidden border border-[#e8dcc4] block">
+                  <button key={f.id} onClick={() => setLightboxUrl(f.url)} className="rounded-lg overflow-hidden border border-[#e8dcc4] block w-full text-left">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={f.url} alt={f.tag} className="w-full h-24 object-cover" />
                     <p className="px-1.5 py-0.5 text-[10px] text-[#9a7d50] capitalize bg-[#faf5ee]">{f.tag}</p>
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
@@ -368,6 +368,7 @@ export default function ProntuarioClientePage({
   const [orcamentos, setOrcamentos] = useState<OrcamentoHist[]>([]);
   const [modalOrcAberto, setModalOrcAberto] = useState(false);
   const [orcSelecionado, setOrcSelecionado] = useState<string | undefined>();
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -733,12 +734,10 @@ export default function ProntuarioClientePage({
                   </p>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                     {porTag[tag].map((f) => (
-                      <a
+                      <button
                         key={f.id}
-                        href={f.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block rounded-lg overflow-hidden border border-[#e8dcc4] hover:border-[#B89968] transition-colors group"
+                        onClick={() => setLightboxUrl(f.url)}
+                        className="block rounded-lg overflow-hidden border border-[#e8dcc4] hover:border-[#B89968] transition-colors group w-full text-left"
                         title={f.descricao ?? f.tag}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -746,7 +745,7 @@ export default function ProntuarioClientePage({
                         {f.descricao && (
                           <p className="text-[10px] text-[#9a7d50] px-1.5 py-0.5 bg-[#faf5ee] truncate">{f.descricao}</p>
                         )}
-                      </a>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -857,6 +856,28 @@ export default function ProntuarioClientePage({
         orcamentoId={orcSelecionado}
         clienteFixo={cliente ? { id: cliente.id, nome: cliente.nome } : null}
       />
+
+      {/* Lightbox de foto */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt="Foto"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 rounded-full p-2"
+          >
+            <X size={22} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
