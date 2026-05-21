@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +52,17 @@ function formatarDuracao(min: number) {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return m === 0 ? `${h}h` : `${h}h${m}min`;
+}
+
+function calcDuracao(ini: string, fim: string): number {
+  const [ih, im] = ini.split(":").map(Number);
+  const [fh, fm] = fim.split(":").map(Number);
+  return (fh * 60 + fm) - (ih * 60 + im);
+}
+
+function horaFimDefault(ini: string, durMin: number): string {
+  const [h, m] = ini.split(":").map(Number);
+  return minutosParaHora(Math.min(h * 60 + m + durMin, 23 * 60 + 59));
 }
 
 function DuracaoSelect({ value, onChange }: { value: number; onChange: (v: number) => void }) {
@@ -119,6 +130,7 @@ export function ModalAgendamento({
   const [observacao, setObservacao] = useState("");
   const [motivoBloqueio, setMotivoBloqueio] = useState("");
   const [diaInteiro, setDiaInteiro] = useState(false);
+  const [horaFimBloqueio, setHoraFimBloqueio] = useState("10:00");
   const [formaPagamento, setFormaPagamento] = useState("");
   const [itens, setItens] = useState<ItemServico[]>([]);
 
@@ -170,6 +182,7 @@ export function ModalAgendamento({
     if (aberto && !agendamentoId) {
       setDataStr(dataParaLocalStr(dataInicial ?? new Date()));
       setHoraStr(minutosParaHora(horaInicial));
+      setHoraFimBloqueio(horaFimDefault(minutosParaHora(horaInicial), 60));
       const profId = profissionalInicial || (!minhaSessao?.permissoes?.isAdmin && minhaSessao?.profissionalId ? minhaSessao.profissionalId : "");
       setProfissionalId(profId ?? "");
     }
@@ -233,8 +246,10 @@ export function ModalAgendamento({
             duracaoMin: i.servico.duracaoMin,
           }))
         );
-        const dur = (new Date(ag.fim).getTime() - new Date(ag.inicio).getTime()) / 60000;
+        const fim = new Date(ag.fim);
+        const dur = (fim.getTime() - new Date(ag.inicio).getTime()) / 60000;
         setDuracaoMin(dur);
+        setHoraFimBloqueio(`${pad(fim.getHours())}:${pad(fim.getMinutes())}`);
       });
   }, [aberto, agendamentoId]);
 
@@ -252,6 +267,7 @@ export function ModalAgendamento({
       setObservacao("");
       setMotivoBloqueio("");
       setDiaInteiro(false);
+      setHoraFimBloqueio("10:00");
       setFormaPagamento("");
       setCorCustom("");
       setErro("");
@@ -445,7 +461,7 @@ export function ModalAgendamento({
 
         <div className="p-5 space-y-4">
 
-          {/* Data + Hora + Cor */}
+          {/* Data + (Hora + Cor só para agendamento) */}
           <div className="flex gap-3">
             <div className="flex-1 space-y-1.5">
               <Label className="text-[#5a4530]">Data</Label>
@@ -459,32 +475,36 @@ export function ModalAgendamento({
                 <Calendar size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9a7d50] pointer-events-none" />
               </div>
             </div>
-            <div className="w-28 space-y-1.5">
-              <Label className="text-[#5a4530]">Hora Início</Label>
-              <div className="relative">
-                <Input
-                  type="time"
-                  value={horaStr}
-                  onChange={(e) => setHoraStr(e.target.value)}
-                  className="border-[#B89968]/30"
-                />
+            {tipo === "agendamento" && (
+              <div className="w-28 space-y-1.5">
+                <Label className="text-[#5a4530]">Hora Início</Label>
+                <div className="relative">
+                  <Input
+                    type="time"
+                    value={horaStr}
+                    onChange={(e) => setHoraStr(e.target.value)}
+                    className="border-[#B89968]/30"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="space-y-1.5 flex-shrink-0">
-              <Label className="text-[#5a4530]">Cor</Label>
-              <label className="cursor-pointer block">
-                <div
-                  className="w-9 h-9 rounded-full border-2 border-[#e8dcc4] shadow-sm hover:scale-110 transition-transform"
-                  style={{ backgroundColor: corCustom || "#B89968" }}
-                />
-                <input
-                  type="color"
-                  value={corCustom || "#B89968"}
-                  onChange={(e) => setCorCustom(e.target.value)}
-                  className="sr-only"
-                />
-              </label>
-            </div>
+            )}
+            {tipo === "agendamento" && (
+              <div className="space-y-1.5 flex-shrink-0">
+                <Label className="text-[#5a4530]">Cor</Label>
+                <label className="cursor-pointer block">
+                  <div
+                    className="w-9 h-9 rounded-full border-2 border-[#e8dcc4] shadow-sm hover:scale-110 transition-transform"
+                    style={{ backgroundColor: corCustom || "#B89968" }}
+                  />
+                  <input
+                    type="color"
+                    value={corCustom || "#B89968"}
+                    onChange={(e) => setCorCustom(e.target.value)}
+                    className="sr-only"
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Profissional */}
@@ -768,6 +788,38 @@ export function ModalAgendamento({
                 ))}
               </div>
 
+              {/* Hora Início e Hora Fim (oculta quando Dia Inteiro) */}
+              {!diaInteiro && (
+                <div className="flex gap-3">
+                  <div className="flex-1 space-y-1.5">
+                    <Label className="text-[#5a4530]">Hora Início</Label>
+                    <Input
+                      type="time"
+                      value={horaStr}
+                      onChange={(e) => {
+                        setHoraStr(e.target.value);
+                        const dur = calcDuracao(e.target.value, horaFimBloqueio);
+                        if (dur > 0) setDuracaoMin(dur);
+                      }}
+                      className="border-[#B89968]/30"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <Label className="text-[#5a4530]">Hora Fim</Label>
+                    <Input
+                      type="time"
+                      value={horaFimBloqueio}
+                      onChange={(e) => {
+                        setHoraFimBloqueio(e.target.value);
+                        const dur = calcDuracao(horaStr, e.target.value);
+                        if (dur > 0) setDuracaoMin(dur);
+                      }}
+                      className="border-[#B89968]/30"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Dia Inteiro toggle */}
               <div className="flex items-center justify-between pt-1">
                 <Label className="text-[#5a4530]">Dia Inteiro</Label>
@@ -776,8 +828,15 @@ export function ModalAgendamento({
                   onClick={() => {
                     const novo = !diaInteiro;
                     setDiaInteiro(novo);
-                    if (novo) { setHoraStr("00:00"); setDuracaoMin(1440); }
-                    else { setDuracaoMin(60); }
+                    if (novo) {
+                      setHoraStr("00:00");
+                      setHoraFimBloqueio("23:59");
+                      setDuracaoMin(1439);
+                    } else {
+                      const fim = horaFimDefault(horaStr, 60);
+                      setHoraFimBloqueio(fim);
+                      setDuracaoMin(60);
+                    }
                   }}
                   className={cn(
                     "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
@@ -787,17 +846,6 @@ export function ModalAgendamento({
                   <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow", diaInteiro ? "translate-x-4" : "translate-x-1")} />
                 </button>
               </div>
-
-              {/* Duração para bloqueio (oculta quando Dia Inteiro) */}
-              {!diaInteiro && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[#5a4530]">Duração</Label>
-                    <span className="text-xs text-[#9a7d50]">Término: {fimCalculado}</span>
-                  </div>
-                  <DuracaoSelect value={duracaoMin} onChange={setDuracaoMin} />
-                </div>
-              )}
             </div>
           )}
 
@@ -923,7 +971,7 @@ export function ModalAgendamento({
 
           {/* Botões */}
           <div className="flex gap-3 pt-1 items-center">
-            {ehEdicao && !confirmarExclusao && (
+            {ehEdicao && (
               <button
                 type="button"
                 onClick={() => setConfirmarExclusao(true)}
@@ -932,26 +980,6 @@ export function ModalAgendamento({
               >
                 <Trash2 size={16} />
               </button>
-            )}
-            {confirmarExclusao && (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs text-red-600">Excluir?</span>
-                <button
-                  type="button"
-                  onClick={excluir}
-                  disabled={excluindo}
-                  className="text-xs text-red-600 font-semibold hover:underline"
-                >
-                  {excluindo ? "..." : "Sim"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmarExclusao(false)}
-                  className="text-xs text-[#9a7d50] hover:underline"
-                >
-                  Não
-                </button>
-              </div>
             )}
             <Button
               type="button"
@@ -972,6 +1000,33 @@ export function ModalAgendamento({
           </div>
         </div>
       </div>
+
+      {/* Confirmação de exclusão — overlay sobre o modal inteiro, fora do scroll */}
+      {confirmarExclusao && (
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl p-6 mx-6 shadow-xl text-center w-full max-w-xs">
+            <h3 className="font-semibold text-[#5a4530] text-base mb-1">Excluir Agendamento</h3>
+            <p className="text-sm text-[#9a7d50] mb-5">Você tem certeza que deseja deletar?</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmarExclusao(false)}
+                className="flex-1 border border-[#e8dcc4] rounded-lg py-2.5 text-sm text-[#9a7d50] hover:bg-[#faf5ee] transition-colors font-medium"
+              >
+                CANCELAR
+              </button>
+              <button
+                type="button"
+                onClick={excluir}
+                disabled={excluindo}
+                className="flex-1 bg-red-500 text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {excluindo ? <><Loader2 size={14} className="animate-spin" /> Excluindo...</> : "SIM"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

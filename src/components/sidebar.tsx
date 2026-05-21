@@ -191,11 +191,11 @@ export function Sidebar() {
         </nav>
 
         {/* Footer — Logout */}
-        <div className="px-2 py-3 border-t border-white/10">
+        <div className="px-2 pb-3 pt-2 border-t border-white/10">
           <button
             onClick={sair}
             disabled={saindo}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/50 hover:bg-white/5 hover:text-white/80 transition-colors w-full disabled:opacity-50"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors w-full disabled:opacity-50"
           >
             {saindo ? <Loader2 size={17} className="animate-spin" /> : <LogOut size={17} />}
             Sair
