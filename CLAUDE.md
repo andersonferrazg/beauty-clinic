@@ -324,7 +324,7 @@ useEffect(() => {
 ### `/agenda`
 - Grade visual por profissional (colunas) e slots de **30 minutos** (linhas)
 - **Faixa de semana** no topo: 7 dias clicáveis, dia atual destacado em dourado
-- Linhas cheias nas horas, linhas tracejadas nas meias horas
+- Linhas cheias nas horas, linhas tracejadas nas meias horas — **ambas com label de horário** (horas em texto normal, meias horas em texto menor e mais claro)
 - Clique em slot → abre `ModalAgendamento` com hora exata
 - Clique em bloco existente → abre `ModalAgendamento` para edição/exclusão
 - Linha vermelha do horário atual (só hoje)

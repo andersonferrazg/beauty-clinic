@@ -421,9 +421,13 @@ export default function AgendaPage() {
                   className="absolute w-full"
                   style={{ top: `${slot.idx * ALTURA_SLOT}px`, height: `${ALTURA_SLOT}px` }}
                 >
-                  {slot.ehHoraCheia && (
+                  {slot.ehHoraCheia ? (
                     <span className="text-[10px] text-[#9a7d50] block text-right pr-2 -mt-1.5 select-none">
                       {String(slot.hora).padStart(2, "0")}:00
+                    </span>
+                  ) : (
+                    <span className="text-[9px] text-[#9a7d50]/50 block text-right pr-2 -mt-1.5 select-none">
+                      {String(slot.hora).padStart(2, "0")}:30
                     </span>
                   )}
                 </div>
