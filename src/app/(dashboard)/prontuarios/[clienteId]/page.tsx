@@ -17,6 +17,7 @@ import { ModalFichaCartilha } from "@/components/modal-ficha-cartilha";
 import { ModalFichaControleSessoes } from "@/components/modal-ficha-controle-sessoes";
 import { ModalImportarDocumento } from "@/components/modal-importar-documento";
 import { ModalFotos } from "@/components/modal-fotos";
+import { ModalOrcamento } from "@/components/modal-orcamento";
 import type { TipoTermo } from "@/lib/termos";
 import type { TipoCartilha } from "@/lib/cartilhas";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,51 @@ type Cliente = {
   dataNascimento: string | null;
   endereco: string | null;
 };
+
+type AgendamentoHist = {
+  id: string;
+  inicio: string;
+  fim: string;
+  dataRealizado: string | null;
+  valorTotal: number | null;
+  formaPagamento: string | null;
+  status: { nome: string; cor: string } | null;
+  profissional: { id: string; nome: string; cor: string };
+  itens: { id: string; servico: { id: string; nome: string; cor: string } | null }[];
+};
+
+type OrcamentoHist = {
+  id: string;
+  status: string;
+  valorTotal: number;
+  dataValidade: string;
+  criadoEm: string;
+  agendamentoId: string | null;
+  itens: { id: string; servico: { nome: string } | null }[];
+};
+
+const STATUS_ORC_LABEL: Record<string, string> = {
+  EM_ABERTO: "Em Aberto",
+  APROVADO: "Aprovado",
+  FECHADO: "Fechado",
+  CANCELADO: "Cancelado",
+  EXPIRADO: "Expirado",
+};
+
+function statusOrcBadgeClass(status: string) {
+  switch (status) {
+    case "EM_ABERTO": return "bg-amber-100 text-amber-800";
+    case "APROVADO": return "bg-blue-100 text-blue-800";
+    case "FECHADO": return "bg-emerald-100 text-emerald-800";
+    case "CANCELADO": return "bg-gray-100 text-gray-700";
+    case "EXPIRADO": return "bg-red-100 text-red-800";
+    default: return "bg-gray-100 text-gray-700";
+  }
+}
+
+function formatarBRL(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 // ── Visual por tipo de ficha ──────────────────────────────────────────────────
 function visualPorTipo(tipo: string) {
@@ -301,6 +347,12 @@ export default function ProntuarioClientePage({
   const [modalImportar, setModalImportar] = useState(false);
   const [modalFotos, setModalFotos] = useState(false);
 
+  // ── Histórico e Orçamentos ──────────────────────────────────────────────
+  const [historico, setHistorico] = useState<AgendamentoHist[]>([]);
+  const [orcamentos, setOrcamentos] = useState<OrcamentoHist[]>([]);
+  const [modalOrcAberto, setModalOrcAberto] = useState(false);
+  const [orcSelecionado, setOrcSelecionado] = useState<string | undefined>();
+
   const carregar = useCallback(async () => {
     setCarregando(true);
     const r = await fetch(`/api/prontuarios/${clienteId}`);
@@ -310,7 +362,23 @@ export default function ProntuarioClientePage({
     setCarregando(false);
   }, [clienteId]);
 
+  const carregarHistoricoEOrcamentos = useCallback(async () => {
+    try {
+      const [resCli, resOrc] = await Promise.all([
+        fetch(`/api/clientes/${clienteId}?historico=completo`),
+        fetch(`/api/orcamentos?clienteId=${clienteId}`),
+      ]);
+      const cli = await resCli.json();
+      const orc = await resOrc.json();
+      setHistorico(Array.isArray(cli.agendamentos) ? cli.agendamentos : []);
+      setOrcamentos(Array.isArray(orc) ? orc : []);
+    } catch {
+      // silencioso
+    }
+  }, [clienteId]);
+
   useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => { carregarHistoricoEOrcamentos(); }, [carregarHistoricoEOrcamentos]);
 
   function aoSelecionarFicha(tipo: TipoFicha) {
     if (tipo === "anamnese") { setModalAnamnese(true); return; }
@@ -453,6 +521,152 @@ export default function ProntuarioClientePage({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Bloco A — Histórico de Atendimentos */}
+      {(() => {
+        const atendimentosRealizados = historico.filter((a) => a.dataRealizado);
+        const totalAcumulado = atendimentosRealizados.reduce((s, a) => s + (a.valorTotal ?? 0), 0);
+
+        return (
+          <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-[#5a4530] flex items-center gap-2">
+                <Activity size={16} className="text-[#B89968]" />
+                Histórico de Atendimentos
+                <span className="text-xs font-normal text-[#9a7d50]">
+                  ({atendimentosRealizados.length})
+                </span>
+              </h2>
+              {totalAcumulado > 0 && (
+                <div className="text-right">
+                  <p className="text-[10px] text-[#9a7d50] uppercase tracking-wider">Total Gasto</p>
+                  <p className="text-sm font-bold text-[#5a4530]">{formatarBRL(totalAcumulado)}</p>
+                </div>
+              )}
+            </div>
+            {atendimentosRealizados.length === 0 ? (
+              <p className="text-sm text-[#9a7d50] text-center py-6 italic">
+                Nenhum atendimento finalizado registrado.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-[#9a7d50] text-xs border-b border-[#e8dcc4]">
+                      <th className="pb-2 pr-3 font-medium">Data</th>
+                      <th className="pb-2 pr-3 font-medium">Profissional</th>
+                      <th className="pb-2 pr-3 font-medium">Serviços</th>
+                      <th className="pb-2 pr-3 font-medium text-right">Valor</th>
+                      <th className="pb-2 font-medium">Pagamento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {atendimentosRealizados.map((a) => {
+                      const data = new Date(a.dataRealizado ?? a.inicio);
+                      const servicos = a.itens
+                        .map((it) => it.servico?.nome)
+                        .filter(Boolean)
+                        .join(", ") || "—";
+                      return (
+                        <tr key={a.id} className="border-b border-[#e8dcc4] last:border-b-0 hover:bg-[#faf5ee]">
+                          <td className="py-2 pr-3 text-[#5a4530] text-xs whitespace-nowrap">
+                            {data.toLocaleDateString("pt-BR")}
+                          </td>
+                          <td className="py-2 pr-3 text-[#5a4530] text-xs">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: a.profissional.cor }}
+                              />
+                              {a.profissional.nome.split(" ")[0]}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-3 text-[#5a4530] text-xs">{servicos}</td>
+                          <td className="py-2 pr-3 text-right text-[#5a4530] font-semibold whitespace-nowrap">
+                            {a.valorTotal != null ? formatarBRL(a.valorTotal) : "—"}
+                          </td>
+                          <td className="py-2 text-[#9a7d50] text-xs">
+                            {a.formaPagamento || <span className="italic">—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Bloco B — Orçamentos */}
+      <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-[#5a4530] flex items-center gap-2">
+            <FileText size={16} className="text-[#B89968]" />
+            Orçamentos
+            <span className="text-xs font-normal text-[#9a7d50]">({orcamentos.length})</span>
+          </h2>
+          <button
+            onClick={() => {
+              setOrcSelecionado(undefined);
+              setModalOrcAberto(true);
+            }}
+            className="flex items-center gap-1 text-xs text-[#B89968] hover:text-[#9a7d50] border border-[#B89968]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#faf5ee] font-medium"
+          >
+            <Plus size={11} /> Novo Orçamento
+          </button>
+        </div>
+        {orcamentos.length === 0 ? (
+          <p className="text-sm text-[#9a7d50] text-center py-6 italic">
+            Nenhum orçamento criado.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {orcamentos.map((o) => {
+              const data = new Date(o.criadoEm);
+              const validade = new Date(o.dataValidade);
+              const servicos = o.itens
+                .map((it) => it.servico?.nome)
+                .filter(Boolean)
+                .join(", ") || "—";
+              return (
+                <button
+                  key={o.id}
+                  onClick={() => {
+                    setOrcSelecionado(o.id);
+                    setModalOrcAberto(true);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-[#e8dcc4] hover:bg-[#faf5ee] transition-colors text-left"
+                >
+                  <div className="flex-shrink-0 text-center w-12">
+                    <p className="text-xs text-[#9a7d50]">
+                      {data.toLocaleDateString("pt-BR", { month: "short" }).toUpperCase()}
+                    </p>
+                    <p className="text-lg font-bold text-[#5a4530] leading-none">{data.getDate()}</p>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[#5a4530] truncate">{servicos}</p>
+                    <p className="text-xs text-[#9a7d50]">
+                      Vence em {validade.toLocaleDateString("pt-BR")}
+                      {o.agendamentoId && <span className="text-emerald-700"> · Vinculado a agendamento</span>}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    <p className="text-sm font-semibold text-[#5a4530]">{formatarBRL(o.valorTotal)}</p>
+                    <span className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-medium",
+                      statusOrcBadgeClass(o.status)
+                    )}>
+                      {STATUS_ORC_LABEL[o.status]}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Galeria de Fotos */}
@@ -619,6 +833,13 @@ export default function ProntuarioClientePage({
         aberto={modalFotos}
         onFechar={() => setModalFotos(false)}
         onSalvo={() => { setModalFotos(false); carregar(); }}
+      />
+      <ModalOrcamento
+        aberto={modalOrcAberto}
+        onFechar={() => setModalOrcAberto(false)}
+        onSalvo={carregarHistoricoEOrcamentos}
+        orcamentoId={orcSelecionado}
+        clienteFixo={cliente ? { id: cliente.id, nome: cliente.nome } : null}
       />
     </div>
   );

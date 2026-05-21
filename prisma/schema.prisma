@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -36,6 +36,7 @@ model Tenant {
   prontuarios         Prontuario[]
   comissoes           ComissaoLancamento[]
   movimentacoesEstoque MovimentacaoEstoque[]
+  orcamentos          Orcamento[]
 
   @@map("tenants")
 }
@@ -147,6 +148,7 @@ model Profissional {
   bloqueios     Bloqueio[]
   procedimentos Procedimento[]
   comissoes     ComissaoLancamento[]
+  orcamentos    Orcamento[]
 
   @@unique([tenantId, email])
   @@map("profissionais")
@@ -174,6 +176,7 @@ model Cliente {
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   agendamentos Agendamento[]
   prontuario   Prontuario?
+  orcamentos   Orcamento[]
 
   @@map("clientes")
 }
@@ -198,6 +201,7 @@ model Servico {
 
   tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   itensAgendamento    ItemAgendamento[]
+  itensOrcamento      ItemOrcamento[]
   produtoConsumido    Produto?             @relation("ServicoConsome", fields: [produtoConsumidoId], references: [id])
 
   @@map("servicos")
@@ -248,6 +252,7 @@ model Agendamento {
   itens         ItemAgendamento[]
   mensagensWpp  MensagemWpp[]
   movimentacoes MovimentacaoEstoque[]
+  orcamento     Orcamento?        @relation("OrcamentoAgendamento")
 
   @@map("agendamentos")
 }
@@ -320,6 +325,7 @@ model Produto {
   tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   movimentacoes        MovimentacaoEstoque[]
   itensAgendamento     ItemAgendamento[]
+  itensOrcamento       ItemOrcamento[]
   servicosConsumidores Servico[]             @relation("ServicoConsome")
 
   @@map("produtos")
@@ -459,4 +465,60 @@ model MovimentacaoEstoque {
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("movimentacoes_estoque")
+}
+
+// ─── Orçamentos ───────────────────────────────────────────────────────────────
+
+model Orcamento {
+  id             String   @id @default(cuid())
+  tenantId       String
+  clienteId      String
+  profissionalId String?
+  status         String   @default("EM_ABERTO") // EM_ABERTO | APROVADO | FECHADO | CANCELADO | EXPIRADO
+  dataValidade   DateTime
+  valorTotal     Float    @default(0)
+  observacao     String?
+  agendamentoId  String?  @unique
+  criadoEm       DateTime @default(now())
+  atualizadoEm   DateTime @updatedAt
+
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cliente      Cliente         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  profissional Profissional?   @relation(fields: [profissionalId], references: [id])
+  agendamento  Agendamento?    @relation("OrcamentoAgendamento", fields: [agendamentoId], references: [id])
+  itens        ItemOrcamento[]
+  interacoes   InteracaoOrcamento[]
+
+  @@index([tenantId, status])
+  @@index([clienteId])
+  @@map("orcamentos")
+}
+
+model ItemOrcamento {
+  id          String  @id @default(cuid())
+  orcamentoId String
+  servicoId   String?
+  produtoId   String?
+  preco       Float
+  quantidade  Int     @default(1)
+  descricao   String?
+
+  orcamento Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  servico   Servico?  @relation(fields: [servicoId], references: [id])
+  produto   Produto?  @relation(fields: [produtoId], references: [id])
+
+  @@map("itens_orcamento")
+}
+
+model InteracaoOrcamento {
+  id          String   @id @default(cuid())
+  orcamentoId String
+  tipo        String   // LIGACAO | WHATSAPP | NOTA
+  texto       String
+  criadoEm   DateTime @default(now())
+
+  orcamento Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+
+  @@index([orcamentoId])
+  @@map("interacoes_orcamento")
 }

@@ -2,20 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { exigirSessao } from "@/lib/session";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sessao = await exigirSessao();
   const { id } = await params;
+  const completo = req.nextUrl.searchParams.get("historico") === "completo";
 
   const cliente = await prisma.cliente.findFirst({
     where: { id, tenantId: sessao.tenantId, ativo: true },
     include: {
       agendamentos: {
         orderBy: { inicio: "desc" },
-        take: 10,
+        ...(completo ? {} : { take: 10 }),
         include: {
-          itens: { include: { servico: { select: { nome: true } } } },
+          itens: { include: { servico: { select: { id: true, nome: true, cor: true } } } },
           status: { select: { nome: true, cor: true } },
-          profissional: { select: { nome: true } },
+          profissional: { select: { id: true, nome: true, cor: true } },
         },
       },
     },

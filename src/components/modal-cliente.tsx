@@ -4,15 +4,26 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X, Loader2, Trash2, Calendar, Phone } from "lucide-react";
+import { X, Loader2, Trash2, Plus, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ModalOrcamento } from "@/components/modal-orcamento";
 
 type Agendamento = {
   id: string;
   inicio: string;
+  valorTotal: number | null;
   status: { nome: string; cor: string } | null;
   profissional: { nome: string };
-  itens: { servico: { nome: string } }[];
+  itens: { servico: { nome: string } | null }[];
+};
+
+type OrcamentoRow = {
+  id: string;
+  status: string;
+  valorTotal: number;
+  dataValidade: string;
+  criadoEm: string;
+  agendamentoId: string | null;
 };
 
 type Props = {
@@ -21,6 +32,29 @@ type Props = {
   onSalvo: () => void;
   clienteId?: string;
 };
+
+const STATUS_LABEL: Record<string, string> = {
+  EM_ABERTO: "Em Aberto",
+  APROVADO: "Aprovado",
+  FECHADO: "Fechado",
+  CANCELADO: "Cancelado",
+  EXPIRADO: "Expirado",
+};
+
+function statusBadgeClass(status: string) {
+  switch (status) {
+    case "EM_ABERTO": return "bg-amber-100 text-amber-800";
+    case "APROVADO": return "bg-blue-100 text-blue-800";
+    case "FECHADO": return "bg-emerald-100 text-emerald-800";
+    case "CANCELADO": return "bg-gray-100 text-gray-700";
+    case "EXPIRADO": return "bg-red-100 text-red-800";
+    default: return "bg-gray-100 text-gray-700";
+  }
+}
+
+function formatarBRL(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 const CAMPOS_VAZIOS = {
   nome: "",
@@ -39,17 +73,31 @@ export function ModalCliente({ aberto, onFechar, onSalvo, clienteId }: Props) {
   const ehEdicao = !!clienteId;
   const [campos, setCampos] = useState(CAMPOS_VAZIOS);
   const [historico, setHistorico] = useState<Agendamento[]>([]);
-  const [aba, setAba] = useState<"dados" | "historico">("dados");
+  const [orcamentos, setOrcamentos] = useState<OrcamentoRow[]>([]);
+  const [aba, setAba] = useState<"dados" | "historico" | "orcamentos">("dados");
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [erro, setErro] = useState("");
 
+  // Modal de Orçamento
+  const [modalOrcAberto, setModalOrcAberto] = useState(false);
+  const [orcSelecionado, setOrcSelecionado] = useState<string | undefined>();
+
+  function recarregarOrcamentos() {
+    if (!clienteId) return;
+    fetch(`/api/orcamentos?clienteId=${clienteId}`)
+      .then((r) => r.json())
+      .then((d) => setOrcamentos(Array.isArray(d) ? d : []))
+      .catch(() => setOrcamentos([]));
+  }
+
   useEffect(() => {
     if (!aberto) {
       setCampos(CAMPOS_VAZIOS);
       setHistorico([]);
+      setOrcamentos([]);
       setAba("dados");
       setErro("");
       setConfirmarExclusao(false);
@@ -79,6 +127,9 @@ export function ModalCliente({ aberto, onFechar, onSalvo, clienteId }: Props) {
         setHistorico(c.agendamentos ?? []);
       })
       .finally(() => setCarregando(false));
+
+    recarregarOrcamentos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto, clienteId]);
 
   function set(campo: string, valor: string) {
@@ -159,7 +210,7 @@ export function ModalCliente({ aberto, onFechar, onSalvo, clienteId }: Props) {
         {/* Tabs (só no modo edição) */}
         {ehEdicao && (
           <div className="flex border-b border-[#e8dcc4] px-5">
-            {(["dados", "historico"] as const).map((t) => (
+            {(["dados", "historico", "orcamentos"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setAba(t)}
@@ -170,7 +221,7 @@ export function ModalCliente({ aberto, onFechar, onSalvo, clienteId }: Props) {
                     : "border-transparent text-[#9a7d50] hover:text-[#5a4530]"
                 )}
               >
-                {t === "dados" ? "Dados" : "Histórico"}
+                {t === "dados" ? "Dados" : t === "historico" ? "Histórico" : "Orçamentos"}
               </button>
             ))}
           </div>
@@ -301,7 +352,7 @@ export function ModalCliente({ aberto, onFechar, onSalvo, clienteId }: Props) {
                 />
               </div>
             </div>
-          ) : (
+          ) : aba === "historico" ? (
             /* Histórico */
             <div className="space-y-2">
               {historico.length === 0 ? (
@@ -309,7 +360,7 @@ export function ModalCliente({ aberto, onFechar, onSalvo, clienteId }: Props) {
               ) : (
                 historico.map((ag) => {
                   const data = new Date(ag.inicio);
-                  const nomeServico = ag.itens[0]?.servico.nome ?? "—";
+                  const nomeServico = ag.itens[0]?.servico?.nome ?? "—";
                   return (
                     <div key={ag.id} className="flex items-center gap-3 p-3 rounded-lg border border-[#e8dcc4] hover:bg-[#faf5ee]">
                       <div className="flex-shrink-0 text-center">
@@ -320,15 +371,75 @@ export function ModalCliente({ aberto, onFechar, onSalvo, clienteId }: Props) {
                         <p className="text-sm font-medium text-[#5a4530] truncate">{nomeServico}</p>
                         <p className="text-xs text-[#9a7d50]">{ag.profissional.nome.split(" ")[0]}</p>
                       </div>
+                      {ag.valorTotal != null && ag.valorTotal > 0 && (
+                        <p className="text-sm font-semibold text-[#5a4530] flex-shrink-0">
+                          {formatarBRL(ag.valorTotal)}
+                        </p>
+                      )}
                       {ag.status && (
                         <span
-                          className="text-xs px-2 py-0.5 rounded-full text-white flex-shrink-0"
+                          className="text-[10px] px-2 py-0.5 rounded-full text-white flex-shrink-0"
                           style={{ backgroundColor: ag.status.cor }}
                         >
                           {ag.status.nome}
                         </span>
                       )}
                     </div>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            /* Orçamentos */
+            <div className="space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-[#9a7d50]">
+                  {orcamentos.length} orçamento(s)
+                </p>
+                <button
+                  onClick={() => {
+                    setOrcSelecionado(undefined);
+                    setModalOrcAberto(true);
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-[#B89968] border border-[#B89968]/30 hover:bg-[#faf5ee]"
+                >
+                  <Plus size={12} /> Novo Orçamento
+                </button>
+              </div>
+              {orcamentos.length === 0 ? (
+                <div className="text-center py-8 text-[#9a7d50]">
+                  <FileText size={24} className="mx-auto mb-2 text-[#B89968]/60" />
+                  <p className="text-sm">Nenhum orçamento criado.</p>
+                </div>
+              ) : (
+                orcamentos.map((o) => {
+                  const data = new Date(o.criadoEm);
+                  return (
+                    <button
+                      key={o.id}
+                      onClick={() => {
+                        setOrcSelecionado(o.id);
+                        setModalOrcAberto(true);
+                      }}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-[#e8dcc4] hover:bg-[#faf5ee] transition-colors text-left"
+                    >
+                      <div className="flex-shrink-0 text-center w-10">
+                        <p className="text-xs text-[#9a7d50]">{data.toLocaleDateString("pt-BR", { month: "short" }).toUpperCase()}</p>
+                        <p className="text-lg font-bold text-[#5a4530] leading-none">{data.getDate()}</p>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#5a4530]">{formatarBRL(o.valorTotal)}</p>
+                        {o.agendamentoId && (
+                          <p className="text-xs text-emerald-700">Vinculado a agendamento</p>
+                        )}
+                      </div>
+                      <span className={cn(
+                        "text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0",
+                        statusBadgeClass(o.status)
+                      )}>
+                        {STATUS_LABEL[o.status]}
+                      </span>
+                    </button>
                   );
                 })
               )}
@@ -381,6 +492,15 @@ export function ModalCliente({ aberto, onFechar, onSalvo, clienteId }: Props) {
           </div>
         )}
       </div>
+
+      {/* Modal de Orçamento (sub-modal) */}
+      <ModalOrcamento
+        aberto={modalOrcAberto}
+        onFechar={() => setModalOrcAberto(false)}
+        onSalvo={recarregarOrcamentos}
+        orcamentoId={orcSelecionado}
+        clienteFixo={clienteId && campos.nome ? { id: clienteId, nome: campos.nome } : null}
+      />
     </div>
   );
 }

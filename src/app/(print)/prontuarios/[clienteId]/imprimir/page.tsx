@@ -33,8 +33,40 @@ type Procedimento = {
 
 type Prontuario = { id: string; procedimentos: Procedimento[] };
 
+type AgendamentoHist = {
+  id: string;
+  inicio: string;
+  dataRealizado: string | null;
+  valorTotal: number | null;
+  formaPagamento: string | null;
+  profissional: { nome: string };
+  itens: { id: string; servico: { nome: string } | null }[];
+};
+
+type OrcamentoHist = {
+  id: string;
+  status: string;
+  valorTotal: number;
+  dataValidade: string;
+  criadoEm: string;
+  agendamentoId: string | null;
+  itens: { servico: { nome: string } | null }[];
+};
+
+const STATUS_ORC_LABEL: Record<string, string> = {
+  EM_ABERTO: "Em Aberto",
+  APROVADO: "Aprovado",
+  FECHADO: "Fechado",
+  CANCELADO: "Cancelado",
+  EXPIRADO: "Expirado",
+};
+
 function formatarData(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR");
+}
+
+function formatarBRL(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 function tituloTipo(tipo: string): string {
@@ -190,13 +222,23 @@ export default function ImprimirProntuarioPage({
   const { clienteId } = use(params);
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [prontuario, setProntuario] = useState<Prontuario | null>(null);
+  const [historico, setHistorico] = useState<AgendamentoHist[]>([]);
+  const [orcamentos, setOrcamentos] = useState<OrcamentoHist[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [nomeClinica, setNomeClinica] = useState("Beauty Clinic");
 
   useEffect(() => {
-    fetch(`/api/prontuarios/${clienteId}`)
-      .then((r) => r.json())
-      .then((d) => { setCliente(d.cliente); setProntuario(d.prontuario); setCarregando(false); });
+    Promise.all([
+      fetch(`/api/prontuarios/${clienteId}`).then((r) => r.json()),
+      fetch(`/api/clientes/${clienteId}?historico=completo`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/orcamentos?clienteId=${clienteId}`).then((r) => r.json()).catch(() => []),
+    ]).then(([prontRes, cliRes, orcRes]) => {
+      setCliente(prontRes.cliente);
+      setProntuario(prontRes.prontuario);
+      setHistorico(Array.isArray(cliRes?.agendamentos) ? cliRes.agendamentos : []);
+      setOrcamentos(Array.isArray(orcRes) ? orcRes : []);
+      setCarregando(false);
+    });
     fetch("/api/tenant-publico")
       .then((r) => r.json())
       .then((d) => setNomeClinica(d.nome))
@@ -259,6 +301,87 @@ export default function ImprimirProntuarioPage({
               </tbody>
             </table>
           </div>
+
+          {/* Histórico de Atendimentos */}
+          {(() => {
+            const atendimentos = historico.filter((a) => a.dataRealizado);
+            const total = atendimentos.reduce((s, a) => s + (a.valorTotal ?? 0), 0);
+            if (atendimentos.length === 0) return null;
+            return (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2 border-b border-gray-200 pb-1">
+                  <p className="font-semibold text-[#B89968] uppercase text-xs tracking-wide">
+                    Histórico de Atendimentos
+                  </p>
+                  <p className="text-xs text-[#5a4530] font-semibold">
+                    Total gasto: {formatarBRL(total)}
+                  </p>
+                </div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-gray-600 border-b border-gray-200">
+                      <th className="py-1 pr-2 font-medium">Data</th>
+                      <th className="py-1 pr-2 font-medium">Profissional</th>
+                      <th className="py-1 pr-2 font-medium">Serviços</th>
+                      <th className="py-1 pr-2 font-medium text-right">Valor</th>
+                      <th className="py-1 font-medium">Pagamento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {atendimentos.map((a) => {
+                      const data = new Date(a.dataRealizado ?? a.inicio);
+                      const servicos = a.itens.map((it) => it.servico?.nome).filter(Boolean).join(", ") || "—";
+                      return (
+                        <tr key={a.id} className="border-b border-gray-100">
+                          <td className="py-1 pr-2">{data.toLocaleDateString("pt-BR")}</td>
+                          <td className="py-1 pr-2">{a.profissional.nome.split(" ")[0]}</td>
+                          <td className="py-1 pr-2">{servicos}</td>
+                          <td className="py-1 pr-2 text-right font-medium">
+                            {a.valorTotal != null ? formatarBRL(a.valorTotal) : "—"}
+                          </td>
+                          <td className="py-1">{a.formaPagamento || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+
+          {/* Orçamentos */}
+          {orcamentos.length > 0 && (
+            <div className="mb-6">
+              <p className="font-semibold text-[#B89968] uppercase text-xs tracking-wide mb-2 border-b border-gray-200 pb-1">
+                Orçamentos
+              </p>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-gray-600 border-b border-gray-200">
+                    <th className="py-1 pr-2 font-medium">Data</th>
+                    <th className="py-1 pr-2 font-medium">Serviços</th>
+                    <th className="py-1 pr-2 font-medium text-right">Valor</th>
+                    <th className="py-1 pr-2 font-medium">Status</th>
+                    <th className="py-1 font-medium">Validade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orcamentos.map((o) => {
+                    const servicos = o.itens.map((it) => it.servico?.nome).filter(Boolean).join(", ") || "—";
+                    return (
+                      <tr key={o.id} className="border-b border-gray-100">
+                        <td className="py-1 pr-2">{formatarData(o.criadoEm)}</td>
+                        <td className="py-1 pr-2">{servicos}</td>
+                        <td className="py-1 pr-2 text-right font-medium">{formatarBRL(o.valorTotal)}</td>
+                        <td className="py-1 pr-2">{STATUS_ORC_LABEL[o.status]}</td>
+                        <td className="py-1">{formatarData(o.dataValidade)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Fichas */}
           <p className="font-semibold text-[#B89968] uppercase text-xs tracking-wide mb-3 border-b border-gray-200 pb-1">Histórico de Fichas e Procedimentos</p>

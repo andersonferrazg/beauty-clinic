@@ -24,6 +24,7 @@ import {
   Home,
   LayoutDashboard,
   Send,
+  Gift,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Permissoes } from "@/lib/session";
@@ -46,6 +47,7 @@ const navegacao: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, visivel: sempre },
   { href: "/agenda", label: "Agenda", icon: Calendar, visivel: (p) => p.isAdmin || p.verAgenda },
   { href: "/clientes", label: "Clientes", icon: Users, visivel: (p) => p.isAdmin || p.acessarClientes },
+  { href: "/aniversariantes", label: "Aniversariantes", icon: Gift, visivel: (p) => p.isAdmin || p.acessarClientes },
   { href: "/prontuarios", label: "Prontuários", icon: FileText, visivel: (p) => p.isAdmin || p.acessarProntuarios },
   { href: "/servicos", label: "Serviços & Pacotes", icon: Scissors, visivel: (p) => p.isAdmin || p.acessarServicos },
   { href: "/produtos", label: "Produtos & Estoque", icon: Package, visivel: (p) => p.isAdmin || p.acessarProdutos },
@@ -54,6 +56,7 @@ const navegacao: NavItem[] = [
   { href: "/gastos/casa", label: "Gastos Pessoal", icon: Home, visivel: (p) => p.isAdmin || p.acessarDespesas },
   { href: "/comissoes", label: "Comissões", icon: Wallet, visivel: (p) => p.isAdmin || p.verComissoesReceber || p.verPagamentosComissao },
   { href: "/comandas", label: "Comandas", icon: ClipboardList, visivel: (p) => p.isAdmin || p.acessarFinanceiro },
+  { href: "/orcamentos", label: "Orçamentos", icon: FileText, visivel: (p) => p.isAdmin || p.acessarFinanceiro },
   { href: "/confirmacoes", label: "Confirmações WA", icon: Send, visivel: (p) => p.isAdmin || p.verAgenda },
   { href: "/mensagens", label: "Msgs Pré-definidas", icon: MessageSquare, visivel: (p) => p.isAdmin || p.acessarServicos },
   { href: "/profissionais", label: "Profissionais", icon: Users, visivel: admin },
