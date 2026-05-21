@@ -547,16 +547,22 @@ export default function ProntuarioClientePage({
 
         return (
           <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 mb-6">
-            <div className="flex items-start justify-between gap-2 mb-4">
-              <h2 className="text-base font-semibold text-[#5a4530] flex items-center gap-2">
-                <Activity size={16} className="text-[#B89968] flex-shrink-0" />
-                Histórico de Atendimentos
-              </h2>
-              <div className="text-right flex-shrink-0">
-                <p className="text-[10px] text-[#9a7d50] uppercase tracking-wider">Total Gasto</p>
-                <p className="text-sm font-bold text-[#5a4530]">{formatarBRL(totalAcumulado)}</p>
-                <p className="text-[10px] text-[#9a7d50]">{atendimentosRealizados.length} atendimento(s)</p>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="flex items-start gap-2 min-w-0">
+                <Activity size={16} className="text-[#B89968] flex-shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-base font-semibold text-[#5a4530] leading-snug">
+                    Histórico de Atendimentos
+                  </h2>
+                  <p className="text-xs text-[#9a7d50] mt-0.5">{atendimentosRealizados.length} atendimento(s)</p>
+                </div>
               </div>
+              {totalAcumulado > 0 && (
+                <div className="text-right flex-shrink-0">
+                  <p className="text-[10px] text-[#9a7d50] uppercase tracking-wider">Total Gasto</p>
+                  <p className="text-sm font-bold text-[#5a4530]">{formatarBRL(totalAcumulado)}</p>
+                </div>
+              )}
             </div>
             {atendimentosRealizados.length === 0 ? (
               <p className="text-sm text-[#9a7d50] text-center py-6 italic">
