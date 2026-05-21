@@ -50,7 +50,7 @@
   --radius-sm: calc(var(--radius) - 2px);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 2px);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
   --font-serif: "Georgia", "Times New Roman", serif;
 }
 
