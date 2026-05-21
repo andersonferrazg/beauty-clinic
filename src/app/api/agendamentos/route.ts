@@ -25,9 +25,17 @@ export async function GET(req: NextRequest) {
     inicio: { gte: inicioDia, lte: fimDia },
   };
 
-  // Profissional vê apenas seus próprios agendamentos; admin vê todos
+  // Profissional vê apenas seus próprios agendamentos; admin e recepcionista (possuiAgenda=false) veem todos
   if (!sessao.permissoes.isAdmin && sessao.profissionalId) {
-    where.profissionalId = sessao.profissionalId;
+    const prof = await prisma.profissional.findUnique({
+      where: { id: sessao.profissionalId },
+      select: { possuiAgenda: true },
+    });
+    if (prof?.possuiAgenda !== false) {
+      where.profissionalId = sessao.profissionalId;
+    } else if (profissionalId) {
+      where.profissionalId = profissionalId;
+    }
   } else if (profissionalId) {
     where.profissionalId = profissionalId;
   }
