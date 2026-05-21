@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
 
   const status = req.nextUrl.searchParams.get("status");
   const clienteId = req.nextUrl.searchParams.get("clienteId");
+  const profissionalId = req.nextUrl.searchParams.get("profissionalId");
   const q = req.nextUrl.searchParams.get("q");
 
   // Expirar automaticamente os que passaram da validade
@@ -37,6 +38,8 @@ export async function GET(req: NextRequest) {
   const where: Record<string, unknown> = { tenantId: sessao.tenantId };
   if (status) where.status = status;
   if (clienteId) where.clienteId = clienteId;
+  if (profissionalId === "none") where.profissionalId = null;
+  else if (profissionalId) where.profissionalId = profissionalId;
   if (q) {
     where.cliente = { nome: { contains: q } };
   }

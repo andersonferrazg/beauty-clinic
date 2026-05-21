@@ -59,6 +59,22 @@ function formatarData(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR");
 }
 
+function formatarCPF(cpf: string | null): string {
+  if (!cpf) return "";
+  const n = cpf.replace(/\D/g, "");
+  if (n.length !== 11) return cpf;
+  return `${n.slice(0, 3)}.${n.slice(3, 6)}.${n.slice(6, 9)}-${n.slice(9)}`;
+}
+
+function formatarTelefone(tel: string | null): string {
+  if (!tel) return "";
+  const n = tel.replace(/\D/g, "");
+  if (n.length === 13) return `(${n.slice(2, 4)}) ${n.slice(4, 9)}-${n.slice(9)}`;
+  if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  return tel;
+}
+
 export default function ImprimirOrcamentoPage({
   params,
 }: {
@@ -165,19 +181,19 @@ export default function ImprimirOrcamentoPage({
             <table className="w-full">
               <tbody>
                 <tr>
-                  <td className="pr-3 py-0.5 text-gray-600 w-32">Nome:</td>
+                  <td className="pr-3 py-0.5 text-gray-600 w-20">Nome:</td>
                   <td className="font-medium">{orcamento.cliente.nome}</td>
                 </tr>
                 {orcamento.cliente.cpf && (
                   <tr>
                     <td className="pr-3 py-0.5 text-gray-600">CPF:</td>
-                    <td>{orcamento.cliente.cpf}</td>
+                    <td>{formatarCPF(orcamento.cliente.cpf)}</td>
                   </tr>
                 )}
                 {orcamento.cliente.telefone1 && (
                   <tr>
                     <td className="pr-3 py-0.5 text-gray-600">Telefone:</td>
-                    <td>{orcamento.cliente.telefone1}</td>
+                    <td>{formatarTelefone(orcamento.cliente.telefone1)}</td>
                   </tr>
                 )}
                 {orcamento.cliente.email && (

@@ -69,6 +69,22 @@ function formatarBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function formatarCPF(cpf: string | null): string {
+  if (!cpf) return "";
+  const n = cpf.replace(/\D/g, "");
+  if (n.length !== 11) return cpf;
+  return `${n.slice(0, 3)}.${n.slice(3, 6)}.${n.slice(6, 9)}-${n.slice(9)}`;
+}
+
+function formatarTelefone(tel: string | null): string {
+  if (!tel) return "";
+  const n = tel.replace(/\D/g, "");
+  if (n.length === 13) return `(${n.slice(2, 4)}) ${n.slice(4, 9)}-${n.slice(9)}`;
+  if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  return tel;
+}
+
 function tituloTipo(tipo: string): string {
   if (tipo in TERMOS) return TERMOS[tipo as keyof typeof TERMOS].titulo;
   if (tipo in CARTILHAS) return CARTILHAS[tipo as keyof typeof CARTILHAS].titulo;
@@ -293,10 +309,10 @@ export default function ImprimirProntuarioPage({
                 <tr><td className="pr-3 py-0.5 text-gray-600 w-32">Nome:</td><td className="font-medium">{cliente.nome}</td></tr>
                 {formatarSexo(cliente.sexo) && <tr><td className="pr-3 py-0.5 text-gray-600">Sexo:</td><td>{formatarSexo(cliente.sexo)}</td></tr>}
                 {cliente.dataNascimento && <tr><td className="pr-3 py-0.5 text-gray-600">Data Nasc.:</td><td>{formatarData(cliente.dataNascimento)}</td></tr>}
-                {cliente.cpf && <tr><td className="pr-3 py-0.5 text-gray-600">CPF:</td><td>{cliente.cpf}</td></tr>}
+                {cliente.cpf && <tr><td className="pr-3 py-0.5 text-gray-600">CPF:</td><td>{formatarCPF(cliente.cpf)}</td></tr>}
                 {cliente.rg && <tr><td className="pr-3 py-0.5 text-gray-600">RG:</td><td>{cliente.rg}</td></tr>}
                 {cliente.endereco && <tr><td className="pr-3 py-0.5 text-gray-600">Endereço:</td><td>{cliente.endereco}</td></tr>}
-                {cliente.telefone1 && <tr><td className="pr-3 py-0.5 text-gray-600">Telefone:</td><td>{cliente.telefone1}</td></tr>}
+                {cliente.telefone1 && <tr><td className="pr-3 py-0.5 text-gray-600">Telefone:</td><td>{formatarTelefone(cliente.telefone1)}</td></tr>}
                 {cliente.email && <tr><td className="pr-3 py-0.5 text-gray-600">E-mail:</td><td>{cliente.email}</td></tr>}
               </tbody>
             </table>

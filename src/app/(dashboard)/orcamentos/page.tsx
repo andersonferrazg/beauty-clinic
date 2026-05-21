@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalOrcamento } from "@/components/modal-orcamento";
-import { Search, Plus, Loader2, FileText } from "lucide-react";
+import { Search, Plus, Loader2, FileText, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type Profissional = { id: string; nome: string; cor: string };
 
 type Orcamento = {
   id: string;
@@ -42,8 +44,8 @@ function statusBadgeClass(status: string) {
     case "EM_ABERTO": return "bg-amber-100 text-amber-800 border-amber-200";
     case "APROVADO": return "bg-blue-100 text-blue-800 border-blue-200";
     case "FECHADO": return "bg-emerald-100 text-emerald-800 border-emerald-200";
-    case "CANCELADO": return "bg-gray-100 text-gray-700 border-gray-200";
-    case "EXPIRADO": return "bg-red-100 text-red-800 border-red-200";
+    case "CANCELADO": return "bg-red-100 text-red-800 border-red-200";
+    case "EXPIRADO": return "bg-orange-100 text-orange-800 border-orange-200";
     default: return "bg-gray-100 text-gray-700 border-gray-200";
   }
 }
@@ -61,16 +63,23 @@ export default function OrcamentosPage() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroProfissionalId, setFiltroProfissionalId] = useState("");
+  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [carregando, setCarregando] = useState(true);
 
   const [modalAberto, setModalAberto] = useState(false);
   const [orcSelecionado, setOrcSelecionado] = useState<string | undefined>();
+
+  useEffect(() => {
+    fetch("/api/profissionais").then((r) => r.json()).then(setProfissionais).catch(() => {});
+  }, []);
 
   async function carregar() {
     setCarregando(true);
     const params = new URLSearchParams();
     if (busca) params.set("q", busca);
     if (filtroStatus) params.set("status", filtroStatus);
+    if (filtroProfissionalId) params.set("profissionalId", filtroProfissionalId);
     const url = `/api/orcamentos${params.toString() ? `?${params.toString()}` : ""}`;
     const r = await fetch(url);
     const dados = await r.json();
@@ -84,7 +93,7 @@ export default function OrcamentosPage() {
     const t = setTimeout(() => carregar(), 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busca, filtroStatus]);
+  }, [busca, filtroStatus, filtroProfissionalId]);
 
   function abrirNovo() {
     setOrcSelecionado(undefined);
@@ -121,7 +130,7 @@ export default function OrcamentosPage() {
             className="pl-9 border-[#B89968]/30"
           />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           {STATUS_OPCOES.map((s) => (
             <button
               key={s.valor}
@@ -137,6 +146,21 @@ export default function OrcamentosPage() {
             </button>
           ))}
         </div>
+        {profissionais.length > 0 && (
+          <div className="relative">
+            <select
+              value={filtroProfissionalId}
+              onChange={(e) => setFiltroProfissionalId(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-1.5 rounded-md text-xs font-medium border border-[#B89968]/30 text-[#9a7d50] bg-white hover:bg-[#faf5ee] transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+            >
+              <option value="">Todas as profissionais</option>
+              {profissionais.map((p) => (
+                <option key={p.id} value={p.id}>{p.nome}</option>
+              ))}
+            </select>
+            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#9a7d50] pointer-events-none" />
+          </div>
+        )}
       </div>
 
       {carregando ? (
