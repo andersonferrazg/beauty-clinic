@@ -22,6 +22,22 @@ import type { TipoTermo } from "@/lib/termos";
 import type { TipoCartilha } from "@/lib/cartilhas";
 import { cn } from "@/lib/utils";
 
+function formatarCPF(cpf: string | null): string {
+  if (!cpf) return "";
+  const n = cpf.replace(/\D/g, "");
+  if (n.length !== 11) return cpf;
+  return `${n.slice(0, 3)}.${n.slice(3, 6)}.${n.slice(6, 9)}-${n.slice(9)}`;
+}
+
+function formatarTelefone(tel: string | null): string {
+  if (!tel) return "";
+  const n = tel.replace(/\D/g, "");
+  if (n.length === 13) return `(${n.slice(2, 4)}) ${n.slice(4, 9)}-${n.slice(9)}`;
+  if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  return tel;
+}
+
 type Profissional = { id: string; nome: string; cor: string };
 type Foto = { id: string; url: string; tag: string; descricao: string | null };
 type Procedimento = {
@@ -480,7 +496,7 @@ export default function ProntuarioClientePage({
               <IdCard size={13} className="text-[#9a7d50] mt-0.5" />
               <div>
                 <p className="text-xs text-[#9a7d50]">CPF</p>
-                <p className="text-[#5a4530]">{cliente.cpf}</p>
+                <p className="text-[#5a4530]">{formatarCPF(cliente.cpf)}</p>
               </div>
             </div>
           )}
@@ -498,7 +514,7 @@ export default function ProntuarioClientePage({
               <Phone size={13} className="text-[#9a7d50] mt-0.5" />
               <div>
                 <p className="text-xs text-[#9a7d50]">Telefone</p>
-                <p className="text-[#5a4530]">{cliente.telefone1}</p>
+                <p className="text-[#5a4530]">{formatarTelefone(cliente.telefone1)}</p>
               </div>
             </div>
           )}
