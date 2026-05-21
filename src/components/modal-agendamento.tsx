@@ -35,7 +35,7 @@ type Props = {
 
 const MOTIVOS_BLOQUEIO = ["Almoço", "Médico", "Curso", "Folga", "Reunião"];
 const FORMAS_PAGAMENTO = ["Dinheiro", "Pix/Transferência", "Crédito", "Débito", "Cheque", "Cortesia"];
-const DURACOES = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240];
+const DURACOES = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240, 270, 300, 360, 420, 480, 540, 600, 660, 720];
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
@@ -79,6 +79,7 @@ export function ModalAgendamento({
   const [corCustom, setCorCustom] = useState("");
   const [observacao, setObservacao] = useState("");
   const [motivoBloqueio, setMotivoBloqueio] = useState("");
+  const [diaInteiro, setDiaInteiro] = useState(false);
   const [formaPagamento, setFormaPagamento] = useState("");
   const [itens, setItens] = useState<ItemServico[]>([]);
 
@@ -211,6 +212,7 @@ export function ModalAgendamento({
       setMostrarSugestoesItem([]);
       setObservacao("");
       setMotivoBloqueio("");
+      setDiaInteiro(false);
       setFormaPagamento("");
       setCorCustom("");
       setErro("");
@@ -425,9 +427,8 @@ export function ModalAgendamento({
                   type="time"
                   value={horaStr}
                   onChange={(e) => setHoraStr(e.target.value)}
-                  className="border-[#B89968]/30 pr-8"
+                  className="border-[#B89968]/30"
                 />
-                <Clock size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9a7d50] pointer-events-none" />
               </div>
             </div>
             <div className="w-14 space-y-1.5">
@@ -733,25 +734,47 @@ export function ModalAgendamento({
                 ))}
               </div>
 
-              {/* Duração para bloqueio */}
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[#5a4530]">Duração</Label>
-                  <span className="text-xs text-[#9a7d50]">Término: {fimCalculado}</span>
-                </div>
-                <select
-                  value={duracaoMin}
-                  onChange={(e) => setDuracaoMin(Number(e.target.value))}
-                  className="flex h-9 w-full rounded-md border border-[#B89968]/30 bg-transparent px-3 py-1 text-sm text-[#5a4530] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B89968]"
-                >
-                  {DURACOES.map((d) => (
-                    <option key={d} value={d}>{formatarDuracao(d)}</option>
-                  ))}
-                  {!DURACOES.includes(duracaoMin) && (
-                    <option value={duracaoMin}>{formatarDuracao(duracaoMin)}</option>
+              {/* Dia Inteiro toggle */}
+              <div className="flex items-center justify-between pt-1">
+                <Label className="text-[#5a4530]">Dia Inteiro</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const novo = !diaInteiro;
+                    setDiaInteiro(novo);
+                    if (novo) { setHoraStr("00:00"); setDuracaoMin(1440); }
+                    else { setDuracaoMin(60); }
+                  }}
+                  className={cn(
+                    "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                    diaInteiro ? "bg-[#B89968]" : "bg-[#e8dcc4]"
                   )}
-                </select>
+                >
+                  <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow", diaInteiro ? "translate-x-4" : "translate-x-1")} />
+                </button>
               </div>
+
+              {/* Duração para bloqueio (oculta quando Dia Inteiro) */}
+              {!diaInteiro && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[#5a4530]">Duração</Label>
+                    <span className="text-xs text-[#9a7d50]">Término: {fimCalculado}</span>
+                  </div>
+                  <select
+                    value={duracaoMin}
+                    onChange={(e) => setDuracaoMin(Number(e.target.value))}
+                    className="flex h-9 w-full rounded-md border border-[#B89968]/30 bg-transparent px-3 py-1 text-sm text-[#5a4530] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B89968]"
+                  >
+                    {DURACOES.map((d) => (
+                      <option key={d} value={d}>{formatarDuracao(d)}</option>
+                    ))}
+                    {!DURACOES.includes(duracaoMin) && (
+                      <option value={duracaoMin}>{formatarDuracao(duracaoMin)}</option>
+                    )}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
