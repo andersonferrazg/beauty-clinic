@@ -476,7 +476,7 @@ export function ModalAgendamento({
               </div>
             </div>
             {tipo === "agendamento" && (
-              <div className="w-28 space-y-1.5">
+              <div className="min-w-[8rem] flex-shrink-0 space-y-1.5">
                 <Label className="text-[#5a4530]">Hora Início</Label>
                 <div className="relative">
                   <Input

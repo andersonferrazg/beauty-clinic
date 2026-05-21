@@ -6,6 +6,15 @@ import { Input } from "@/components/ui/input";
 import { ModalCliente } from "@/components/modal-cliente";
 import { Search, Plus, Phone, Calendar, Loader2, Download } from "lucide-react";
 
+function formatarTelefone(tel: string | null): string {
+  if (!tel) return "";
+  const n = tel.replace(/\D/g, "");
+  if (n.length === 13) return `(${n.slice(2, 4)}) ${n.slice(4, 9)}-${n.slice(9)}`;
+  if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  return tel;
+}
+
 type Cliente = {
   id: string;
   nome: string;
@@ -140,7 +149,7 @@ export default function ClientesPage() {
                     {c.telefone1 ? (
                       <span className="flex items-center gap-1.5 text-[#5a4530]">
                         <Phone size={12} className="text-[#B89968]" />
-                        {c.telefone1}
+                        {formatarTelefone(c.telefone1)}
                       </span>
                     ) : (
                       <span className="text-[#9a7d50] italic text-xs">Não informado</span>

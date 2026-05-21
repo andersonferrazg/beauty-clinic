@@ -318,7 +318,7 @@ export default function AgendaPage() {
     <div className="flex flex-col h-full bg-[#f4f6f8]">
 
       {/* ── Barra de navegação semanal ────────────────────────────────────── */}
-      <div className="bg-white border-b border-[#e8dcc4] sticky top-0 z-10 px-3 py-2">
+      <div className="bg-white border-b border-[#e8dcc4] sticky top-0 z-30 px-3 py-2">
         <div className="flex items-center gap-1 relative">
           <button
             onClick={() => navegar(-7)}

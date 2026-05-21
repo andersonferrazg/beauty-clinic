@@ -243,6 +243,10 @@ export default function ImprimirProntuarioPage({
   const [carregando, setCarregando] = useState(true);
   const [nomeClinica, setNomeClinica] = useState("Beauty Clinic");
 
+  const [inclHistorico, setInclHistorico] = useState(true);
+  const [inclOrcamentos, setInclOrcamentos] = useState(true);
+  const [inclFichas, setInclFichas] = useState(true);
+
   useEffect(() => {
     Promise.all([
       fetch(`/api/prontuarios/${clienteId}`).then((r) => r.json()),
@@ -275,22 +279,45 @@ export default function ImprimirProntuarioPage({
           .no-print { display: none !important; }
           body { background: white !important; }
           .ficha-page { page-break-inside: avoid; }
+          ${!inclHistorico ? ".secao-historico { display: none !important; }" : ""}
+          ${!inclOrcamentos ? ".secao-orcamentos { display: none !important; }" : ""}
+          ${!inclFichas ? ".secao-fichas { display: none !important; }" : ""}
         }
         .prontuario-impressao { font-family: Geist, system-ui, sans-serif; color: #1f2937; line-height: 1.5; }
       `}</style>
 
       <div className="min-h-screen bg-gray-100 prontuario-impressao">
-        <div className="no-print bg-white border-b px-6 py-3 flex items-center justify-between sticky top-0 z-10">
-          <div>
-            <h1 className="text-sm font-semibold text-gray-700">Prontuário Completo — {cliente.nome}</h1>
-            <p className="text-xs text-gray-500">{prontuario?.procedimentos.length ?? 0} ficha(s) registrada(s)</p>
+        <div className="no-print bg-white border-b px-6 py-3 sticky top-0 z-10">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-sm font-semibold text-gray-700">Prontuário — {cliente.nome}</h1>
+              <p className="text-xs text-gray-500">{prontuario?.procedimentos.length ?? 0} ficha(s)</p>
+            </div>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 bg-[#B89968] text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-[#9a7d50]"
+            >
+              <Printer size={15} /> Imprimir
+            </button>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 bg-[#B89968] text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-[#9a7d50]"
-          >
-            <Printer size={15} /> Imprimir
-          </button>
+          <div className="flex items-center gap-4 mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
+            <span className="font-medium text-gray-500">Incluir na impressão:</span>
+            {[
+              { label: "Histórico de Atendimentos", value: inclHistorico, set: setInclHistorico },
+              { label: "Orçamentos", value: inclOrcamentos, set: setInclOrcamentos },
+              { label: "Fichas Clínicas", value: inclFichas, set: setInclFichas },
+            ].map(({ label, value, set }) => (
+              <label key={label} className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={value}
+                  onChange={(e) => set(e.target.checked)}
+                  className="accent-[#B89968] w-3.5 h-3.5"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="max-w-3xl mx-auto bg-white p-10 my-6 shadow-sm print:shadow-none print:my-0 print:p-0">
@@ -324,7 +351,7 @@ export default function ImprimirProntuarioPage({
             const total = atendimentos.reduce((s, a) => s + (a.valorTotal ?? 0), 0);
             if (atendimentos.length === 0) return null;
             return (
-              <div className="mb-6">
+              <div className="mb-6 secao-historico">
                 <div className="flex items-center justify-between mb-2 border-b border-gray-200 pb-1">
                   <p className="font-semibold text-[#B89968] uppercase text-xs tracking-wide">
                     Histórico de Atendimentos
@@ -367,7 +394,7 @@ export default function ImprimirProntuarioPage({
 
           {/* Orçamentos */}
           {orcamentos.length > 0 && (
-            <div className="mb-6">
+            <div className="mb-6 secao-orcamentos">
               <p className="font-semibold text-[#B89968] uppercase text-xs tracking-wide mb-2 border-b border-gray-200 pb-1">
                 Orçamentos
               </p>
@@ -400,17 +427,18 @@ export default function ImprimirProntuarioPage({
           )}
 
           {/* Fichas */}
-          <p className="font-semibold text-[#B89968] uppercase text-xs tracking-wide mb-3 border-b border-gray-200 pb-1">Histórico de Fichas e Procedimentos</p>
-
-          {!prontuario?.procedimentos.length ? (
-            <p className="text-sm text-gray-500 italic py-4 text-center">Nenhuma ficha registrada.</p>
-          ) : (
-            <div>
-              {prontuario.procedimentos.map((p) => (
-                <CardImpressao key={p.id} proc={p} />
-              ))}
-            </div>
-          )}
+          <div className="secao-fichas">
+            <p className="font-semibold text-[#B89968] uppercase text-xs tracking-wide mb-3 border-b border-gray-200 pb-1">Histórico de Fichas e Procedimentos</p>
+            {!prontuario?.procedimentos.length ? (
+              <p className="text-sm text-gray-500 italic py-4 text-center">Nenhuma ficha registrada.</p>
+            ) : (
+              <div>
+                {prontuario.procedimentos.map((p) => (
+                  <CardImpressao key={p.id} proc={p} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
