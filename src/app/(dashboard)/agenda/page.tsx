@@ -451,7 +451,7 @@ export default function AgendaPage() {
                   className="flex-1 min-w-[180px] border-r border-[#e8dcc4] last:border-r-0"
                 >
                   {/* Cabeçalho da profissional */}
-                  <div className="h-10 flex items-center justify-center gap-2 border-b border-[#e8dcc4] bg-white sticky top-0 z-[5] px-2">
+                  <div className="h-10 flex items-center justify-center gap-2 border-b border-[#e8dcc4] bg-white sticky top-0 z-[20] px-2">
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
                       style={{ backgroundColor: prof.cor }}
@@ -492,8 +492,12 @@ export default function AgendaPage() {
                     {agsDaProf.map((ag) => {
                       const { top, height } = posicaoBloco(ag.inicio, ag.fim);
                       const ehBloqueio = !ag.cliente;
-                      const cor = ehBloqueio ? "#d1d5db" : (ag.corCustom || ag.status?.cor || ag.profissional.cor);
-                      const corTexto = ehBloqueio ? "#6b7280" : "#fff";
+                      const cor = ehBloqueio ? "transparent" : (ag.corCustom || ag.status?.cor || ag.profissional.cor);
+                      const corTexto = ehBloqueio ? "#9ca3af" : "#fff";
+                      const estiloBloqueio = ehBloqueio ? {
+                        background: "repeating-linear-gradient(-45deg, #f3f4f6, #f3f4f6 6px, #e5e7eb 6px, #e5e7eb 12px)",
+                        border: "1px solid #d1d5db",
+                      } : {};
                       const nomeServico = ag.itens[0]?.servico.nome ?? (ag.motivoBloqueio || "Bloqueio");
                       const temTelefone = !!ag.cliente?.telefone1;
 
@@ -528,7 +532,7 @@ export default function AgendaPage() {
                         >
                           <div
                             className="h-full px-2 py-1.5 flex flex-col gap-0.5 relative"
-                            style={{ backgroundColor: cor, color: corTexto }}
+                            style={{ backgroundColor: cor, color: corTexto, ...estiloBloqueio }}
                           >
                             {/* Linha 1: horário + status */}
                             <div className="flex items-center justify-between gap-1">

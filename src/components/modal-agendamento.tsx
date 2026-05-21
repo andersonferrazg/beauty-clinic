@@ -470,14 +470,20 @@ export function ModalAgendamento({
                 />
               </div>
             </div>
-            <div className="w-14 space-y-1.5">
+            <div className="space-y-1.5 flex-shrink-0">
               <Label className="text-[#5a4530]">Cor</Label>
-              <input
-                type="color"
-                value={corCustom || "#B89968"}
-                onChange={(e) => setCorCustom(e.target.value)}
-                className="h-9 w-full rounded-md border border-[#B89968]/30 cursor-pointer p-1"
-              />
+              <label className="cursor-pointer block">
+                <div
+                  className="w-9 h-9 rounded-full border-2 border-[#e8dcc4] shadow-sm hover:scale-110 transition-transform"
+                  style={{ backgroundColor: corCustom || "#B89968" }}
+                />
+                <input
+                  type="color"
+                  value={corCustom || "#B89968"}
+                  onChange={(e) => setCorCustom(e.target.value)}
+                  className="sr-only"
+                />
+              </label>
             </div>
           </div>
 
