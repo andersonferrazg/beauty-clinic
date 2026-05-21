@@ -372,7 +372,7 @@ export default function ImprimirProntuarioPage({
                   </thead>
                   <tbody>
                     {atendimentos.map((a) => {
-                      const data = new Date(a.dataRealizado ?? a.inicio);
+                      const data = new Date(a.inicio);
                       const servicos = a.itens.map((it) => it.servico?.nome).filter(Boolean).join(", ") || "—";
                       return (
                         <tr key={a.id} className="border-b border-gray-100">

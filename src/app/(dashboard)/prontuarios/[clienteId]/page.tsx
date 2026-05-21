@@ -563,7 +563,7 @@ export default function ProntuarioClientePage({
                   </thead>
                   <tbody>
                     {atendimentosRealizados.map((a) => {
-                      const data = new Date(a.dataRealizado ?? a.inicio);
+                      const data = new Date(a.inicio);
                       const servicos = a.itens
                         .map((it) => it.servico?.nome)
                         .filter(Boolean)
