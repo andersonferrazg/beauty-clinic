@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
   Send,
   Gift,
+  Kanban,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Permissoes } from "@/lib/session";
@@ -47,6 +48,7 @@ const navegacao: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, visivel: sempre },
   { href: "/agenda", label: "Agenda", icon: Calendar, visivel: (p) => p.isAdmin || p.verAgenda },
   { href: "/clientes", label: "Clientes", icon: Users, visivel: (p) => p.isAdmin || p.acessarClientes },
+  { href: "/crm", label: "CRM / Leads", icon: Kanban, visivel: (p) => p.isAdmin || p.acessarClientes },
   { href: "/aniversariantes", label: "Aniversariantes", icon: Gift, visivel: (p) => p.isAdmin || p.acessarClientes },
   { href: "/prontuarios", label: "Prontuários", icon: FileText, visivel: (p) => p.isAdmin || p.acessarProntuarios },
   { href: "/servicos", label: "Serviços & Pacotes", icon: Scissors, visivel: (p) => p.isAdmin || p.acessarServicos },

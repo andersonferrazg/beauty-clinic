@@ -37,6 +37,7 @@ model Tenant {
   comissoes           ComissaoLancamento[]
   movimentacoesEstoque MovimentacaoEstoque[]
   orcamentos          Orcamento[]
+  leads               Lead[]
 
   @@map("tenants")
 }
@@ -149,6 +150,7 @@ model Profissional {
   procedimentos Procedimento[]
   comissoes     ComissaoLancamento[]
   orcamentos    Orcamento[]
+  leads         Lead[]
 
   @@unique([tenantId, email])
   @@map("profissionais")
@@ -177,6 +179,7 @@ model Cliente {
   agendamentos Agendamento[]
   prontuario   Prontuario?
   orcamentos   Orcamento[]
+  leads        Lead[]
 
   @@map("clientes")
 }
@@ -524,4 +527,43 @@ model InteracaoOrcamento {
 
   @@index([orcamentoId])
   @@map("interacoes_orcamento")
+}
+
+// ─── CRM / Pipeline de Leads ─────────────────────────────────────────────────
+
+model Lead {
+  id               String   @id @default(cuid())
+  tenantId         String
+  nome             String
+  telefone         String?
+  email            String?
+  origem           String?  // INSTAGRAM | WHATSAPP | INDICACAO | SITE | OUTRO
+  servicoInteresse String?
+  profissionalId   String?
+  estagio          String   @default("NOVO") // NOVO | EM_CONTATO | AGENDADO | CONVERTIDO | PERDIDO
+  clienteId        String?
+  observacoes      String?
+  criadoEm         DateTime @default(now())
+  atualizadoEm     DateTime @updatedAt
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  profissional Profissional?  @relation(fields: [profissionalId], references: [id])
+  cliente      Cliente?       @relation(fields: [clienteId], references: [id])
+  interacoes   InteracaoLead[]
+
+  @@index([tenantId, estagio])
+  @@map("leads")
+}
+
+model InteracaoLead {
+  id        String   @id @default(cuid())
+  leadId    String
+  tipo      String   // NOTA | LIGACAO | WHATSAPP | EMAIL
+  texto     String
+  criadoEm  DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@map("interacoes_lead")
 }
