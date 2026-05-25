@@ -309,18 +309,21 @@ model MensagemWpp {
 // ─── Produtos ─────────────────────────────────────────────────────────────────
 
 model Produto {
-  id           String   @id @default(cuid())
-  tenantId     String
-  nome         String
-  categoria    String?
-  precoVenda   Float    @default(0)
-  precoCusto   Float?
-  qtdEstoque   Int      @default(0)
-  qtdMinima    Int      @default(0)
-  patrimonio   Boolean   @default(false)
-  dataValidade DateTime?
-  ativo        Boolean   @default(true)
-  criadoEm    DateTime  @default(now())
+  id            String   @id @default(cuid())
+  tenantId      String
+  nome          String
+  categoria     String?
+  precoVenda    Float    @default(0)
+  precoCusto    Float?
+  qtdEstoque    Int      @default(0)
+  qtdMinima     Int      @default(0)
+  patrimonio    Boolean  @default(false)
+  dataValidade  DateTime?
+  ativo         Boolean  @default(true)
+  ehInjetavel   Boolean  @default(false)        // aparece na paleta do planejador visual
+  unidadeMedida String?  @default("unidade")    // "ui" | "ml" | "unidade" | "un"
+  corMarcacao   String?  @default("#A78BFA")    // cor do ponto no canvas (hex)
+  criadoEm      DateTime @default(now())
 
   tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   movimentacoes        MovimentacaoEstoque[]

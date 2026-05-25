@@ -440,6 +440,10 @@ Todas exigem `exigirSessao()` — sem sessão retorna 401.
 | `/api/movimentacoes-estoque` | GET, POST | Lista por produtoId; cria ENTRADA ou AJUSTE manual |
 | `/api/dashboard` | GET | KPIs, agenda, contas, aniversários em uma chamada |
 | `/api/fluxo-caixa` | GET | Projeção de saldo 30/60/90 dias |
+| `/api/orcamentos` | GET, POST | Lista com `?q`, `?status`, `?profissionalId`; cria orçamento |
+| `/api/orcamentos/[id]` | GET, PATCH, DELETE | Busca / edita / remove orçamento |
+| `/api/orcamentos/from-planejamento` | POST | Converte planejamento visual em orçamento pré-preenchido |
+| `/api/tenant-publico` | GET | Nome da clínica sem auth (usado em páginas de impressão) |
 
 ---
 
@@ -557,6 +561,59 @@ Schema aplicado no Supabase via `npx prisma db push` apontando para o pooler.
 - **Multi-tenant:** isolamento por `tenantId` em todas as queries
 - **Soft delete:** dados nunca apagados fisicamente
 - **HTTPS:** habilitado automaticamente via `secure: process.env.NODE_ENV === "production"` no cookie
+
+---
+
+## Fase 6 — Planejador Visual de Injetáveis + Orçamentos (CONCLUÍDA ✅)
+
+Inspirado no sistema **Clínica Experts** — a doutora marca pontos de aplicação diretamente em um SVG de face com dosagem por ponto, integrado ao estoque, ao prontuário e à geração de orçamento.
+
+### O que foi construído
+- **`/orcamentos`** — módulo completo: lista filtrada por status/profissional/busca, badge de status colorido, dias de validade restantes, abertura de modal por `?abrir=<id>` (integração com planejamento)
+- **`ModalOrcamento`** — criar/editar orçamentos com itens (serviço ou produto), descontos, observação, status
+- **`CanvasFacePlanner`** — componente SVG de face frontal estilizado (bege/dourado). Funciona em 2 modos:
+  - **Edição**: paleta de produtos injetáveis clicáveis → clique no SVG → cria ponto com dosagem em popover; clique em ponto existente → editar ou apagar; botão "Limpar tudo"; resumo por produto abaixo do canvas
+  - **readOnly**: apenas renderiza SVG + pontos com labels de dosagem (usado na impressão do prontuário e em visualização)
+- **Campos novos em `Produto`**: `ehInjetavel Boolean`, `unidadeMedida String?`, `corMarcacao String?` — produtos marcados com `ehInjetavel=true` aparecem na paleta do planejador
+- **UI de produto atualizada**: checkbox "É injetável", dropdown de unidade (Unidade/ml/ui/un), color picker com 6 cores pré-definidas; badge colorido na lista de produtos
+- **API `GET /api/produtos?injetavel=true`** — filtro de produtos injetáveis
+- **Integração na ficha de Planejamento** (`modal-ficha-planejamento.tsx`): bloco "Planejamento Visual" no topo do modal com `<CanvasFacePlanner>`, marcações salvas no JSON `anamnese.marcacoes`, botão "Gerar Orçamento" (só aparece quando há marcações)
+- **`POST /api/orcamentos/from-planejamento`** — agrupa marcações por produto → `Math.ceil(somaDosagem)` unidades → 1 `ItemOrcamento` por produto com descrição detalhada (dosagem, nº de pontos, regiões)
+- **Impressão do planejamento**: renderiza `<CanvasFacePlanner readOnly>` no PDF com os pontos salvos
+
+### Formato de dados das marcações (JSON em `Procedimento.anamnese`)
+```typescript
+// Procedimento.anamnese (campo JSON) ganha o array:
+{
+  // ...campos existentes (botox, preenchimentos, etc.)
+  marcacoes: [
+    {
+      id: "ponto-1721234567-abc",   // gerado client-side
+      produtoId: "clx123...",
+      produtoNome: "Toxina Botulínica",
+      produtoCor: "#A78BFA",
+      x: 0.45,                      // coordenada normalizada (0–1) sobre o SVG
+      y: 0.32,
+      dosagem: 5,
+      unidade: "ui",
+      regiao: "testa"               // texto livre, opcional
+    }
+  ]
+}
+```
+
+### Schema implementado (Fase 6)
+- `Produto`: + `ehInjetavel Boolean @default(false)`, `unidadeMedida String? @default("unidade")`, `corMarcacao String? @default("#A78BFA")`
+- `Orcamento` e `ItemOrcamento`: tabelas já existentes desde a Fase 3 — aplicar `npx prisma db push` se ainda não foram criadas em produção
+
+### ⚠️ Migração em produção necessária
+Após o deploy, Anderson deve rodar:
+```powershell
+$env:DATABASE_URL="postgresql://postgres.vbtqittceshebajqpjzw:%2ALa191218mari@aws-1-sa-east-1.pooler.supabase.com:5432/postgres"
+$env:DATABASE_PROVIDER="postgresql"
+npx prisma db push
+```
+Isso adiciona as 3 colunas novas em `Produto` (e cria `Orcamento`/`ItemOrcamento` se ainda não existirem). Sem isso, produtos não terão os campos de injetável e o planejador não funciona em produção.
 
 ---
 

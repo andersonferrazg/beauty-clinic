@@ -5,12 +5,14 @@ import { exigirSessao } from "@/lib/session";
 export async function GET(req: NextRequest) {
   const sessao = await exigirSessao();
   const busca = req.nextUrl.searchParams.get("q") ?? "";
+  const injetavel = req.nextUrl.searchParams.get("injetavel") === "true";
 
   const produtos = await prisma.produto.findMany({
     where: {
       tenantId: sessao.tenantId,
       ativo: true,
       ...(busca ? { nome: { contains: busca } } : {}),
+      ...(injetavel ? { ehInjetavel: true } : {}),
     },
     orderBy: { nome: "asc" },
   });
@@ -33,6 +35,9 @@ export async function POST(req: NextRequest) {
       qtdMinima: body.qtdMinima ? Number(body.qtdMinima) : 0,
       patrimonio: body.patrimonio ?? false,
       dataValidade: body.dataValidade ? new Date(body.dataValidade) : null,
+      ehInjetavel: body.ehInjetavel ?? false,
+      unidadeMedida: body.unidadeMedida ?? "unidade",
+      corMarcacao: body.corMarcacao ?? "#A78BFA",
     },
   });
 

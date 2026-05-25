@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalOrcamento } from "@/components/modal-orcamento";
@@ -60,6 +61,8 @@ function diasRestantes(dataValidade: string): number {
 }
 
 export default function OrcamentosPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
@@ -73,6 +76,17 @@ export default function OrcamentosPage() {
   useEffect(() => {
     fetch("/api/profissionais").then((r) => r.json()).then(setProfissionais).catch(() => {});
   }, []);
+
+  // Abre automaticamente um orçamento se vier via ?abrir=<id> (usado pelo "Gerar Orçamento" do planejamento)
+  useEffect(() => {
+    const abrir = searchParams.get("abrir");
+    if (abrir) {
+      setOrcSelecionado(abrir);
+      setModalAberto(true);
+      // Limpa o query param da URL
+      router.replace("/orcamentos");
+    }
+  }, [searchParams, router]);
 
   async function carregar() {
     setCarregando(true);

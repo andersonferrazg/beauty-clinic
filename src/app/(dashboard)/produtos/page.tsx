@@ -20,7 +20,26 @@ type Produto = {
   qtdMinima: number;
   patrimonio: boolean;
   dataValidade: string | null;
+  ehInjetavel?: boolean;
+  unidadeMedida?: string | null;
+  corMarcacao?: string | null;
 };
+
+const CORES_MARCACAO = [
+  { hex: "#A78BFA", nome: "Roxo" },
+  { hex: "#F472B6", nome: "Rosa" },
+  { hex: "#60A5FA", nome: "Azul" },
+  { hex: "#34D399", nome: "Verde" },
+  { hex: "#FB923C", nome: "Laranja" },
+  { hex: "#FBBF24", nome: "Amarelo" },
+];
+
+const UNIDADES = [
+  { v: "unidade", label: "Unidade" },
+  { v: "ml", label: "ml (mililitro)" },
+  { v: "ui", label: "ui (unidade injetável)" },
+  { v: "un", label: "un (unidade contável)" },
+];
 
 type Movimentacao = {
   id: string;
@@ -53,6 +72,7 @@ function statusValidade(dataValidade: string | null): "vencido" | "alerta" | "ok
 const CAMPOS_VAZIOS = {
   nome: "", categoria: "", precoVenda: "", precoCusto: "",
   qtdEstoque: "0", qtdMinima: "0", patrimonio: false, dataValidade: "",
+  ehInjetavel: false, unidadeMedida: "unidade", corMarcacao: "#A78BFA",
 };
 
 function ModalProduto({
@@ -90,6 +110,9 @@ function ModalProduto({
         precoVenda: produto.precoVenda.toString(), precoCusto: produto.precoCusto?.toString() ?? "",
         qtdEstoque: produto.qtdEstoque.toString(), qtdMinima: produto.qtdMinima.toString(),
         patrimonio: produto.patrimonio, dataValidade: toInputDate(produto.dataValidade),
+        ehInjetavel: produto.ehInjetavel ?? false,
+        unidadeMedida: produto.unidadeMedida ?? "unidade",
+        corMarcacao: produto.corMarcacao ?? "#A78BFA",
       });
     }
   }, [aberto, produto]);
@@ -117,6 +140,9 @@ function ModalProduto({
       qtdMinima: parseInt(campos.qtdMinima) || 0,
       patrimonio: campos.patrimonio,
       dataValidade: campos.dataValidade || null,
+      ehInjetavel: campos.ehInjetavel,
+      unidadeMedida: campos.ehInjetavel ? campos.unidadeMedida : "unidade",
+      corMarcacao: campos.ehInjetavel ? campos.corMarcacao : "#A78BFA",
     };
     const url = ehEdicao ? `/api/produtos/${produtoId}` : "/api/produtos";
     const r = await fetch(url, { method: ehEdicao ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -244,6 +270,64 @@ function ModalProduto({
               <input type="checkbox" checked={campos.patrimonio} onChange={(e) => set("patrimonio", e.target.checked)} className="accent-[#B89968]" />
               <span className="text-sm text-[#5a4530]">É patrimônio (equipamento/bem durável)</span>
             </label>
+
+            {/* ─── Planejador de Injetáveis ─────────────────────────────── */}
+            <div className="pt-3 border-t border-[#e8dcc4]">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={campos.ehInjetavel}
+                  onChange={(e) => set("ehInjetavel", e.target.checked)}
+                  className="accent-[#B89968]"
+                />
+                <span className="text-sm text-[#5a4530]">
+                  É injetável <span className="text-xs text-[#9a7d50]">(aparece no planejador visual da ficha de planejamento)</span>
+                </span>
+              </label>
+
+              {campos.ehInjetavel && (
+                <div className="mt-3 pl-6 space-y-3 border-l-2 border-[#B89968]/30">
+                  <div>
+                    <Label className="text-xs text-[#9a7d50] mb-1 block">Unidade de medida</Label>
+                    <select
+                      value={campos.unidadeMedida}
+                      onChange={(e) => set("unidadeMedida", e.target.value)}
+                      className="w-full h-9 px-3 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-2 focus:ring-[#B89968] bg-white"
+                    >
+                      {UNIDADES.map((u) => (
+                        <option key={u.v} value={u.v}>{u.label}</option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-[#9a7d50] mt-1">
+                      O preço de venda (R$ {parseFloat(campos.precoVenda || "0").toFixed(2).replace(".", ",")}) será cobrado <strong>por {campos.unidadeMedida}</strong> no orçamento gerado.
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-[#9a7d50] mb-1 block">Cor do ponto no canvas</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {CORES_MARCACAO.map((c) => (
+                        <button
+                          key={c.hex}
+                          type="button"
+                          onClick={() => set("corMarcacao", c.hex)}
+                          className={cn(
+                            "w-9 h-9 rounded-full border-2 transition-all relative",
+                            campos.corMarcacao === c.hex ? "border-[#5a4530] scale-110" : "border-white"
+                          )}
+                          style={{ backgroundColor: c.hex }}
+                          title={c.nome}
+                        >
+                          {campos.corMarcacao === c.hex && (
+                            <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -541,6 +625,15 @@ export default function ProdutosPage() {
                           <td className="px-4 py-3">
                             <span className="font-medium text-[#5a4530]">{p.nome}</span>
                             {p.patrimonio && <span className="ml-2 text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">patrimônio</span>}
+                            {p.ehInjetavel && (
+                              <span
+                                className="ml-2 text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1"
+                                style={{ backgroundColor: `${p.corMarcacao}20`, color: p.corMarcacao ?? "#A78BFA" }}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.corMarcacao ?? "#A78BFA" }} />
+                                injetável · {p.unidadeMedida}
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <span className={cn("text-sm font-medium", estoqueAlerta ? "text-red-500" : "text-[#5a4530]")}>

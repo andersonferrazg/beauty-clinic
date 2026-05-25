@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import { Printer, Loader2 } from "lucide-react";
 import { TERMOS } from "@/lib/termos";
 import { CARTILHAS } from "@/lib/cartilhas";
+import { CanvasFacePlanner, type Marcacao } from "@/components/canvas-face-planner";
 
 type Cliente = {
   nome: string;
@@ -175,6 +176,18 @@ export default function ImprimirFichaPage({
 
           {proc.tipo === "planejamento" && dados && (
             <div className="space-y-4 text-sm">
+              {/* Planejador visual de injetáveis (se houver marcações) */}
+              {Array.isArray(dados.marcacoes) && (dados.marcacoes as Marcacao[]).length > 0 && (
+                <div>
+                  <p className="font-semibold text-[#B89968] uppercase text-xs tracking-wide mb-2">Planejamento Visual</p>
+                  <CanvasFacePlanner
+                    marcacoes={dados.marcacoes as Marcacao[]}
+                    produtos={[]}
+                    readOnly
+                  />
+                </div>
+              )}
+
               {Array.isArray(dados.procedimentos) && (dados.procedimentos as string[]).length > 0 && (
                 <div>
                   <p className="font-semibold text-[#B89968] uppercase text-xs tracking-wide">Procedimentos</p>

@@ -18,6 +18,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       qtdMinima: body.qtdMinima != null ? Number(body.qtdMinima) : 0,
       patrimonio: body.patrimonio ?? false,
       dataValidade: body.dataValidade ? new Date(body.dataValidade) : null,
+      ehInjetavel: body.ehInjetavel ?? false,
+      unidadeMedida: body.unidadeMedida ?? "unidade",
+      corMarcacao: body.corMarcacao ?? "#A78BFA",
     },
   });
 
