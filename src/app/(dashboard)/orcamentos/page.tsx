@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +60,7 @@ function diasRestantes(dataValidade: string): number {
   return Math.round((dt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export default function OrcamentosPage() {
+function OrcamentosContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
@@ -279,5 +279,13 @@ export default function OrcamentosPage() {
         orcamentoId={orcSelecionado}
       />
     </div>
+  );
+}
+
+export default function OrcamentosPage() {
+  return (
+    <Suspense>
+      <OrcamentosContent />
+    </Suspense>
   );
 }
