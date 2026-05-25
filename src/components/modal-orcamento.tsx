@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   X, Plus, Trash2, Loader2, Search, Printer, ArrowRight, Lock,
-  Phone, MessageCircle, FileText,
+  Phone, MessageCircle, FileText, ChevronDown,
 } from "lucide-react";
+import { CanvasFacePlanner, type Marcacao, type ProdutoInjetavel } from "@/components/canvas-face-planner";
 import { cn } from "@/lib/utils";
 
 type Profissional = { id: string; nome: string; cor: string };
@@ -16,9 +17,11 @@ type Servico = { id: string; nome: string; preco: number; cor: string };
 
 type ItemOrc = {
   servicoId: string;
+  produtoId?: string;
   nomeServico: string;
   preco: number;
   quantidade: number;
+  descricao?: string;
 };
 
 type InteracaoOrc = {
@@ -130,6 +133,11 @@ export function ModalOrcamento({
   const [convProfissionalId, setConvProfissionalId] = useState("");
   const [erro, setErro] = useState("");
 
+  // ── Planejador Visual ────────────────────────────────────────────────────
+  const [marcacoes, setMarcacoes] = useState<Marcacao[]>([]);
+  const [produtosInjetaveis, setProdutosInjetaveis] = useState<ProdutoInjetavel[]>([]);
+  const [mostrarPlanejador, setMostrarPlanejador] = useState(false);
+
   const refSugCli = useRef<HTMLDivElement>(null);
 
   const total = itens.reduce((s, i) => s + i.preco * i.quantidade, 0);
@@ -175,6 +183,7 @@ export function ModalOrcamento({
       }
     });
     fetch("/api/servicos").then((r) => r.json()).then(setServicos);
+    fetch("/api/produtos?injetavel=true").then((r) => r.json()).then(setProdutosInjetaveis).catch(() => {});
   }, [aberto, minhaSessao]);
 
   // ── Carregar orçamento existente ─────────────────────────────────────────
@@ -192,11 +201,13 @@ export function ModalOrcamento({
         const dt = new Date(o.dataValidade);
         setDataValidadeStr(dataParaLocalStr(dt));
         setItens(
-          o.itens.map((i: { servicoId: string; servico?: { nome?: string }; preco: number; quantidade: number }) => ({
-            servicoId: i.servicoId,
-            nomeServico: i.servico?.nome ?? "",
+          o.itens.map((i: { servicoId?: string | null; produtoId?: string | null; servico?: { nome?: string }; produto?: { nome?: string }; preco: number; quantidade: number; descricao?: string | null }) => ({
+            servicoId: i.servicoId ?? "",
+            produtoId: i.produtoId ?? undefined,
+            nomeServico: i.servico?.nome ?? i.produto?.nome ?? "",
             preco: i.preco,
             quantidade: i.quantidade,
+            descricao: i.descricao ?? undefined,
           }))
         );
         setInteracoes(o.interacoes ?? []);
@@ -222,6 +233,8 @@ export function ModalOrcamento({
       setInteracoes([]);
       setNovaInteracaoTexto("");
       setNovaInteracaoTipo("NOTA");
+      setMarcacoes([]);
+      setMostrarPlanejador(false);
       escolherValidade(30);
     }
   }, [aberto]);
@@ -252,6 +265,32 @@ export function ModalOrcamento({
     const d = new Date();
     d.setDate(d.getDate() + dias);
     setDataValidadeStr(dataParaLocalStr(d));
+  }
+
+  function importarDoCanvas() {
+    if (marcacoes.length === 0) return;
+    const grupos = new Map<string, { soma: number; pontos: number; unidade: string; produtoNome: string; precoVenda: number }>();
+    for (const m of marcacoes) {
+      const prod = produtosInjetaveis.find((p) => p.id === m.produtoId);
+      const g = grupos.get(m.produtoId);
+      if (g) { g.soma += m.dosagem; g.pontos++; }
+      else grupos.set(m.produtoId, { soma: m.dosagem, pontos: 1, unidade: m.unidade, produtoNome: m.produtoNome, precoVenda: prod?.precoVenda ?? 0 });
+    }
+    const novos: ItemOrc[] = [];
+    grupos.forEach((g, produtoId) => {
+      novos.push({
+        servicoId: "",
+        produtoId,
+        nomeServico: g.produtoNome,
+        preco: g.precoVenda,
+        quantidade: Math.ceil(g.soma),
+        descricao: `${g.soma}${g.unidade} em ${g.pontos} ponto${g.pontos > 1 ? "s" : ""}`,
+      });
+    });
+    const itensSvc = itens.filter((i) => !i.produtoId);
+    setItens([...itensSvc, ...novos]);
+    setBuscaItem([...buscaItem.slice(0, itensSvc.length), ...novos.map((i) => i.nomeServico)]);
+    setMostrarSugestoesItem([...mostrarSugestoesItem.slice(0, itensSvc.length), ...novos.map(() => false)]);
   }
 
   function adicionarItem() {
@@ -286,8 +325,8 @@ export function ModalOrcamento({
 
   async function salvar() {
     if (!clienteId) { setErro("Selecione a cliente."); return; }
-    if (itens.length === 0 || itens.every((i) => !i.servicoId)) {
-      setErro("Adicione pelo menos um serviço.");
+    if (itens.length === 0 || itens.every((i) => !i.servicoId && !i.produtoId)) {
+      setErro("Adicione pelo menos um serviço ou use o planejador de injetáveis.");
       return;
     }
     setErro("");
@@ -302,8 +341,14 @@ export function ModalOrcamento({
         dataValidade: dataValidadeStr ? new Date(`${dataValidadeStr}T23:59:59`).toISOString() : null,
         ...(ehEdicao ? { status } : {}),
         itens: itens
-          .filter((i) => i.servicoId)
-          .map((i) => ({ servicoId: i.servicoId, preco: i.preco, quantidade: i.quantidade })),
+          .filter((i) => i.servicoId || i.produtoId)
+          .map((i) => ({
+            servicoId: i.servicoId || null,
+            produtoId: i.produtoId || null,
+            preco: i.preco,
+            quantidade: i.quantidade,
+            descricao: i.descricao || null,
+          })),
       };
       const res = await fetch(url, {
         method,
@@ -551,6 +596,55 @@ export function ModalOrcamento({
             </div>
           )}
 
+          {/* Planejamento Visual de Injetáveis */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setMostrarPlanejador((v) => !v)}
+              className="flex items-center gap-2 w-full text-left group"
+            >
+              <Label className="text-[#5a4530] cursor-pointer select-none">Planejamento Visual (Injetáveis)</Label>
+              <ChevronDown
+                size={14}
+                className={cn("text-[#9a7d50] transition-transform duration-200", mostrarPlanejador && "rotate-180")}
+              />
+              {marcacoes.length > 0 && (
+                <span className="ml-auto text-xs bg-[#B89968]/20 text-[#B89968] rounded-full px-2 py-0.5 font-medium">
+                  {marcacoes.length} ponto{marcacoes.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </button>
+
+            {mostrarPlanejador && (
+              <div className="space-y-2 pt-1">
+                {produtosInjetaveis.length === 0 ? (
+                  <div className="text-center py-5 text-xs text-[#9a7d50] border border-dashed border-[#e8dcc4] rounded-lg px-4">
+                    Nenhum produto injetável cadastrado.
+                    Vá em <strong>Produtos &amp; Estoque</strong> e marque um produto como &quot;É injetável&quot;.
+                  </div>
+                ) : (
+                  <>
+                    <CanvasFacePlanner
+                      marcacoes={marcacoes}
+                      onChange={setMarcacoes}
+                      produtos={produtosInjetaveis}
+                    />
+                    {marcacoes.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={importarDoCanvas}
+                        className="w-full py-2 rounded-md text-xs font-medium bg-[#B89968]/10 border border-[#B89968]/40 text-[#5a4530] hover:bg-[#B89968]/20 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <ArrowRight size={12} />
+                        Importar pontos como itens do orçamento
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Itens */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -585,10 +679,15 @@ export function ModalOrcamento({
                     <div key={idx} className="grid grid-cols-12 gap-2 items-start">
                       <div className="col-span-6 relative">
                         <Input
-                          className="border-[#B89968]/30 h-9 text-sm"
+                          className={cn(
+                            "border-[#B89968]/30 h-9 text-sm",
+                            item.produtoId && "bg-[#faf5ee] text-[#9a7d50] cursor-default"
+                          )}
                           placeholder="Buscar serviço..."
-                          value={item.servicoId ? item.nomeServico : (buscaItem[idx] ?? "")}
+                          readOnly={!!item.produtoId}
+                          value={item.servicoId ? item.nomeServico : item.produtoId ? item.nomeServico : (buscaItem[idx] ?? "")}
                           onChange={(e) => {
+                            if (item.produtoId) return;
                             if (item.servicoId) {
                               setItens((prev) => {
                                 const n = [...prev];
@@ -600,9 +699,13 @@ export function ModalOrcamento({
                             setMostrarSugestoesItem((prev) => { const n = [...prev]; n[idx] = true; return n; });
                           }}
                           onFocus={() => {
+                            if (item.produtoId) return;
                             setMostrarSugestoesItem((prev) => { const n = [...prev]; n[idx] = true; return n; });
                           }}
                         />
+                        {item.descricao && (
+                          <p className="text-[10px] text-[#9a7d50] mt-0.5 px-1 truncate">{item.descricao}</p>
+                        )}
                         {mostrarSugestoesItem[idx] && sugestoes.length > 0 && (
                           <div className="absolute left-0 right-0 top-full mt-1 z-[200] bg-white border border-[#e8dcc4] rounded-md shadow-lg max-h-48 overflow-y-auto">
                             {sugestoes.map((s) => (
