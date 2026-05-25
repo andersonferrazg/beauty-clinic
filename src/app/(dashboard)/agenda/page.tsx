@@ -216,6 +216,15 @@ export default function AgendaPage() {
   const [modalAgendamentoId, setModalAgendamentoId] = useState<string | undefined>();
   const [calAberto, setCalAberto] = useState(false);
 
+  const gridRef = useRef<HTMLDivElement>(null);
+  const profHeaderRef = useRef<HTMLDivElement>(null);
+
+  function handleGridScroll() {
+    if (gridRef.current && profHeaderRef.current) {
+      profHeaderRef.current.scrollLeft = gridRef.current.scrollLeft;
+    }
+  }
+
   const dataStr = formatarDataISO(dataAtual);
   const ehHoje = formatarDataISO(hoje) === dataStr;
   const diasSemana = semanaDosDias(dataAtual);
@@ -367,8 +376,8 @@ export default function AgendaPage() {
             <ChevronRight size={16} />
           </button>
 
-          {/* Botão calendário */}
-          <div className="relative flex-shrink-0">
+          {/* Botão calendário — visível só no desktop */}
+          <div className="relative flex-shrink-0 hidden lg:block">
             <button
               onClick={() => setCalAberto(!calAberto)}
               className={cn(
@@ -390,7 +399,7 @@ export default function AgendaPage() {
           <button
             onClick={() => { setDataAtual(hoje); salvarDataLocal(hoje); }}
             className={cn(
-              "ml-1 px-2.5 py-1 rounded-lg text-xs font-medium flex-shrink-0 transition-colors",
+              "ml-1 px-2.5 py-1 rounded-lg text-xs font-medium flex-shrink-0 transition-colors hidden lg:block",
               ehHoje
                 ? "bg-[#B89968] text-white"
                 : "border border-[#B89968]/40 text-[#B89968] hover:bg-[#B89968]/10"
@@ -405,16 +414,41 @@ export default function AgendaPage() {
         </div>
       </div>
 
+      {/* ── Cabeçalho das profissionais (fora do scroll, sincronizado via JS) ── */}
+      <div
+        ref={profHeaderRef}
+        className="flex-shrink-0 bg-white border-b border-[#e8dcc4] overflow-x-hidden"
+      >
+        <div className="flex" style={{ minWidth: `${56 + profissionais.length * 180}px` }}>
+          {/* Espaço da coluna de horas */}
+          <div className="w-14 flex-shrink-0 border-r border-[#e8dcc4]" />
+          {profissionais.map((prof) => (
+            <div
+              key={prof.id}
+              className="flex-1 min-w-[180px] h-10 flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2"
+            >
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
+                style={{ backgroundColor: prof.cor }}
+              >
+                {iniciais(prof.nome)}
+              </div>
+              <span className="text-xs font-medium text-[#5a4530] truncate">
+                {prof.nome.replace("Dra. ", "")}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── Grade ────────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto" ref={gridRef} onScroll={handleGridScroll}>
         <div
           className="flex"
           style={{ minWidth: `${56 + profissionais.length * 180}px` }}
         >
           {/* Coluna de horas */}
           <div className="w-14 flex-shrink-0 bg-white border-r border-[#e8dcc4]">
-            {/* Espaço do cabeçalho */}
-            <div className="h-10 border-b border-[#e8dcc4]" />
             <div className="relative" style={{ height: `${TOTAL_SLOTS * ALTURA_SLOT}px` }}>
               {SLOTS.map((slot) => (
                 <div
@@ -450,19 +484,6 @@ export default function AgendaPage() {
                   key={prof.id}
                   className="flex-1 min-w-[180px] border-r border-[#e8dcc4] last:border-r-0"
                 >
-                  {/* Cabeçalho da profissional */}
-                  <div className="h-10 flex items-center justify-center gap-2 border-b border-[#e8dcc4] bg-white sticky top-0 z-[20] px-2">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                      style={{ backgroundColor: prof.cor }}
-                    >
-                      {iniciais(prof.nome)}
-                    </div>
-                    <span className="text-xs font-medium text-[#5a4530] truncate">
-                      {prof.nome.replace("Dra. ", "")}
-                    </span>
-                  </div>
-
                   {/* Grade de slots */}
                   <div
                     className="relative"
@@ -604,6 +625,41 @@ export default function AgendaPage() {
             })
           )}
         </div>
+      </div>
+
+      {/* ── Controles mobile (calendário + Hoje) ao lado do hambúrguer ── */}
+      <div className="fixed top-4 right-3 z-50 lg:hidden flex items-center gap-1">
+        <div className="relative">
+          <button
+            onClick={() => setCalAberto(!calAberto)}
+            className={cn(
+              "p-2 rounded-md shadow-md transition-colors",
+              calAberto
+                ? "bg-[#B89968] text-white"
+                : "bg-[#1a1208] text-[#B89968]"
+            )}
+          >
+            <CalendarDays size={18} />
+          </button>
+          {calAberto && (
+            <CalendarioPopup
+              dataAtual={dataAtual}
+              onSelecionar={(d) => { setDataAtual(d); salvarDataLocal(d); }}
+              onFechar={() => setCalAberto(false)}
+            />
+          )}
+        </div>
+        <button
+          onClick={() => { setDataAtual(hoje); salvarDataLocal(hoje); }}
+          className={cn(
+            "px-2.5 py-1.5 rounded-md text-xs font-semibold shadow-md transition-colors",
+            ehHoje
+              ? "bg-[#B89968] text-white"
+              : "bg-[#1a1208] text-[#B89968]"
+          )}
+        >
+          Hoje
+        </button>
       </div>
 
       {/* ── Botão flutuante ── */}
