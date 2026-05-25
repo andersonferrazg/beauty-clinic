@@ -217,11 +217,11 @@ export default function AgendaPage() {
   const [calAberto, setCalAberto] = useState(false);
 
   const gridRef = useRef<HTMLDivElement>(null);
-  const profHeaderRef = useRef<HTMLDivElement>(null);
+  const profHeaderInnerRef = useRef<HTMLDivElement>(null);
 
   function handleGridScroll() {
-    if (gridRef.current && profHeaderRef.current) {
-      profHeaderRef.current.scrollLeft = gridRef.current.scrollLeft;
+    if (gridRef.current && profHeaderInnerRef.current) {
+      profHeaderInnerRef.current.style.transform = `translateX(-${gridRef.current.scrollLeft}px)`;
     }
   }
 
@@ -327,7 +327,7 @@ export default function AgendaPage() {
     <div className="flex flex-col h-full bg-[#f4f6f8]">
 
       {/* ── Barra de navegação semanal ────────────────────────────────────── */}
-      <div className="bg-white border-b border-[#e8dcc4] sticky top-14 lg:top-0 z-30 px-3 py-2">
+      <div className="bg-white border-b border-[#e8dcc4] sticky top-[52px] lg:top-0 z-30 px-3 py-1">
         <div className="flex items-center gap-1 relative">
           <button
             onClick={() => navegar(-7)}
@@ -414,18 +414,19 @@ export default function AgendaPage() {
         </div>
       </div>
 
-      {/* ── Cabeçalho das profissionais (fora do scroll, sincronizado via JS) ── */}
-      <div
-        ref={profHeaderRef}
-        className="flex-shrink-0 bg-white border-b border-[#e8dcc4] overflow-x-hidden"
-      >
-        <div className="flex" style={{ minWidth: `${56 + profissionais.length * 180}px` }}>
+      {/* ── Cabeçalho das profissionais (fora do scroll, sincronizado via translateX) ── */}
+      <div className="flex-shrink-0 h-10 bg-white border-b border-[#e8dcc4] overflow-hidden">
+        <div
+          ref={profHeaderInnerRef}
+          className="flex h-full will-change-transform"
+          style={{ minWidth: `${56 + profissionais.length * 180}px` }}
+        >
           {/* Espaço da coluna de horas */}
-          <div className="w-14 flex-shrink-0 border-r border-[#e8dcc4]" />
+          <div className="w-14 flex-shrink-0 h-full border-r border-[#e8dcc4]" />
           {profissionais.map((prof) => (
             <div
               key={prof.id}
-              className="flex-1 min-w-[180px] h-10 flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2"
+              className="flex-1 min-w-[180px] h-full flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2"
             >
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
