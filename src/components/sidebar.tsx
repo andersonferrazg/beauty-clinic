@@ -196,15 +196,15 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer — Logout (destacado para fácil visualização no mobile) */}
-        <div className="px-2 pb-3 pt-3 border-t-2 border-[#B89968]/30">
+        {/* Footer — Logout */}
+        <div className="px-2 pt-2 border-t border-white/10" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
           <button
             onClick={sair}
             disabled={saindo}
-            className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors w-full disabled:opacity-50 border border-red-500/20"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors w-full disabled:opacity-50"
           >
-            {saindo ? <Loader2 size={19} className="animate-spin" /> : <LogOut size={19} />}
-            Sair do Sistema
+            {saindo ? <Loader2 size={17} className="animate-spin" /> : <LogOut size={17} />}
+            Sair
           </button>
         </div>
       </aside>
