@@ -437,12 +437,12 @@ export default function AgendaPage() {
 
       {/* ── Grade de horários ────────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-auto" ref={gridRef}>
-        <div style={{ minWidth: `${56 + Math.max(profissionais.length, profissionaisCarregadas ? 1 : 2) * 180}px` }}>
+        <div style={{ minWidth: `${56 + Math.max(profissionais.length, profissionaisCarregadas ? 1 : 2) * 100}px` }}>
 
         {/* Grade de horários */}
         <div
           className="flex"
-          style={{ minWidth: `${56 + profissionais.length * 180}px` }}
+          style={{ minWidth: `${56 + profissionais.length * 100}px` }}
         >
           {/* Coluna de horas */}
           <div className="w-14 flex-shrink-0 bg-white border-r border-[#e8dcc4]">
@@ -479,7 +479,7 @@ export default function AgendaPage() {
               return (
                 <div
                   key={prof.id}
-                  className="flex-1 min-w-[180px] border-r border-[#e8dcc4] last:border-r-0"
+                  className="flex-1 min-w-[100px] border-r border-[#e8dcc4] last:border-r-0"
                 >
                   {/* Grade de slots */}
                   <div
