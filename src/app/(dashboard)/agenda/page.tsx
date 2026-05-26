@@ -218,6 +218,8 @@ export default function AgendaPage() {
   const [calAberto, setCalAberto] = useState(false);
 
   const gridRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
+  const [navAlt, setNavAlt] = useState(82); // estimativa inicial; ResizeObserver corrige
 
   const dataStr = formatarDataISO(dataAtual);
   const ehHoje = formatarDataISO(hoje) === dataStr;
@@ -290,6 +292,15 @@ export default function AgendaPage() {
 
   useEffect(() => { carregarAgendamentos(); }, [carregarAgendamentos]);
 
+  // Mede a altura real da barra de semana para o placeholder reservar o espaço correto.
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setNavAlt(Math.ceil(e.contentRect.height)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   function navegar(delta: number) {
     const nova = new Date(dataAtual);
     nova.setDate(nova.getDate() + delta);
@@ -321,16 +332,17 @@ export default function AgendaPage() {
   return (
     <div className="flex flex-col h-full bg-[#f4f6f8]">
 
-      {/* Fundo branco fixo que cobre o padding do <main> no mobile.
-          z-20 fica abaixo dos botões (z-50) e abaixo da barra de semana (z-30),
-          mas cobre o fundo bege do layout — elimina o gap visível sem mover nada. */}
+      {/* ── Barra de navegação semanal + nomes das profissionais ───────────────
+          No mobile: position fixed — sempre exibida na posição correta abaixo dos botões,
+          independente do scroll ou do padding do <main>. z-30 fica abaixo dos botões (z-50).
+          No desktop: position sticky top-0, comportamento padrão. */}
       <div
-        className="fixed top-0 left-0 right-0 bg-white lg:hidden"
-        style={{ zIndex: 20, height: "var(--header-offset)" }}
-      />
-
-      {/* ── Barra de navegação semanal + nomes das profissionais ───────────── */}
-      <div className="bg-white border-b border-[#e8dcc4] sticky lg:top-0 z-30 px-3 py-1" style={{ top: "var(--header-offset)" }}>
+        ref={navRef}
+        className="bg-white border-b border-[#e8dcc4] z-30 px-3 py-1
+          fixed left-0 right-0
+          lg:sticky lg:left-auto lg:right-auto lg:top-0"
+        style={{ top: "var(--header-offset)" }}
+      >
         <div className="flex items-center gap-1 relative">
           <button
             onClick={() => navegar(-7)}
@@ -443,6 +455,10 @@ export default function AgendaPage() {
           )}
         </div>
       </div>
+
+      {/* Placeholder mobile: reserva o espaço da barra de semana (que é fixed no mobile).
+          No desktop a barra está no fluxo normal (sticky), então lg:hidden. */}
+      <div className="flex-shrink-0 lg:hidden" style={{ height: `${navAlt}px` }} />
 
       {/* ── Grade de horários ────────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-auto" ref={gridRef}>
