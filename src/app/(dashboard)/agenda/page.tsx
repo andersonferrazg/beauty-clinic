@@ -417,7 +417,11 @@ export default function AgendaPage() {
       </div>
 
       {/* ── Cabeçalho das profissionais — FORA do scroll, sempre visível ───────── */}
-      <div className="flex-shrink-0 overflow-hidden bg-white border-b border-[#e8dcc4]" ref={headerRef}>
+      <div
+        className="flex-shrink-0 bg-white border-b border-[#e8dcc4] [&::-webkit-scrollbar]:hidden"
+        ref={headerRef}
+        style={{ overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none" }}
+      >
         <div style={{ minWidth: `${56 + Math.max(profissionais.length, profissionaisCarregadas ? 1 : 2) * 180}px` }}>
           <div className="flex h-10">
             <div className="w-14 flex-shrink-0 border-r border-[#e8dcc4]" />

@@ -265,11 +265,44 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
         throw new Error(e.erro || "Erro ao salvar a ficha");
       }
 
-      // 2. Cria orçamento em branco com a cliente já preenchida
+      // 2. Busca serviços e tenta casar com os procedimentos marcados
+      type ServicoBasic = { id: string; nome: string; preco: number };
+      const servicosLista: ServicoBasic[] = await fetch("/api/servicos")
+        .then((r) => (r.ok ? r.json() : []))
+        .catch(() => []);
+
+      const itensMapped: Array<{ servicoId: string; preco: number; quantidade: number }> = [];
+      const semServico: string[] = [];
+      for (const proc of procedimentosSelecionados) {
+        const match = servicosLista.find(
+          (s) =>
+            s.nome.toLowerCase().includes(proc.toLowerCase()) ||
+            proc.toLowerCase().includes(s.nome.toLowerCase())
+        );
+        if (match) {
+          itensMapped.push({ servicoId: match.id, preco: match.preco, quantidade: 1 });
+        } else {
+          semServico.push(proc);
+        }
+      }
+
+      // Monta observação com procedimentos não encontrados + outros
+      const partes: string[] = [];
+      if (semServico.length > 0) partes.push(semServico.join(", "));
+      if (outroProcedimento) partes.push(outroProcedimento);
+      if (totalUnidades > 0) partes.push(`Botox total: ${totalUnidades}ui`);
+      const observacaoTexto = partes.filter(Boolean).join(" | ");
+
+      // 3. Cria orçamento com os itens encontrados e a cliente pré-preenchida
       const r2 = await fetch("/api/orcamentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clienteId, profissionalId, itens: [] }),
+        body: JSON.stringify({
+          clienteId,
+          profissionalId,
+          itens: itensMapped,
+          observacao: observacaoTexto || null,
+        }),
       });
       if (!r2.ok) {
         const e = await r2.json().catch(() => ({}));
