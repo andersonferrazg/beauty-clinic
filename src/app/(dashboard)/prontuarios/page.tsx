@@ -26,7 +26,8 @@ export default function ProntuariosPage() {
 
   async function carregar(q = "") {
     setCarregando(true);
-    const r = await fetch(`/api/clientes${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+    const url = q ? `/api/clientes?q=${encodeURIComponent(q)}` : "/api/clientes?todos=true";
+    const r = await fetch(url);
     const dados = await r.json();
     setClientes(Array.isArray(dados) ? dados : []);
     setCarregando(false);

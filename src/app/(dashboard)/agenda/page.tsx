@@ -414,7 +414,7 @@ export default function AgendaPage() {
         <div style={{ minWidth: `${56 + Math.max(profissionais.length, profissionaisCarregadas ? 1 : 2) * 180}px` }}>
 
         {/* Cabeçalho das profissionais — sticky ao topo, move junto no scroll horizontal */}
-        <div className="sticky top-0 z-20 flex bg-white border-b border-[#e8dcc4] h-10">
+        <div className="sticky top-0 z-20 flex bg-white border-b border-[#e8dcc4] h-10" style={{ WebkitTransform: "translateZ(0)", transform: "translateZ(0)", willChange: "transform" }}>
           <div className="w-14 flex-shrink-0 border-r border-[#e8dcc4]" />
           {!profissionaisCarregadas ? (
             /* skeleton enquanto carrega */

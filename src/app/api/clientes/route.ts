@@ -5,6 +5,7 @@ import { exigirSessao } from "@/lib/session";
 export async function GET(req: NextRequest) {
   const sessao = await exigirSessao();
   const busca = req.nextUrl.searchParams.get("q") ?? "";
+  const todos = req.nextUrl.searchParams.has("todos");
 
   const clientes = await prisma.cliente.findMany({
     where: {
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
         : {}),
     },
     orderBy: { nome: "asc" },
-    take: 30,
+    ...(todos ? {} : { take: 30 }),
     select: {
       id: true,
       nome: true,
