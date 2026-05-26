@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import { dataLocalHoje } from "@/lib/utils";
 
 import { useState, useEffect } from "react";
 import { X, Loader2, Plus, Trash2 } from "lucide-react";
@@ -20,7 +21,7 @@ type Props = {
 const SESSAO_VAZIA: Sessao = { procedimento: "", produto: "", observacao: "" };
 
 export function ModalFichaControleSessoes({ clienteId, aberto, onFechar, onSalvo }: Props) {
-  const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(() => dataLocalHoje());
   const [profissionalId, setProfissionalId] = useState("");
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [sessoes, setSessoes] = useState<Sessao[]>([{ ...SESSAO_VAZIA }]);
@@ -41,7 +42,7 @@ export function ModalFichaControleSessoes({ clienteId, aberto, onFechar, onSalvo
 
   useEffect(() => {
     if (!aberto) {
-      setData(new Date().toISOString().slice(0, 10));
+      setData(dataLocalHoje());
       setSessoes([{ ...SESSAO_VAZIA }]);
       setObservacaoGeral("");
       setDataRetorno("");

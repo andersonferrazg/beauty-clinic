@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { X, Upload, Camera, Trash2, Loader2, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, dataLocalHoje } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -158,7 +158,7 @@ export function ModalProcedimento({ clienteId, clienteNome, procedimentoId, aber
   const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>("anamnese");
 
   const [tipo, setTipo] = useState("Botox");
-  const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(() => dataLocalHoje());
   const [profissionalId, setProfissionalId] = useState("");
   const [descricao, setDescricao] = useState("");
   const [produtosUsados, setProdutosUsados] = useState("");
@@ -218,7 +218,7 @@ export function ModalProcedimento({ clienteId, clienteNome, procedimentoId, aber
     if (!aberto) {
       setAbaAtiva("anamnese");
       setTipo("Botox");
-      setData(new Date().toISOString().slice(0, 10));
+      setData(dataLocalHoje());
       setDescricao("");
       setProdutosUsados("");
       setAnamnese(ANAMNESE_VAZIA);

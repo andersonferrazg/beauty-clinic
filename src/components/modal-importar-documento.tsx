@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import { dataLocalHoje } from "@/lib/utils";
 
 import { useState, useEffect, useRef } from "react";
 import { X, Upload, Camera, Loader2, FileText } from "lucide-react";
@@ -27,7 +28,7 @@ const TIPOS_DOCUMENTO = [
 ];
 
 export function ModalImportarDocumento({ clienteId, cliente, aberto, onFechar, onSalvo }: Props) {
-  const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(() => dataLocalHoje());
   const [profissionalId, setProfissionalId] = useState("");
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [tipoDoc, setTipoDoc] = useState("anamnese_escaneada");
@@ -49,7 +50,7 @@ export function ModalImportarDocumento({ clienteId, cliente, aberto, onFechar, o
 
   useEffect(() => {
     if (!aberto) {
-      setData(new Date().toISOString().slice(0, 10));
+      setData(dataLocalHoje());
       setTipoDoc("anamnese_escaneada");
       setDescricao("");
       setArquivoUrl(null);

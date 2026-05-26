@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import { dataLocalHoje } from "@/lib/utils";
 
 import { useState, useEffect, useRef } from "react";
 import { X, Camera, Upload, Loader2, Trash2, Plus } from "lucide-react";
@@ -25,7 +26,7 @@ const TAGS = [
 type ItemFoto = { file: File; url: string; tag: string; descricao: string };
 
 export function ModalFotos({ clienteId, aberto, onFechar, onSalvo }: Props) {
-  const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(() => dataLocalHoje());
   const [profissionalId, setProfissionalId] = useState("");
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [fotos, setFotos] = useState<ItemFoto[]>([]);
@@ -46,7 +47,7 @@ export function ModalFotos({ clienteId, aberto, onFechar, onSalvo }: Props) {
 
   useEffect(() => {
     if (!aberto) {
-      setData(new Date().toISOString().slice(0, 10));
+      setData(dataLocalHoje());
       setFotos([]);
       setTagAtual("antes");
       setErro("");

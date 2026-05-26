@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import { dataLocalHoje } from "@/lib/utils";
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -49,7 +50,7 @@ type LinhaPreenchimento = { regiao: string; volume: string; produto: string };
 
 export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, onSalvo }: Props) {
   const router = useRouter();
-  const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(() => dataLocalHoje());
   const [profissionalId, setProfissionalId] = useState("");
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [gerandoOrcamento, setGerandoOrcamento] = useState(false);
@@ -99,7 +100,7 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
 
   useEffect(() => {
     if (!aberto) {
-      setData(new Date().toISOString().slice(0, 10));
+      setData(dataLocalHoje());
       setProcedimentosSelecionados([]);
       setOutroProcedimento("");
       setUnidades({});

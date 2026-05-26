@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cli
       tenantId: sessao.tenantId,
       prontuarioId: prontuario.id,
       profissionalId: body.profissionalId,
-      data: new Date(body.data),
+      data: new Date(body.data + "T12:00:00"),
       tipo: body.tipo,
       descricao: body.descricao ?? null,
       produtosUsados: body.produtosUsados ?? null,

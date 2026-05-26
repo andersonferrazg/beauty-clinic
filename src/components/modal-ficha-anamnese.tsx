@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import { dataLocalHoje } from "@/lib/utils";
 
 import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
@@ -78,7 +79,7 @@ function inicializarRespostas(): RespostasMap {
 }
 
 export function ModalFichaAnamnese({ clienteId, cliente, aberto, onFechar, onSalvo }: Props) {
-  const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(() => dataLocalHoje());
   const [profissionalId, setProfissionalId] = useState("");
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [respostas, setRespostas] = useState<RespostasMap>(() => inicializarRespostas());
@@ -98,7 +99,7 @@ export function ModalFichaAnamnese({ clienteId, cliente, aberto, onFechar, onSal
 
   useEffect(() => {
     if (!aberto) {
-      setData(new Date().toISOString().slice(0, 10));
+      setData(dataLocalHoje());
       setRespostas(inicializarRespostas());
       setAnotacoes("");
       setAssinaturaPaciente(null);

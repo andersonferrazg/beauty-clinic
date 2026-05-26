@@ -158,7 +158,7 @@ export default function ImprimirOrcamentoPage({
                 <img src={tenant.logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover" />
               )}
               <div>
-                <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "var(--font-playfair)" }}>{tenant.nome}</p>
+                <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{tenant.nome}</p>
                 {tenant.cnpj && <p className="text-xs text-gray-600">CNPJ {tenant.cnpj}</p>}
                 {tenant.telefone && <p className="text-xs text-gray-600">{tenant.telefone}</p>}
                 {tenant.endereco && <p className="text-xs text-gray-600">{tenant.endereco}</p>}

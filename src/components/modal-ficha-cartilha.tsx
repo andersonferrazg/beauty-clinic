@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import { dataLocalHoje } from "@/lib/utils";
 
 import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
@@ -19,7 +20,7 @@ type Props = {
 };
 
 export function ModalFichaCartilha({ clienteId, tipo, aberto, onFechar, onSalvo }: Props) {
-  const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(() => dataLocalHoje());
   const [profissionalId, setProfissionalId] = useState("");
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [assinaturaPaciente, setAssinaturaPaciente] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export function ModalFichaCartilha({ clienteId, tipo, aberto, onFechar, onSalvo 
 
   useEffect(() => {
     if (!aberto) {
-      setData(new Date().toISOString().slice(0, 10));
+      setData(dataLocalHoje());
       setAssinaturaPaciente(null);
       setErro("");
     }

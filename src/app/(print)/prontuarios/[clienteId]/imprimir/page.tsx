@@ -333,7 +333,7 @@ export default function ImprimirProntuarioPage({
               </div>
             )}
             <div>
-              <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "var(--font-playfair)" }}>{nomeClinica}</p>
+              <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{nomeClinica}</p>
               <p className="text-sm text-gray-600 mt-1">Prontuário do(a) Paciente</p>
               <p className="text-xs text-gray-500 mt-0.5">Emitido em: {new Date().toLocaleDateString("pt-BR")}</p>
             </div>

@@ -17,6 +17,12 @@ export function formatarHora(data: Date | string) {
   return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date(data));
 }
 
+// Retorna a data local de hoje no formato YYYY-MM-DD (sem conversão UTC que causa desvio de 1 dia no fuso BR)
+export function dataLocalHoje(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function iniciais(nome: string) {
   return nome
     .split(" ")
