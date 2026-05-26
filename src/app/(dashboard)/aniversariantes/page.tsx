@@ -26,6 +26,9 @@ const MESES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+const TEMPLATE_PADRAO =
+  "Olá, {primeiro_nome}! 🎂 Feliz Aniversário! Toda a equipe da {tenant_nome} deseja um dia maravilhoso para você! ✨";
+
 function limparTelefone(tel: string) {
   return tel.replace(/\D/g, "");
 }
@@ -41,12 +44,22 @@ function labelDias(diasAte: number, ehHoje: boolean): string {
 export default function AniversariantesPage() {
   const [dados, setDados] = useState<Dados | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [template, setTemplate] = useState(TEMPLATE_PADRAO);
 
   useEffect(() => {
     fetch("/api/aniversariantes")
       .then((r) => r.json())
       .then((d) => { setDados(d); setCarregando(false); })
       .catch(() => setCarregando(false));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/configuracoes")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.config?.mensagemAniversarioWpp) setTemplate(d.config.mensagemAniversarioWpp);
+      })
+      .catch(() => {});
   }, []);
 
   if (carregando) {
@@ -69,9 +82,10 @@ export default function AniversariantesPage() {
     const tel = limparTelefone(a.telefone1);
     const numero = tel.startsWith("55") ? tel : `55${tel}`;
     const primeiroNome = a.nome.split(" ")[0];
-    const texto = encodeURIComponent(
-      `Olá, ${primeiroNome}! 🎂 Feliz Aniversário! Toda a equipe da ${tenantNome} deseja um dia maravilhoso para você! ✨`
-    );
+    const mensagem = template
+      .replace(/\{primeiro_nome\}/g, primeiroNome)
+      .replace(/\{tenant_nome\}/g, tenantNome);
+    const texto = encodeURIComponent(mensagem);
     return `https://web.whatsapp.com/send?phone=${numero}&text=${texto}`;
   }
 

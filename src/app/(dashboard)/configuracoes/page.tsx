@@ -18,9 +18,11 @@ Tolerância de atraso é de 10 minutos.
 
 Agradeço a compreensão 🥰`;
 
+const TEMPLATE_ANIVERSARIO_PADRAO = `Olá, {primeiro_nome}! 🎂 Feliz Aniversário! Toda a equipe da {tenant_nome} deseja um dia maravilhoso para você! ✨`;
+
 type Config = {
   tenant: { id: string; nome: string; cnpj: string | null; telefone: string | null; endereco: string | null; corPrimaria: string } | null;
-  config: { intervaloAgendaMin: number; horarioEnvioWpp: string; mensagemConfirmacaoWpp: string | null; urlNFSe: string | null; horaInicioAgenda: number; horaFimAgenda: number } | null;
+  config: { intervaloAgendaMin: number; horarioEnvioWpp: string; mensagemConfirmacaoWpp: string | null; mensagemAniversarioWpp: string | null; urlNFSe: string | null; horaInicioAgenda: number; horaFimAgenda: number } | null;
   status: StatusAgenda[];
 };
 
@@ -47,6 +49,7 @@ export default function ConfiguracoesPage() {
   const [intervalo, setIntervalo] = useState(30);
   const [horarioWpp, setHorarioWpp] = useState("08:00");
   const [mensagemWpp, setMensagemWpp] = useState(TEMPLATE_PADRAO);
+  const [mensagemAniv, setMensagemAniv] = useState(TEMPLATE_ANIVERSARIO_PADRAO);
   const [horaInicio, setHoraInicio] = useState(6);
   const [horaFim, setHoraFim] = useState(21);
 
@@ -65,6 +68,7 @@ export default function ConfiguracoesPage() {
           setIntervalo(d.config.intervaloAgendaMin);
           setHorarioWpp(d.config.horarioEnvioWpp);
           setMensagemWpp(d.config.mensagemConfirmacaoWpp ?? TEMPLATE_PADRAO);
+          setMensagemAniv(d.config.mensagemAniversarioWpp ?? TEMPLATE_ANIVERSARIO_PADRAO);
           setUrlNFSe(d.config.urlNFSe ?? "");
           setHoraInicio(d.config.horaInicioAgenda ?? 6);
           setHoraFim(d.config.horaFimAgenda ?? 21);
@@ -80,7 +84,7 @@ export default function ConfiguracoesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tenant: { nome: nomeCli, cnpj, telefone, endereco },
-        config: { intervaloAgendaMin: intervalo, horarioEnvioWpp: horarioWpp, mensagemConfirmacaoWpp: mensagemWpp, urlNFSe, horaInicioAgenda: horaInicio, horaFimAgenda: horaFim },
+        config: { intervaloAgendaMin: intervalo, horarioEnvioWpp: horarioWpp, mensagemConfirmacaoWpp: mensagemWpp, mensagemAniversarioWpp: mensagemAniv, urlNFSe, horaInicioAgenda: horaInicio, horaFimAgenda: horaFim },
       }),
     });
     setSalvando(false);
@@ -239,6 +243,29 @@ export default function ConfiguracoesPage() {
             <button
               type="button"
               onClick={() => setMensagemWpp(TEMPLATE_PADRAO)}
+              className="mt-2 text-xs text-[#B89968] hover:underline"
+            >
+              Restaurar mensagem padrão
+            </button>
+          </div>
+
+          <div className="pt-2 border-t border-[#e8dcc4]">
+            <Label className="text-xs text-[#9a7d50] mb-1 block">Mensagem de aniversário (WhatsApp)</Label>
+            <textarea
+              value={mensagemAniv}
+              onChange={(e) => setMensagemAniv(e.target.value)}
+              rows={4}
+              className="w-full rounded-lg border border-[#B89968]/30 bg-white px-3 py-2 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968] resize-none font-mono"
+            />
+            <div className="mt-1.5 text-xs text-[#9a7d50] space-y-0.5">
+              <p className="font-medium text-[#9a7d50]">Variáveis disponíveis:</p>
+              <p><span className="font-mono bg-[#faf5ee] px-1 rounded">{"{primeiro_nome}"}</span> — primeiro nome da cliente</p>
+              <p><span className="font-mono bg-[#faf5ee] px-1 rounded">{"{tenant_nome}"}</span> — nome da clínica</p>
+            </div>
+            <p className="mt-1.5 text-xs text-[#9a7d50]">Mensagem usada quando você clica no botão &quot;Parabenizar&quot; em <span className="font-medium">Aniversariantes</span>.</p>
+            <button
+              type="button"
+              onClick={() => setMensagemAniv(TEMPLATE_ANIVERSARIO_PADRAO)}
               className="mt-2 text-xs text-[#B89968] hover:underline"
             >
               Restaurar mensagem padrão

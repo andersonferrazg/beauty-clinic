@@ -53,6 +53,7 @@ model TenantConfig {
   toleranciaAtrasoMin    Int     @default(10)
   agendamentoOnlineAtivo Boolean @default(false)
   mensagemConfirmacaoWpp String?
+  mensagemAniversarioWpp String?
   urlNFSe                String?
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)

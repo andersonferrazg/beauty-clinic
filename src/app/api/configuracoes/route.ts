@@ -50,6 +50,7 @@ export async function PATCH(req: NextRequest) {
         intervaloAgendaMin: body.config.intervaloAgendaMin ?? 30,
         horarioEnvioWpp: body.config.horarioEnvioWpp ?? "08:00",
         mensagemConfirmacaoWpp: body.config.mensagemConfirmacaoWpp || null,
+        mensagemAniversarioWpp: body.config.mensagemAniversarioWpp || null,
         urlNFSe: body.config.urlNFSe || null,
         horaInicioAgenda: body.config.horaInicioAgenda ?? 6,
         horaFimAgenda: body.config.horaFimAgenda ?? 21,
