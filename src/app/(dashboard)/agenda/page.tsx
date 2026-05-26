@@ -218,13 +218,6 @@ export default function AgendaPage() {
   const [calAberto, setCalAberto] = useState(false);
 
   const gridRef = useRef<HTMLDivElement>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
-
-  function handleGridScroll() {
-    if (headerRef.current && gridRef.current) {
-      headerRef.current.scrollLeft = gridRef.current.scrollLeft;
-    }
-  }
 
   const dataStr = formatarDataISO(dataAtual);
   const ehHoje = formatarDataISO(hoje) === dataStr;
@@ -328,7 +321,7 @@ export default function AgendaPage() {
   return (
     <div className="flex flex-col h-full bg-[#f4f6f8]">
 
-      {/* ── Barra de navegação semanal ────────────────────────────────────── */}
+      {/* ── Barra de navegação semanal + nomes das profissionais ───────────── */}
       <div className="bg-white border-b border-[#e8dcc4] sticky top-[52px] lg:top-0 z-30 px-3 py-1">
         <div className="flex items-center gap-1 relative">
           <button
@@ -414,48 +407,36 @@ export default function AgendaPage() {
             <div className="w-3.5 h-3.5 border-2 border-[#B89968] border-t-transparent rounded-full animate-spin ml-1 flex-shrink-0" />
           )}
         </div>
-      </div>
 
-      {/* ── Cabeçalho das profissionais — FORA do scroll, sempre visível ───────── */}
-      <div
-        className="flex-shrink-0 bg-white border-b border-[#e8dcc4] [&::-webkit-scrollbar]:hidden"
-        ref={headerRef}
-        style={{ overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none" }}
-      >
-        <div style={{ minWidth: `${56 + Math.max(profissionais.length, profissionaisCarregadas ? 1 : 2) * 180}px` }}>
-          <div className="flex h-10">
-            <div className="w-14 flex-shrink-0 border-r border-[#e8dcc4]" />
-            {!profissionaisCarregadas ? (
-              [1, 2].map((i) => (
-                <div key={i} className="flex-1 min-w-[180px] flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2">
-                  <div className="w-6 h-6 rounded-full bg-[#e8dcc4] animate-pulse flex-shrink-0" />
-                  <div className="h-3 w-24 bg-[#e8dcc4] rounded animate-pulse" />
-                </div>
-              ))
-            ) : (
-              profissionais.map((prof) => (
+        {/* ── Linha com nomes das profissionais — sempre visível ───────────── */}
+        <div className="flex border-t border-[#e8dcc4]/60 mt-1 pt-1 pb-0.5">
+          {!profissionaisCarregadas ? (
+            [1, 2].map((i) => (
+              <div key={i} className="flex-1 flex items-center justify-center gap-1.5 px-1">
+                <div className="w-5 h-5 rounded-full bg-[#e8dcc4] animate-pulse flex-shrink-0" />
+                <div className="h-2.5 w-20 bg-[#e8dcc4] rounded animate-pulse" />
+              </div>
+            ))
+          ) : (
+            profissionais.map((prof) => (
+              <div key={prof.id} className="flex-1 flex items-center justify-center gap-1.5 px-1 min-w-0">
                 <div
-                  key={prof.id}
-                  className="flex-1 min-w-[180px] flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
+                  style={{ backgroundColor: prof.cor }}
                 >
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                    style={{ backgroundColor: prof.cor }}
-                  >
-                    {iniciais(prof.nome)}
-                  </div>
-                  <span className="text-xs font-medium text-[#5a4530] min-w-0 truncate">
-                    {prof.nome.replace("Dra. ", "")}
-                  </span>
+                  {iniciais(prof.nome)}
                 </div>
-              ))
-            )}
-          </div>
+                <span className="text-[11px] font-medium text-[#5a4530] truncate">
+                  {prof.nome.replace("Dra. ", "")}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
-      {/* ── Grade de horários (scroll vertical + horizontal) ─────────────────── */}
-      <div className="flex-1 min-h-0 overflow-auto" ref={gridRef} onScroll={handleGridScroll}>
+      {/* ── Grade de horários ────────────────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-auto" ref={gridRef}>
         <div style={{ minWidth: `${56 + Math.max(profissionais.length, profissionaisCarregadas ? 1 : 2) * 180}px` }}>
 
         {/* Grade de horários */}

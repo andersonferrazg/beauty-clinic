@@ -32,7 +32,7 @@ export default function ClientesPage() {
 
   async function carregar(q = "") {
     setCarregando(true);
-    const r = await fetch(`/api/clientes${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+    const r = await fetch(`/api/clientes${q ? `?q=${encodeURIComponent(q)}` : "?todos=true"}`);
     const dados = await r.json();
     setClientes(Array.isArray(dados) ? dados : []);
     setCarregando(false);
