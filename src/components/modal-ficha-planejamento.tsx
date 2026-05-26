@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Loader2, Upload, Camera, Trash2, Plus, ImageIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { X, Loader2, Upload, Camera, Trash2, Plus, ImageIcon, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -47,9 +48,11 @@ const REGIOES_BOTOX = [
 type LinhaPreenchimento = { regiao: string; volume: string; produto: string };
 
 export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, onSalvo }: Props) {
+  const router = useRouter();
   const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
   const [profissionalId, setProfissionalId] = useState("");
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [gerandoOrcamento, setGerandoOrcamento] = useState(false);
 
   const [procedimentosSelecionados, setProcedimentosSelecionados] = useState<string[]>([]);
   const [outroProcedimento, setOutroProcedimento] = useState("");
@@ -230,6 +233,43 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
       setErro(e instanceof Error ? e.message : "Erro desconhecido.");
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function gerarOrcamento() {
+    if (!profissionalId) { setErro("Selecione a profissional."); return; }
+    setErro("");
+    setGerandoOrcamento(true);
+    try {
+      const dadosPlanejamento = {
+        procedimentos: procedimentosSelecionados,
+        outroProcedimento,
+        botox: { unidades, outras: outrasBotox, outrasUnidades: outrasBotoxUnidades, total: totalUnidades },
+        validade, numeroLote, volumeDiluicao,
+        preenchimentos: preenchimentos.filter((p) => p.regiao || p.volume || p.produto),
+        dataRetorno, anotacoes,
+      };
+      const r = await fetch(`/api/prontuarios/${clienteId}/procedimentos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profissionalId, data, tipo: "planejamento",
+          descricao: "Planejamento de Procedimentos Faciais",
+          anamnese: dadosPlanejamento,
+          termoAceito: true, assinaturaPaciente, assinaturaProfissional,
+        }),
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error(e.erro || "Erro ao salvar a ficha");
+      }
+      onSalvo();
+      onFechar();
+      router.push(`/orcamentos`);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao gerar orçamento.");
+    } finally {
+      setGerandoOrcamento(false);
     }
   }
 
@@ -541,8 +581,21 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
             </Button>
             <Button
               type="button"
+              onClick={gerarOrcamento}
+              disabled={salvando || gerandoOrcamento}
+              className="flex-1 min-w-[160px] bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+              title="Salva a ficha e abre a tela de orçamentos"
+            >
+              {gerandoOrcamento ? (
+                <><Loader2 size={14} className="animate-spin" />Salvando...</>
+              ) : (
+                <><Receipt size={14} />Gerar Orçamento</>
+              )}
+            </Button>
+            <Button
+              type="button"
               onClick={salvar}
-              disabled={salvando}
+              disabled={salvando || gerandoOrcamento}
               className="flex-1 min-w-[100px] bg-[#B89968] hover:bg-[#9a7d50] text-white"
             >
               {salvando ? <><Loader2 size={14} className="animate-spin mr-1" />Salvando...</> : "SALVAR"}
