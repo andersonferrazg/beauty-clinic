@@ -60,6 +60,7 @@ export default function ImprimirFichaPage({
   const [proc, setProc] = useState<Procedimento | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [nomeClinica, setNomeClinica] = useState("Beauty Clinic");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -72,7 +73,7 @@ export default function ImprimirFichaPage({
     });
     fetch("/api/tenant-publico")
       .then((r) => r.json())
-      .then((d) => setNomeClinica(d.nome))
+      .then((d) => { setNomeClinica(d.nome); setLogoUrl(d.logoUrl ?? null); })
       .catch(() => {});
   }, [clienteId, fichaId]);
 
@@ -127,10 +128,20 @@ export default function ImprimirFichaPage({
         <div className="max-w-3xl mx-auto bg-white p-10 my-6 shadow-sm print:shadow-none print:my-0 print:p-0">
 
           {/* Cabeçalho */}
-          <div className="text-center border-b-2 border-[#B89968] pb-3 mb-5">
-            <p className="text-2xl font-serif font-bold text-[#B89968] tracking-wide">{nomeClinica}</p>
-            <p className="text-sm text-gray-600 mt-1">{tituloTipo(proc.tipo)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Data: {formatarData(proc.data)}</p>
+          <div className="flex items-center gap-5 border-b-2 border-[#B89968] pb-4 mb-5">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#B89968] to-[#9a7d50] flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold text-xl">LB</span>
+              </div>
+            )}
+            <div>
+              <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "var(--font-playfair)" }}>{nomeClinica}</p>
+              <p className="text-sm text-gray-600 mt-1">{tituloTipo(proc.tipo)}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Data: {formatarData(proc.data)}</p>
+            </div>
           </div>
 
           {/* Dados da paciente */}

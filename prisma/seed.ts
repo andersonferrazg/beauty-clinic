@@ -62,7 +62,7 @@ async function main() {
       nome: "Dra. Lunna Bordin",
       email: "lunna@lbbeautyclinic.com",
       telefone: "67991859467",
-      especialidade: "Biomedicina — Botox e Harmonização Facial",
+      especialidade: "Biomédica — Botox e Harmonização Facial",
       tipoComissao: "INTEGRAL",
       percentualComissao: 100,
       cor: "#B89968",
