@@ -104,7 +104,7 @@ export function Sidebar() {
       {/* Botão mobile */}
       <button
         onClick={() => setAberto(true)}
-        className={cn("fixed top-4 left-4 z-50 lg:hidden p-2 rounded-md bg-[#1a1208] text-[#B89968] shadow-md", aberto && "hidden")}
+        className={cn("fixed top-2 left-4 z-50 lg:hidden p-2 rounded-md bg-[#1a1208] text-[#B89968] shadow-md", aberto && "hidden")}
       >
         <Menu size={20} />
       </button>
