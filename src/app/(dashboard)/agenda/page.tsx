@@ -203,6 +203,7 @@ export default function AgendaPage() {
   const hoje = new Date();
   const [dataAtual, setDataAtual] = useState(new Date());
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [profissionaisCarregadas, setProfissionaisCarregadas] = useState(false);
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [templateWpp, setTemplateWpp] = useState(`Oii {primeiro_nome} 💖\n\nPassando para confirmar nosso horário amanhã ({dia_semana}) {data_curta} ás {hora}h\n\nPor gentileza, confirme o recebimento desta mensagem. Caso não haja resposta, o seu horário será automaticamente cancelado.\nTolerância de atraso é de 10 minutos.\n\nAgradeço a compreensão 🥰`);
@@ -261,8 +262,9 @@ export default function AgendaPage() {
         } else {
           setProfissionais(comAgenda);
         }
+        setProfissionaisCarregadas(true);
       })
-      .catch(console.error);
+      .catch(() => setProfissionaisCarregadas(true));
     fetch("/api/configuracoes")
       .then((r) => r.json())
       .then((d) => {
@@ -409,27 +411,37 @@ export default function AgendaPage() {
 
       {/* ── Grade (cabeçalho das profissionais sticky dentro do scroll) ───────── */}
       <div className="flex-1 min-h-0 overflow-auto" ref={gridRef}>
-        <div style={{ minWidth: `${56 + profissionais.length * 180}px` }}>
+        <div style={{ minWidth: `${56 + Math.max(profissionais.length, profissionaisCarregadas ? 1 : 2) * 180}px` }}>
 
         {/* Cabeçalho das profissionais — sticky ao topo, move junto no scroll horizontal */}
         <div className="sticky top-0 z-20 flex bg-white border-b border-[#e8dcc4] h-10">
           <div className="w-14 flex-shrink-0 border-r border-[#e8dcc4]" />
-          {profissionais.map((prof) => (
-            <div
-              key={prof.id}
-              className="flex-1 min-w-[180px] flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2"
-            >
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                style={{ backgroundColor: prof.cor }}
-              >
-                {iniciais(prof.nome)}
+          {!profissionaisCarregadas ? (
+            /* skeleton enquanto carrega */
+            [1, 2].map((i) => (
+              <div key={i} className="flex-1 min-w-[180px] flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2">
+                <div className="w-6 h-6 rounded-full bg-[#e8dcc4] animate-pulse flex-shrink-0" />
+                <div className="h-3 w-24 bg-[#e8dcc4] rounded animate-pulse" />
               </div>
-              <span className="text-xs font-medium text-[#5a4530] min-w-0 truncate">
-                {prof.nome.replace("Dra. ", "")}
-              </span>
-            </div>
-          ))}
+            ))
+          ) : (
+            profissionais.map((prof) => (
+              <div
+                key={prof.id}
+                className="flex-1 min-w-[180px] flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2"
+              >
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
+                  style={{ backgroundColor: prof.cor }}
+                >
+                  {iniciais(prof.nome)}
+                </div>
+                <span className="text-xs font-medium text-[#5a4530] min-w-0 truncate">
+                  {prof.nome.replace("Dra. ", "")}
+                </span>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Grade de horários */}
