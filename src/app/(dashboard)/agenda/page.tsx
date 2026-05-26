@@ -290,6 +290,15 @@ export default function AgendaPage() {
 
   useEffect(() => { carregarAgendamentos(); }, [carregarAgendamentos]);
 
+  // Ao montar, rola o main para além do padding-top (safe area + botões)
+  // para que a barra de semana fique colada nos botões do topo sem gap visível.
+  useEffect(() => {
+    const main = document.querySelector("main");
+    if (!main) return;
+    const pt = parseFloat(getComputedStyle(main).paddingTop) || 0;
+    if (pt > 0) main.scrollTop = pt;
+  }, []);
+
   function navegar(delta: number) {
     const nova = new Date(dataAtual);
     nova.setDate(nova.getDate() + delta);
