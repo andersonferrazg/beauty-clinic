@@ -66,6 +66,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Safe area support — iOS PWA (Dynamic Island / notch) */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --header-btn-top: calc(var(--sat) + 8px);
+  --header-offset: calc(var(--sat) + 44px);
+}
+@media (min-width: 1024px) {
+  :root {
+    --header-btn-top: 8px;
+    --header-offset: 0px;
+  }
+}
+
 /* Scrollbar elegante */
 ::-webkit-scrollbar {
   width: 6px;
