@@ -303,6 +303,29 @@ Quando `Profissional.profissionalTerceiro = true`, a função `finalizar` em `sr
 
 Se for adicionar nova lógica em `finalizar()` (ex: integração contábil, notificação), respeitar o early-return.
 
+### iOS Safari — sticky dentro de overflow (BUG CONHECIDO — não reverter)
+
+`position: sticky` dentro de um container `overflow: auto` **não renderiza no iOS Safari** até o usuário interagir (tocar/arrastar). Também `overflow: hidden` em qualquer ancestral bloqueia o paint de filhos sticky.
+
+**Solução correta:** mover o elemento sticky para FORA do container de scroll, como irmão/ancestral dele.
+
+Na `/agenda`, os nomes das profissionais são renderizados numa segunda linha dentro da barra de navegação semanal (que é sticky no layout externo), e não dentro do `overflow-auto` do grid. Os nomes usam `pl-11` (44px) para compensar a coluna de horários (56px) menos o `px-3` (12px) do container pai.
+
+**Nunca** tentar colocar cabeçalho de colunas como sticky dentro do grid da agenda — o iOS não vai mostrar.
+
+### Modais responsivos (mobile-first)
+
+Todo modal deve usar esta estrutura para funcionar bem em celular e iPad:
+```jsx
+<div className="... max-h-[90dvh] flex flex-col">
+  <div className="flex-shrink-0 ...">/* cabeçalho */</div>
+  <div className="flex-1 overflow-y-auto overscroll-contain p-2 sm:p-4">/* corpo */</div>
+  <div className="flex-shrink-0 ...">/* rodapé com botões */</div>
+</div>
+```
+- `max-h-[90dvh]` (não `vh`) — `dvh` desconta a barra de endereço do iOS Safari
+- `overscroll-contain` — evita que o scroll do modal propague para a página
+
 ### localStorage e SSR (BUG CORRIGIDO — não reverter)
 
 Nunca acessar `localStorage` dentro de `useState()` ou durante o render — causa erro de hidratação.
@@ -323,7 +346,9 @@ useEffect(() => {
 
 ### `/agenda`
 - Grade visual por profissional (colunas) e slots de **30 minutos** (linhas)
-- **Faixa de semana** no topo: 7 dias clicáveis, dia atual destacado em dourado
+- **Faixa de semana começa na SEGUNDA-FEIRA** (não domingo) — fórmula: `(data.getDay() + 6) % 7`
+- **Nomes das profissionais** exibidos numa segunda linha dentro da barra semanal fixa (sticky), fora do container de scroll — solução para o bug de iOS Safari que não renderiza `position: sticky` dentro de `overflow: auto`
+- **Colunas com `min-w-[100px]`** (antes 180px) para que 2–4 profissionais caibam na tela do celular sem scroll horizontal, alinhando os nomes com as colunas
 - Linhas cheias nas horas, linhas tracejadas nas meias horas — **ambas com label de horário** (horas em texto normal, meias horas em texto menor e mais claro)
 - Clique em slot → abre `ModalAgendamento` com hora exata
 - Clique em bloco existente → abre `ModalAgendamento` para edição/exclusão
@@ -335,11 +360,13 @@ useEffect(() => {
 - Template da mensagem WhatsApp carregado das configurações do tenant
 
 ### `/clientes`
-- Lista com busca em tempo real (debounce 300ms via `/api/clientes?q=`)
+- **Carrega TODOS os clientes** ao abrir (sem limite) via `?todos=true`; busca em tempo real usa `?q=` com debounce 300ms
+- **Separadores alfabéticos** — linha dourada com a letra inicial entre cada grupo de clientes (A, B, C...)
 - Botão "Nova Cliente" → abre `ModalCliente`
 - Clique em linha → edição via `ModalCliente`
 - Modal tem abas: **Dados** e **Histórico** (últimos 10 atendimentos)
 - **CPF com máscara automática** — formata para `000.000.000-00` ao digitar
+- Botão "Exportar" gera CSV com nome, telefone e aniversário
 
 ### `/confirmacoes`
 - Página para envio manual de confirmações WhatsApp
@@ -419,7 +446,7 @@ Todas exigem `exigirSessao()` — sem sessão retorna 401.
 | `/api/auth/logout` | POST | Remove cookie `sessao` |
 | `/api/agendamentos` | GET, POST | Lista por `?data=YYYY-MM-DD` |
 | `/api/agendamentos/[id]` | GET, PATCH, DELETE | PATCH ignora campo `tipo` (UI-only) |
-| `/api/clientes` | GET, POST | Lista com `?q=busca` |
+| `/api/clientes` | GET, POST | Lista com `?q=busca`; `?todos=true` retorna todos sem limite (padrão: primeiros 30) |
 | `/api/clientes/[id]` | GET, PATCH, DELETE | Soft delete; GET inclui últimos 10 agendamentos |
 | `/api/servicos` | GET, POST | Lista todos ativos |
 | `/api/servicos/[id]` | GET, PATCH, DELETE | Soft delete |
@@ -564,56 +591,33 @@ Schema aplicado no Supabase via `npx prisma db push` apontando para o pooler.
 
 ---
 
-## Fase 6 — Planejador Visual de Injetáveis + Orçamentos (CONCLUÍDA ✅)
-
-Inspirado no sistema **Clínica Experts** — a doutora marca pontos de aplicação diretamente em um SVG de face com dosagem por ponto, integrado ao estoque, ao prontuário e à geração de orçamento.
+## Fase 6 — Orçamentos + Responsividade Mobile (CONCLUÍDA ✅)
 
 ### O que foi construído
-- **`/orcamentos`** — módulo completo: lista filtrada por status/profissional/busca, badge de status colorido, dias de validade restantes, abertura de modal por `?abrir=<id>` (integração com planejamento)
-- **`ModalOrcamento`** — criar/editar orçamentos com itens (serviço ou produto), descontos, observação, status
-- **`CanvasFacePlanner`** — componente SVG de face frontal estilizado (bege/dourado). Funciona em 2 modos:
-  - **Edição**: paleta de produtos injetáveis clicáveis → clique no SVG → cria ponto com dosagem em popover; clique em ponto existente → editar ou apagar; botão "Limpar tudo"; resumo por produto abaixo do canvas
-  - **readOnly**: apenas renderiza SVG + pontos com labels de dosagem (usado na impressão do prontuário e em visualização)
-- **Campos novos em `Produto`**: `ehInjetavel Boolean`, `unidadeMedida String?`, `corMarcacao String?` — produtos marcados com `ehInjetavel=true` aparecem na paleta do planejador
+- **`/orcamentos`** — módulo completo: lista filtrada por status/profissional/busca, badge de status colorido, dias de validade restantes, abertura de modal por `?abrir=<id>`
+- **`ModalOrcamento`** — criar/editar orçamentos com itens (serviço ou produto), descontos, observação, status. **Responsivo mobile**: `max-h-[90dvh]`, `flex-col`, header/footer com `flex-shrink-0`, corpo com `flex-1 overflow-y-auto`
+- **Campos novos em `Produto`**: `ehInjetavel Boolean`, `unidadeMedida String?`, `corMarcacao String?` (adicionados no schema, ainda não utilizados na UI ativa — reservados para fase futura de planejador visual)
 - **UI de produto atualizada**: checkbox "É injetável", dropdown de unidade (Unidade/ml/ui/un), color picker com 6 cores pré-definidas; badge colorido na lista de produtos
-- **API `GET /api/produtos?injetavel=true`** — filtro de produtos injetáveis
-- **Integração na ficha de Planejamento** (`modal-ficha-planejamento.tsx`): bloco "Planejamento Visual" no topo do modal com `<CanvasFacePlanner>`, marcações salvas no JSON `anamnese.marcacoes`, botão "Gerar Orçamento" (só aparece quando há marcações)
-- **`POST /api/orcamentos/from-planejamento`** — agrupa marcações por produto → `Math.ceil(somaDosagem)` unidades → 1 `ItemOrcamento` por produto com descrição detalhada (dosagem, nº de pontos, regiões)
-- **Impressão do planejamento**: renderiza `<CanvasFacePlanner readOnly>` no PDF com os pontos salvos
+- **API `GET /api/produtos?injetavel=true`** — filtro de produtos injetáveis (para uso futuro)
+- **Botão "Gerar Orçamento"** na ficha de Planejamento (`modal-ficha-planejamento.tsx`):
+  1. Salva a ficha no prontuário
+  2. Busca `/api/servicos` e tenta casar cada procedimento marcado por nome (case-insensitive, partial match)
+  3. Cria orçamento via `POST /api/orcamentos` com os itens encontrados; procedimentos sem match vão para `observacao`
+  4. Navega para `/orcamentos?abrir={orcamento.id}` — abre o modal do orçamento recém-criado
 
-### Formato de dados das marcações (JSON em `Procedimento.anamnese`)
-```typescript
-// Procedimento.anamnese (campo JSON) ganha o array:
-{
-  // ...campos existentes (botox, preenchimentos, etc.)
-  marcacoes: [
-    {
-      id: "ponto-1721234567-abc",   // gerado client-side
-      produtoId: "clx123...",
-      produtoNome: "Toxina Botulínica",
-      produtoCor: "#A78BFA",
-      x: 0.45,                      // coordenada normalizada (0–1) sobre o SVG
-      y: 0.32,
-      dosagem: 5,
-      unidade: "ui",
-      regiao: "testa"               // texto livre, opcional
-    }
-  ]
-}
-```
+### `CanvasFacePlanner` (`src/components/canvas-face-planner.tsx`)
+Componente SVG de face frontal **mantido apenas para impressão de fichas antigas** (prontuários que já tinham marcações salvas em `anamnese.marcacoes`). **NÃO está mais ativo nas fichas de planejamento nem no modal de orçamento** — foi removido dos modais porque a implementação visual não ficou satisfatória. O componente exporta `Marcacao` e `ProdutoInjetavel` que são usados pela página de impressão `prontuarios/[clienteId]/ficha/[fichaId]/imprimir/page.tsx`.
 
 ### Schema implementado (Fase 6)
 - `Produto`: + `ehInjetavel Boolean @default(false)`, `unidadeMedida String? @default("unidade")`, `corMarcacao String? @default("#A78BFA")`
-- `Orcamento` e `ItemOrcamento`: tabelas já existentes desde a Fase 3 — aplicar `npx prisma db push` se ainda não foram criadas em produção
+- `Orcamento` e `ItemOrcamento`: tabelas criadas
 
-### ⚠️ Migração em produção necessária
-Após o deploy, Anderson deve rodar:
+### ⚠️ Migração em produção necessária (se ainda não feita)
 ```powershell
 $env:DATABASE_URL="postgresql://postgres.vbtqittceshebajqpjzw:%2ALa191218mari@aws-1-sa-east-1.pooler.supabase.com:5432/postgres"
 $env:DATABASE_PROVIDER="postgresql"
 npx prisma db push
 ```
-Isso adiciona as 3 colunas novas em `Produto` (e cria `Orcamento`/`ItemOrcamento` se ainda não existirem). Sem isso, produtos não terão os campos de injetável e o planejador não funciona em produção.
 
 ---
 
