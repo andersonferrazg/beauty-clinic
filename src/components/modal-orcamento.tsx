@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   X, Plus, Trash2, Loader2, Search, Printer, ArrowRight, Lock,
-  Phone, MessageCircle, FileText, ChevronDown,
+  Phone, MessageCircle, FileText,
 } from "lucide-react";
-import { CanvasFacePlanner, type Marcacao, type ProdutoInjetavel } from "@/components/canvas-face-planner";
 import { cn } from "@/lib/utils";
 
 type Profissional = { id: string; nome: string; cor: string };
@@ -133,11 +132,6 @@ export function ModalOrcamento({
   const [convProfissionalId, setConvProfissionalId] = useState("");
   const [erro, setErro] = useState("");
 
-  // ── Planejador Visual ────────────────────────────────────────────────────
-  const [marcacoes, setMarcacoes] = useState<Marcacao[]>([]);
-  const [produtosInjetaveis, setProdutosInjetaveis] = useState<ProdutoInjetavel[]>([]);
-  const [mostrarPlanejador, setMostrarPlanejador] = useState(false);
-
   const refSugCli = useRef<HTMLDivElement>(null);
 
   const total = itens.reduce((s, i) => s + i.preco * i.quantidade, 0);
@@ -183,7 +177,6 @@ export function ModalOrcamento({
       }
     });
     fetch("/api/servicos").then((r) => r.json()).then(setServicos);
-    fetch("/api/produtos?injetavel=true").then((r) => r.json()).then(setProdutosInjetaveis).catch(() => {});
   }, [aberto, minhaSessao]);
 
   // ── Carregar orçamento existente ─────────────────────────────────────────
@@ -233,8 +226,6 @@ export function ModalOrcamento({
       setInteracoes([]);
       setNovaInteracaoTexto("");
       setNovaInteracaoTipo("NOTA");
-      setMarcacoes([]);
-      setMostrarPlanejador(false);
       escolherValidade(30);
     }
   }, [aberto]);
@@ -265,32 +256,6 @@ export function ModalOrcamento({
     const d = new Date();
     d.setDate(d.getDate() + dias);
     setDataValidadeStr(dataParaLocalStr(d));
-  }
-
-  function importarDoCanvas() {
-    if (marcacoes.length === 0) return;
-    const grupos = new Map<string, { soma: number; pontos: number; unidade: string; produtoNome: string; precoVenda: number }>();
-    for (const m of marcacoes) {
-      const prod = produtosInjetaveis.find((p) => p.id === m.produtoId);
-      const g = grupos.get(m.produtoId);
-      if (g) { g.soma += m.dosagem; g.pontos++; }
-      else grupos.set(m.produtoId, { soma: m.dosagem, pontos: 1, unidade: m.unidade, produtoNome: m.produtoNome, precoVenda: prod?.precoVenda ?? 0 });
-    }
-    const novos: ItemOrc[] = [];
-    grupos.forEach((g, produtoId) => {
-      novos.push({
-        servicoId: "",
-        produtoId,
-        nomeServico: g.produtoNome,
-        preco: g.precoVenda,
-        quantidade: Math.ceil(g.soma),
-        descricao: `${g.soma}${g.unidade} em ${g.pontos} ponto${g.pontos > 1 ? "s" : ""}`,
-      });
-    });
-    const itensSvc = itens.filter((i) => !i.produtoId);
-    setItens([...itensSvc, ...novos]);
-    setBuscaItem([...buscaItem.slice(0, itensSvc.length), ...novos.map((i) => i.nomeServico)]);
-    setMostrarSugestoesItem([...mostrarSugestoesItem.slice(0, itensSvc.length), ...novos.map(() => false)]);
   }
 
   function adicionarItem() {
@@ -326,7 +291,7 @@ export function ModalOrcamento({
   async function salvar() {
     if (!clienteId) { setErro("Selecione a cliente."); return; }
     if (itens.length === 0 || itens.every((i) => !i.servicoId && !i.produtoId)) {
-      setErro("Adicione pelo menos um serviço ou use o planejador de injetáveis.");
+      setErro("Adicione pelo menos um serviço.");
       return;
     }
     setErro("");
@@ -437,14 +402,14 @@ export function ModalOrcamento({
   if (!aberto) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
       {/* Overlay */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onFechar} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b border-[#e8dcc4] px-5 py-3.5 flex items-center justify-between">
+        <div className="flex-shrink-0 bg-white border-b border-[#e8dcc4] px-5 py-3.5 flex items-center justify-between rounded-t-2xl">
           <div>
             <h2 className="font-serif text-lg text-[#5a4530] font-semibold">
               {ehEdicao ? "Editando Orçamento" : "Novo Orçamento"}
@@ -471,7 +436,7 @@ export function ModalOrcamento({
         </div>
 
         {/* Body */}
-        <div className="p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-4">
           {/* Cliente */}
           <div className="space-y-1.5" ref={refSugCli}>
             <Label className="text-[#5a4530]">Cliente *</Label>
@@ -595,55 +560,6 @@ export function ModalOrcamento({
               </div>
             </div>
           )}
-
-          {/* Planejamento Visual de Injetáveis */}
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setMostrarPlanejador((v) => !v)}
-              className="flex items-center gap-2 w-full text-left group"
-            >
-              <Label className="text-[#5a4530] cursor-pointer select-none">Planejamento Visual (Injetáveis)</Label>
-              <ChevronDown
-                size={14}
-                className={cn("text-[#9a7d50] transition-transform duration-200", mostrarPlanejador && "rotate-180")}
-              />
-              {marcacoes.length > 0 && (
-                <span className="ml-auto text-xs bg-[#B89968]/20 text-[#B89968] rounded-full px-2 py-0.5 font-medium">
-                  {marcacoes.length} ponto{marcacoes.length > 1 ? "s" : ""}
-                </span>
-              )}
-            </button>
-
-            {mostrarPlanejador && (
-              <div className="space-y-2 pt-1">
-                {produtosInjetaveis.length === 0 ? (
-                  <div className="text-center py-5 text-xs text-[#9a7d50] border border-dashed border-[#e8dcc4] rounded-lg px-4">
-                    Nenhum produto injetável cadastrado.
-                    Vá em <strong>Produtos &amp; Estoque</strong> e marque um produto como &quot;É injetável&quot;.
-                  </div>
-                ) : (
-                  <>
-                    <CanvasFacePlanner
-                      marcacoes={marcacoes}
-                      onChange={setMarcacoes}
-                      produtos={produtosInjetaveis}
-                    />
-                    {marcacoes.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={importarDoCanvas}
-                        className="w-full py-2 rounded-md text-xs font-medium bg-[#B89968]/10 border border-[#B89968]/40 text-[#5a4530] hover:bg-[#B89968]/20 transition-colors flex items-center justify-center gap-1.5"
-                      >
-                        <ArrowRight size={12} />
-                        Importar pontos como itens do orçamento
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
 
           {/* Itens */}
           <div className="space-y-2">
@@ -949,7 +865,7 @@ export function ModalOrcamento({
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-white border-t border-[#e8dcc4] px-5 py-3 flex items-center justify-between gap-2">
+        <div className="flex-shrink-0 bg-white border-t border-[#e8dcc4] px-5 py-3 flex items-center justify-between gap-2 rounded-b-2xl">
           {ehEdicao ? (
             <button
               type="button"

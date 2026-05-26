@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { X, Loader2, Upload, Camera, Trash2, Plus, ImageIcon, Receipt } from "lucide-react";
+import { X, Loader2, Upload, Camera, Trash2, Plus, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { CanvasAssinatura } from "@/components/canvas-assinatura";
-import { CanvasFacePlanner, type Marcacao, type ProdutoInjetavel } from "@/components/canvas-face-planner";
 
 type Profissional = { id: string; nome: string };
 type Cliente = { id: string; nome: string };
@@ -49,15 +47,9 @@ const REGIOES_BOTOX = [
 type LinhaPreenchimento = { regiao: string; volume: string; produto: string };
 
 export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, onSalvo }: Props) {
-  const router = useRouter();
   const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
   const [profissionalId, setProfissionalId] = useState("");
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
-
-  // Planejador visual de injetáveis
-  const [marcacoes, setMarcacoes] = useState<Marcacao[]>([]);
-  const [produtosInjetaveis, setProdutosInjetaveis] = useState<ProdutoInjetavel[]>([]);
-  const [gerandoOrcamento, setGerandoOrcamento] = useState(false);
 
   const [procedimentosSelecionados, setProcedimentosSelecionados] = useState<string[]>([]);
   const [outroProcedimento, setOutroProcedimento] = useState("");
@@ -100,11 +92,6 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
       setProfissionais(lista);
       if (!profissionalId && lista.length) setProfissionalId(lista[0].id);
     });
-    // Carrega produtos injetáveis para a paleta do planejador
-    fetch("/api/produtos?injetavel=true")
-      .then((r) => r.json())
-      .then((lista) => setProdutosInjetaveis(Array.isArray(lista) ? lista : []))
-      .catch(() => setProdutosInjetaveis([]));
   }, [aberto]);
 
   useEffect(() => {
@@ -124,7 +111,6 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
       setFotos([]);
       setAssinaturaPaciente(null);
       setAssinaturaProfissional(null);
-      setMarcacoes([]);
       setErro("");
     }
   }, [aberto]);
@@ -198,7 +184,6 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
         preenchimentos: preenchimentos.filter((p) => p.regiao || p.volume || p.produto),
         dataRetorno,
         anotacoes,
-        marcacoes,
       };
 
       const r = await fetch(`/api/prontuarios/${clienteId}/procedimentos`, {
@@ -248,75 +233,12 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
     }
   }
 
-  async function gerarOrcamento() {
-    if (marcacoes.length === 0) {
-      setErro("Marque pelo menos um ponto no planejador antes de gerar o orçamento.");
-      return;
-    }
-    if (!profissionalId) {
-      setErro("Selecione a profissional antes de gerar o orçamento.");
-      return;
-    }
-    setErro("");
-    setGerandoOrcamento(true);
-    try {
-      // 1. Salva a ficha primeiro pra ter o procedimentoId
-      const dadosPlanejamento = {
-        procedimentos: procedimentosSelecionados,
-        outroProcedimento,
-        botox: {
-          unidades, outras: outrasBotox, outrasUnidades: outrasBotoxUnidades, total: totalUnidades,
-        },
-        validade, numeroLote, volumeDiluicao,
-        preenchimentos: preenchimentos.filter((p) => p.regiao || p.volume || p.produto),
-        dataRetorno, anotacoes, marcacoes,
-      };
-      const r1 = await fetch(`/api/prontuarios/${clienteId}/procedimentos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profissionalId, data, tipo: "planejamento",
-          descricao: "Planejamento de Procedimentos Faciais",
-          anamnese: dadosPlanejamento,
-          termoAceito: true,
-          assinaturaPaciente, assinaturaProfissional,
-        }),
-      });
-      if (!r1.ok) {
-        const e = await r1.json().catch(() => ({}));
-        throw new Error(e.erro || "Erro ao salvar a ficha");
-      }
-      const proc = await r1.json();
-
-      // 2. Gera o orçamento a partir do procedimento salvo
-      const r2 = await fetch("/api/orcamentos/from-planejamento", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ procedimentoId: proc.id }),
-      });
-      if (!r2.ok) {
-        const e = await r2.json().catch(() => ({}));
-        throw new Error(e.erro || "Erro ao gerar orçamento");
-      }
-      const { orcamentoId } = await r2.json();
-
-      // 3. Redireciona para /orcamentos abrindo o orçamento criado
-      onSalvo();
-      onFechar();
-      router.push(`/orcamentos?abrir=${orcamentoId}`);
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao gerar orçamento.");
-    } finally {
-      setGerandoOrcamento(false);
-    }
-  }
-
   if (!aberto) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onFechar} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[94vh] flex flex-col">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90dvh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8dcc4] flex-shrink-0">
@@ -355,18 +277,6 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
 
         {/* Conteúdo */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
-
-          {/* ── Planejador Visual de Injetáveis ───────────────────────── */}
-          <div>
-            <p className="text-xs font-semibold text-[#B89968] uppercase tracking-wide mb-2">
-              Planejamento Visual
-            </p>
-            <CanvasFacePlanner
-              marcacoes={marcacoes}
-              onChange={setMarcacoes}
-              produtos={produtosInjetaveis}
-            />
-          </div>
 
           {/* Procedimentos a serem realizados */}
           <div>
@@ -629,25 +539,10 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
             >
               FECHAR
             </Button>
-            {marcacoes.length > 0 && (
-              <Button
-                type="button"
-                onClick={gerarOrcamento}
-                disabled={salvando || gerandoOrcamento}
-                className="flex-1 min-w-[180px] bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
-                title="Salva a ficha e cria um orçamento já preenchido com os produtos marcados"
-              >
-                {gerandoOrcamento ? (
-                  <><Loader2 size={14} className="animate-spin" />Gerando...</>
-                ) : (
-                  <><Receipt size={14} />Gerar Orçamento</>
-                )}
-              </Button>
-            )}
             <Button
               type="button"
               onClick={salvar}
-              disabled={salvando || gerandoOrcamento}
+              disabled={salvando}
               className="flex-1 min-w-[100px] bg-[#B89968] hover:bg-[#9a7d50] text-white"
             >
               {salvando ? <><Loader2 size={14} className="animate-spin mr-1" />Salvando...</> : "SALVAR"}
