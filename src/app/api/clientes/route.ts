@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
       ...(busca
         ? {
             OR: [
-              { nome: { contains: busca, mode: "insensitive" as const } },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              { nome: { contains: busca, mode: "insensitive" } as any },
               { telefone1: { contains: busca } },
             ],
           }
