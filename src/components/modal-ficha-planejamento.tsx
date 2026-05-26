@@ -241,6 +241,7 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
     setErro("");
     setGerandoOrcamento(true);
     try {
+      // 1. Salva a ficha no prontuário
       const dadosPlanejamento = {
         procedimentos: procedimentosSelecionados,
         outroProcedimento,
@@ -249,7 +250,7 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
         preenchimentos: preenchimentos.filter((p) => p.regiao || p.volume || p.produto),
         dataRetorno, anotacoes,
       };
-      const r = await fetch(`/api/prontuarios/${clienteId}/procedimentos`, {
+      const r1 = await fetch(`/api/prontuarios/${clienteId}/procedimentos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -259,13 +260,27 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
           termoAceito: true, assinaturaPaciente, assinaturaProfissional,
         }),
       });
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({}));
+      if (!r1.ok) {
+        const e = await r1.json().catch(() => ({}));
         throw new Error(e.erro || "Erro ao salvar a ficha");
       }
+
+      // 2. Cria orçamento em branco com a cliente já preenchida
+      const r2 = await fetch("/api/orcamentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clienteId, profissionalId, itens: [] }),
+      });
+      if (!r2.ok) {
+        const e = await r2.json().catch(() => ({}));
+        throw new Error(e.erro || "Erro ao criar orçamento");
+      }
+      const orcamento = await r2.json();
+
+      // 3. Abre o orçamento criado direto no modal
       onSalvo();
       onFechar();
-      router.push(`/orcamentos`);
+      router.push(`/orcamentos?abrir=${orcamento.id}`);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao gerar orçamento.");
     } finally {

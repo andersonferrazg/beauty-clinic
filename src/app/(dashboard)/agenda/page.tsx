@@ -166,11 +166,11 @@ function iniciais(nome: string) {
 
 function semanaDosDias(data: Date): Date[] {
   const dias: Date[] = [];
-  const dom = new Date(data);
-  dom.setDate(data.getDate() - data.getDay());
+  const seg = new Date(data);
+  seg.setDate(data.getDate() - (data.getDay() + 6) % 7); // começa na segunda
   for (let i = 0; i < 7; i++) {
-    const d = new Date(dom);
-    d.setDate(dom.getDate() + i);
+    const d = new Date(seg);
+    d.setDate(seg.getDate() + i);
     dias.push(d);
   }
   return dias;
@@ -218,6 +218,13 @@ export default function AgendaPage() {
   const [calAberto, setCalAberto] = useState(false);
 
   const gridRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  function handleGridScroll() {
+    if (headerRef.current && gridRef.current) {
+      headerRef.current.scrollLeft = gridRef.current.scrollLeft;
+    }
+  }
 
   const dataStr = formatarDataISO(dataAtual);
   const ehHoje = formatarDataISO(hoje) === dataStr;
@@ -409,40 +416,43 @@ export default function AgendaPage() {
         </div>
       </div>
 
-      {/* ── Grade (cabeçalho das profissionais sticky dentro do scroll) ───────── */}
-      <div className="flex-1 min-h-0 overflow-auto" ref={gridRef}>
+      {/* ── Cabeçalho das profissionais — FORA do scroll, sempre visível ───────── */}
+      <div className="flex-shrink-0 overflow-hidden bg-white border-b border-[#e8dcc4]" ref={headerRef}>
         <div style={{ minWidth: `${56 + Math.max(profissionais.length, profissionaisCarregadas ? 1 : 2) * 180}px` }}>
-
-        {/* Cabeçalho das profissionais — sticky ao topo, move junto no scroll horizontal */}
-        <div className="sticky top-0 z-20 flex bg-white border-b border-[#e8dcc4] h-10" style={{ WebkitTransform: "translateZ(0)", transform: "translateZ(0)", willChange: "transform" }}>
-          <div className="w-14 flex-shrink-0 border-r border-[#e8dcc4]" />
-          {!profissionaisCarregadas ? (
-            /* skeleton enquanto carrega */
-            [1, 2].map((i) => (
-              <div key={i} className="flex-1 min-w-[180px] flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2">
-                <div className="w-6 h-6 rounded-full bg-[#e8dcc4] animate-pulse flex-shrink-0" />
-                <div className="h-3 w-24 bg-[#e8dcc4] rounded animate-pulse" />
-              </div>
-            ))
-          ) : (
-            profissionais.map((prof) => (
-              <div
-                key={prof.id}
-                className="flex-1 min-w-[180px] flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2"
-              >
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                  style={{ backgroundColor: prof.cor }}
-                >
-                  {iniciais(prof.nome)}
+          <div className="flex h-10">
+            <div className="w-14 flex-shrink-0 border-r border-[#e8dcc4]" />
+            {!profissionaisCarregadas ? (
+              [1, 2].map((i) => (
+                <div key={i} className="flex-1 min-w-[180px] flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2">
+                  <div className="w-6 h-6 rounded-full bg-[#e8dcc4] animate-pulse flex-shrink-0" />
+                  <div className="h-3 w-24 bg-[#e8dcc4] rounded animate-pulse" />
                 </div>
-                <span className="text-xs font-medium text-[#5a4530] min-w-0 truncate">
-                  {prof.nome.replace("Dra. ", "")}
-                </span>
-              </div>
-            ))
-          )}
+              ))
+            ) : (
+              profissionais.map((prof) => (
+                <div
+                  key={prof.id}
+                  className="flex-1 min-w-[180px] flex items-center justify-center gap-2 border-r border-[#e8dcc4] last:border-r-0 px-2"
+                >
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
+                    style={{ backgroundColor: prof.cor }}
+                  >
+                    {iniciais(prof.nome)}
+                  </div>
+                  <span className="text-xs font-medium text-[#5a4530] min-w-0 truncate">
+                    {prof.nome.replace("Dra. ", "")}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* ── Grade de horários (scroll vertical + horizontal) ─────────────────── */}
+      <div className="flex-1 min-h-0 overflow-auto" ref={gridRef} onScroll={handleGridScroll}>
+        <div style={{ minWidth: `${56 + Math.max(profissionais.length, profissionaisCarregadas ? 1 : 2) * 180}px` }}>
 
         {/* Grade de horários */}
         <div
