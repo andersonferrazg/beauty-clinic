@@ -319,16 +319,15 @@ export default function AgendaPage() {
   }
 
   return (
-    <div
-      className="flex flex-col bg-[#f4f6f8]"
-      style={{
-        marginTop: "calc(-1 * var(--header-offset))",
-        minHeight: "calc(100% + var(--header-offset))",
-      }}
-    >
-      {/* Espaçador mobile: ocupa o espaço dos botões fixos do topo (hambúrguer + calendário + Hoje).
-          No desktop --header-offset=0px, então a div tem altura 0 e lg:hidden a remove do layout. */}
-      <div className="flex-shrink-0 lg:hidden" style={{ height: "var(--header-offset)" }} />
+    <div className="flex flex-col h-full bg-[#f4f6f8]">
+
+      {/* Fundo branco fixo que cobre o padding do <main> no mobile.
+          z-20 fica abaixo dos botões (z-50) e abaixo da barra de semana (z-30),
+          mas cobre o fundo bege do layout — elimina o gap visível sem mover nada. */}
+      <div
+        className="fixed top-0 left-0 right-0 bg-white lg:hidden"
+        style={{ zIndex: 20, height: "var(--header-offset)" }}
+      />
 
       {/* ── Barra de navegação semanal + nomes das profissionais ───────────── */}
       <div className="bg-white border-b border-[#e8dcc4] sticky lg:top-0 z-30 px-3 py-1" style={{ top: "var(--header-offset)" }}>
