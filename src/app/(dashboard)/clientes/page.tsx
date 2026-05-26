@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalCliente } from "@/components/modal-cliente";
@@ -129,44 +129,62 @@ export default function ClientesPage() {
               </tr>
             </thead>
             <tbody>
-              {clientes.map((c, i) => (
-                <tr
-                  key={c.id}
-                  onClick={() => abrirEdicao(c.id)}
-                  className={`border-b border-[#e8dcc4] hover:bg-[#faf5ee] cursor-pointer transition-colors ${
-                    i === clientes.length - 1 ? "border-b-0" : ""
-                  }`}
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#B89968] to-[#9a7d50] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                        {c.nome.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="font-medium text-[#5a4530]">{c.nome}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {c.telefone1 ? (
-                      <span className="flex items-center gap-1.5 text-[#5a4530]">
-                        <Phone size={12} className="text-[#B89968]" />
-                        {formatarTelefone(c.telefone1)}
-                      </span>
-                    ) : (
-                      <span className="text-[#9a7d50] italic text-xs">Não informado</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {c.dataNascimento ? (
-                      <span className="flex items-center gap-1.5 text-[#5a4530]">
-                        <Calendar size={12} className="text-[#B89968]" />
-                        {new Date(c.dataNascimento).toLocaleDateString("pt-BR")}
-                      </span>
-                    ) : (
-                      <span className="text-[#9a7d50] italic text-xs">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                const rows: React.ReactNode[] = [];
+                let letraAtual = "";
+                clientes.forEach((c, i) => {
+                  const letra = c.nome.charAt(0).toUpperCase();
+                  if (letra !== letraAtual) {
+                    letraAtual = letra;
+                    rows.push(
+                      <tr key={`letra-${letra}`} className="bg-[#faf5ee] border-b border-[#e8dcc4]">
+                        <td colSpan={3} className="px-4 py-1">
+                          <span className="text-xs font-bold text-[#B89968] tracking-widest">{letra}</span>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  rows.push(
+                    <tr
+                      key={c.id}
+                      onClick={() => abrirEdicao(c.id)}
+                      className={`border-b border-[#e8dcc4] hover:bg-[#faf5ee] cursor-pointer transition-colors ${
+                        i === clientes.length - 1 ? "border-b-0" : ""
+                      }`}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#B89968] to-[#9a7d50] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                            {letra}
+                          </div>
+                          <span className="font-medium text-[#5a4530]">{c.nome}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {c.telefone1 ? (
+                          <span className="flex items-center gap-1.5 text-[#5a4530]">
+                            <Phone size={12} className="text-[#B89968]" />
+                            {formatarTelefone(c.telefone1)}
+                          </span>
+                        ) : (
+                          <span className="text-[#9a7d50] italic text-xs">Não informado</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {c.dataNascimento ? (
+                          <span className="flex items-center gap-1.5 text-[#5a4530]">
+                            <Calendar size={12} className="text-[#B89968]" />
+                            {new Date(c.dataNascimento).toLocaleDateString("pt-BR")}
+                          </span>
+                        ) : (
+                          <span className="text-[#9a7d50] italic text-xs">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                });
+                return rows;
+              })()}
             </tbody>
           </table>
         </div>

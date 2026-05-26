@@ -409,7 +409,7 @@ export default function AgendaPage() {
         </div>
 
         {/* ── Linha com nomes das profissionais — sempre visível ───────────── */}
-        <div className="flex border-t border-[#e8dcc4]/60 mt-1 pt-1 pb-0.5">
+        <div className="flex border-t border-[#e8dcc4]/60 mt-1 pt-1 pb-0.5 pl-11">
           {!profissionaisCarregadas ? (
             [1, 2].map((i) => (
               <div key={i} className="flex-1 flex items-center justify-center gap-1.5 px-1">
