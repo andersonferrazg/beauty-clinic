@@ -45,174 +45,133 @@ function resumirPorProduto(marcacoes: Marcacao[]) {
   return Array.from(grupos.values());
 }
 
-// ─── Rosto Feminino — SVG minimal estilo médico ─────────────────────────────
+// ─── Rosto Feminino — ilustração médica proporcional ────────────────────────
 function FaceFeminino() {
   return (
     <g>
       <rect x="0" y="0" width="400" height="520" fill="white" />
 
       {/* Pescoço */}
-      <path d="M 178 388 L 170 478" stroke="rgba(29,29,29,0.28)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
-      <path d="M 222 388 L 230 478" stroke="rgba(29,29,29,0.28)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
-      <path d="M 90 480 Q 170 472 170 478" stroke="rgba(29,29,29,0.20)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
-      <path d="M 230 478 Q 230 472 310 480" stroke="rgba(29,29,29,0.20)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
+      <path d="M 181 398 L 174 468" stroke="rgba(29,29,29,0.22)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+      <path d="M 219 398 L 226 468" stroke="rgba(29,29,29,0.22)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+      <path d="M 88 470 C 124 465 154 463 174 468" stroke="rgba(29,29,29,0.16)" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+      <path d="M 226 468 C 246 463 276 465 312 470" stroke="rgba(29,29,29,0.16)" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
 
       {/* Orelhas */}
-      <path d="M 100 225 C 88 232 86 250 90 264 C 93 273 100 276 107 268" stroke="rgba(29,29,29,0.30)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
-      <path d="M 300 225 C 312 232 314 250 310 264 C 307 273 300 276 293 268" stroke="rgba(29,29,29,0.30)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
+      <path d="M 84 213 C 71 222 69 244 73 259 C 77 271 87 275 95 266" stroke="rgba(29,29,29,0.28)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+      <path d="M 316 213 C 329 222 331 244 327 259 C 323 271 313 275 305 266" stroke="rgba(29,29,29,0.28)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
 
-      {/* Oval do rosto */}
-      <ellipse cx="200" cy="245" rx="100" ry="145" fill="rgba(255,255,255,0.55)" stroke="rgba(29,29,29,0.32)" strokeWidth="1.1"/>
+      {/* Contorno do rosto — path com proporções naturais */}
+      <path d="M 200 102 C 260 102 312 140 320 200 C 328 260 316 320 296 354 C 276 386 246 400 220 406 C 211 408 205 409 200 409 C 195 409 189 408 180 406 C 154 400 124 386 104 354 C 84 320 72 260 80 200 C 88 140 140 102 200 102 Z"
+        fill="rgba(255,255,255,0.55)" stroke="rgba(29,29,29,0.32)" strokeWidth="1.3"/>
 
-      {/* Sobrancelhas — arqueadas (feminino) */}
-      <path d="M 134 177 C 148 168 164 165 180 170" stroke="rgba(29,29,29,0.68)" strokeWidth="2" fill="none" strokeLinecap="round"/>
-      <path d="M 220 170 C 236 165 252 168 266 177" stroke="rgba(29,29,29,0.68)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      {/* Sobrancelhas femininas — finas e arqueadas */}
+      <path d="M 127 184 C 143 174 161 171 182 177" stroke="rgba(29,29,29,0.72)" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
+      <path d="M 218 177 C 239 171 257 174 273 184" stroke="rgba(29,29,29,0.72)" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
 
       {/* Olho esquerdo */}
-      <path d="M 130 200 C 140 192 152 189 163 189 C 174 189 184 192 192 200 C 184 208 174 211 163 211 C 152 211 140 208 130 200 Z" fill="rgba(255,255,255,0.9)" stroke="rgba(29,29,29,0.30)" strokeWidth="0.9"/>
-      <path d="M 130 200 C 140 192 152 189 163 189 C 174 189 184 192 192 200" stroke="rgba(29,29,29,0.65)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      <circle cx="161" cy="200" r="6" fill="rgba(90,65,35,0.55)" stroke="rgba(29,29,29,0.35)" strokeWidth="0.8"/>
-      <circle cx="161" cy="200" r="3" fill="rgba(15,8,0,0.85)"/>
-      <circle cx="163" cy="197" r="1.4" fill="white"/>
+      <path d="M 118 205 C 130 195 145 192 161 192 C 177 192 190 195 200 205 C 190 215 177 218 161 218 C 145 218 130 215 118 205 Z"
+        fill="rgba(255,255,255,0.96)" stroke="rgba(29,29,29,0.24)" strokeWidth="1"/>
+      <path d="M 118 205 C 130 195 145 192 161 192 C 177 192 190 195 200 205"
+        stroke="rgba(29,29,29,0.65)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+      <circle cx="159" cy="205" r="8" fill="rgba(72,50,26,0.60)" stroke="rgba(29,29,29,0.28)" strokeWidth="0.9"/>
+      <circle cx="159" cy="205" r="4.2" fill="rgba(10,5,0,0.92)"/>
+      <circle cx="162" cy="201" r="1.9" fill="white"/>
 
       {/* Olho direito */}
-      <path d="M 208 200 C 216 192 228 189 237 189 C 248 189 258 192 270 200 C 258 208 248 211 237 211 C 228 211 216 208 208 200 Z" fill="rgba(255,255,255,0.9)" stroke="rgba(29,29,29,0.30)" strokeWidth="0.9"/>
-      <path d="M 208 200 C 216 192 228 189 237 189 C 248 189 258 192 270 200" stroke="rgba(29,29,29,0.65)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      <circle cx="239" cy="200" r="6" fill="rgba(90,65,35,0.55)" stroke="rgba(29,29,29,0.35)" strokeWidth="0.8"/>
-      <circle cx="239" cy="200" r="3" fill="rgba(15,8,0,0.85)"/>
-      <circle cx="241" cy="197" r="1.4" fill="white"/>
+      <path d="M 200 205 C 210 195 223 192 239 192 C 255 192 270 195 282 205 C 270 215 255 218 239 218 C 223 218 210 215 200 205 Z"
+        fill="rgba(255,255,255,0.96)" stroke="rgba(29,29,29,0.24)" strokeWidth="1"/>
+      <path d="M 200 205 C 210 195 223 192 239 192 C 255 192 270 195 282 205"
+        stroke="rgba(29,29,29,0.65)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+      <circle cx="241" cy="205" r="8" fill="rgba(72,50,26,0.60)" stroke="rgba(29,29,29,0.28)" strokeWidth="0.9"/>
+      <circle cx="241" cy="205" r="4.2" fill="rgba(10,5,0,0.92)"/>
+      <circle cx="244" cy="201" r="1.9" fill="white"/>
 
-      {/* Nariz */}
-      <path d="M 190 208 C 187 232 185 254 188 270" stroke="rgba(29,29,29,0.22)" strokeWidth="1" fill="none" strokeLinecap="round"/>
-      <path d="M 210 208 C 213 232 215 254 212 270" stroke="rgba(29,29,29,0.22)" strokeWidth="1" fill="none" strokeLinecap="round"/>
-      <path d="M 188 270 C 188 279 193 283 200 283 C 207 283 212 279 212 270" stroke="rgba(29,29,29,0.28)" strokeWidth="1.1" fill="none"/>
-      <path d="M 188 273 C 183 280 184 288 189 289 C 195 290 196 282 195 275" stroke="rgba(29,29,29,0.25)" strokeWidth="1" fill="none" strokeLinecap="round"/>
-      <path d="M 212 273 C 217 280 216 288 211 289 C 205 290 204 282 205 275" stroke="rgba(29,29,29,0.25)" strokeWidth="1" fill="none" strokeLinecap="round"/>
+      {/* Nariz — linhas suaves */}
+      <path d="M 190 214 C 187 238 185 262 188 278" stroke="rgba(29,29,29,0.18)" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+      <path d="M 210 214 C 213 238 215 262 212 278" stroke="rgba(29,29,29,0.18)" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+      <path d="M 188 278 C 188 290 194 295 200 295 C 206 295 212 290 212 278" stroke="rgba(29,29,29,0.26)" strokeWidth="1.2" fill="none"/>
+      <path d="M 188 283 C 182 291 183 301 189 302 C 196 303 198 293 196 283" stroke="rgba(29,29,29,0.22)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
+      <path d="M 212 283 C 218 291 217 301 211 302 C 204 303 202 293 204 283" stroke="rgba(29,29,29,0.22)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
 
-      {/* Boca — lábios femininos */}
-      <path d="M 168 318 C 181 311 192 309 200 310 C 208 309 219 311 232 318" stroke="rgba(29,29,29,0.42)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
-      <path d="M 191 318 C 196 313 200 311 200 311 C 200 311 204 313 209 318" stroke="rgba(29,29,29,0.28)" strokeWidth="1" fill="none" strokeLinecap="round"/>
-      <path d="M 168 318 C 181 329 200 333 232 318" stroke="rgba(29,29,29,0.42)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
-      <path d="M 168 318 C 181 329 200 333 232 318 C 219 311 208 309 200 310 C 192 309 181 311 168 318 Z" fill="rgba(195,130,110,0.16)" stroke="none"/>
-
-      {/* Linhas guia de regiões */}
-      <g stroke="#B89968" strokeWidth="0.6" strokeDasharray="3.5 2.5" opacity="0.28" fill="none">
-        <line x1="108" y1="163" x2="292" y2="163"/>
-        <line x1="108" y1="200" x2="128" y2="200"/>
-        <line x1="272" y1="200" x2="292" y2="200"/>
-        <line x1="102" y1="238" x2="126" y2="238"/>
-        <line x1="274" y1="238" x2="298" y2="238"/>
-        <path d="M 183 288 Q 162 312 165 340"/>
-        <path d="M 217 288 Q 238 312 235 340"/>
-      </g>
-
-      {/* Labels das regiões */}
-      <g fill="#a08858" fontSize="7.5" fontFamily="system-ui,sans-serif" stroke="none" opacity="0.85">
-        <text x="114" y="159">TESTA</text>
-        <text x="178" y="155">GLABELA</text>
-        <text x="58" y="196">TEMPORAL</text>
-        <text x="298" y="196">TEMPORAL</text>
-        <text x="53" y="234">PÉ DE</text>
-        <text x="51" y="244">GALINHA</text>
-        <text x="302" y="234">PÉ DE</text>
-        <text x="300" y="244">GALINHA</text>
-        <text x="50" y="322">NASO-</text>
-        <text x="46" y="332">GENIANO</text>
-        <text x="302" y="322">NASO-</text>
-        <text x="298" y="332">GENIANO</text>
-        <text x="179" y="358">LÁBIO</text>
-        <text x="177" y="390">MENTO</text>
-      </g>
+      {/* Boca — lábios femininos cheios */}
+      <path d="M 163 323 C 178 315 192 313 200 314 C 208 313 222 315 237 323"
+        stroke="rgba(29,29,29,0.42)" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+      <path d="M 186 323 C 193 317 200 315 200 315 C 200 315 207 317 214 323"
+        stroke="rgba(29,29,29,0.26)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
+      <path d="M 163 323 C 178 336 200 341 237 323"
+        stroke="rgba(29,29,29,0.42)" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+      <path d="M 163 323 C 178 336 200 341 237 323 C 222 315 208 313 200 314 C 192 313 178 315 163 323 Z"
+        fill="rgba(200,130,110,0.18)" stroke="none"/>
     </g>
   );
 }
 
-// ─── Rosto Masculino — SVG minimal estilo médico ────────────────────────────
+// ─── Rosto Masculino — ilustração médica proporcional ───────────────────────
 function FaceMasculino() {
   return (
     <g>
       <rect x="0" y="0" width="400" height="520" fill="white" />
 
       {/* Pescoço — mais largo */}
-      <path d="M 172 390 L 162 478" stroke="rgba(29,29,29,0.28)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
-      <path d="M 228 390 L 238 478" stroke="rgba(29,29,29,0.28)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
-      <path d="M 80 480 Q 162 472 162 478" stroke="rgba(29,29,29,0.20)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
-      <path d="M 238 478 Q 238 472 320 480" stroke="rgba(29,29,29,0.20)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
+      <path d="M 176 412 L 168 468" stroke="rgba(29,29,29,0.22)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+      <path d="M 224 412 L 232 468" stroke="rgba(29,29,29,0.22)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+      <path d="M 82 470 C 118 465 150 463 168 468" stroke="rgba(29,29,29,0.16)" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+      <path d="M 232 468 C 250 463 282 465 318 470" stroke="rgba(29,29,29,0.16)" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
 
-      {/* Orelhas — um pouco maiores */}
-      <path d="M 94 225 C 82 234 80 254 84 270 C 87 280 96 284 104 276" stroke="rgba(29,29,29,0.30)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
-      <path d="M 306 225 C 318 234 320 254 316 270 C 313 280 304 284 296 276" stroke="rgba(29,29,29,0.30)" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
+      {/* Orelhas — maiores */}
+      <path d="M 78 218 C 64 228 62 250 67 266 C 71 279 83 283 92 274" stroke="rgba(29,29,29,0.28)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+      <path d="M 322 218 C 336 228 338 250 333 266 C 329 279 317 283 308 274" stroke="rgba(29,29,29,0.28)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
 
-      {/* Oval do rosto — mandíbula mais larga/quadrada */}
-      <path d="M 200 100 C 268 100 308 138 314 204 C 318 254 312 310 296 352 C 278 396 244 420 200 422 C 156 420 122 396 104 352 C 88 310 82 254 86 204 C 92 138 132 100 200 100 Z"
-        fill="rgba(255,255,255,0.55)" stroke="rgba(29,29,29,0.32)" strokeWidth="1.1"/>
+      {/* Contorno do rosto masculino — mandíbula mais larga e definida */}
+      <path d="M 200 100 C 265 100 318 140 326 204 C 334 268 320 330 298 366 C 274 402 240 418 212 422 C 207 423 203 424 200 424 C 197 424 193 423 188 422 C 160 418 126 402 102 366 C 80 330 66 268 74 204 C 82 140 135 100 200 100 Z"
+        fill="rgba(255,255,255,0.55)" stroke="rgba(29,29,29,0.32)" strokeWidth="1.3"/>
 
-      {/* Sobrancelhas — retas/planas (masculino) */}
-      <path d="M 124 178 C 140 174 158 172 178 174" stroke="rgba(29,29,29,0.72)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-      <path d="M 222 174 C 242 172 260 174 276 178" stroke="rgba(29,29,29,0.72)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+      {/* Sobrancelhas masculinas — retas e mais grossas */}
+      <path d="M 118 188 C 138 182 158 180 180 183" stroke="rgba(29,29,29,0.76)" strokeWidth="2.8" fill="none" strokeLinecap="round"/>
+      <path d="M 220 183 C 242 180 262 182 282 188" stroke="rgba(29,29,29,0.76)" strokeWidth="2.8" fill="none" strokeLinecap="round"/>
 
-      {/* Olho esquerdo — ligeiramente mais fechado */}
-      <path d="M 118 205 C 128 196 142 192 156 192 C 170 192 182 196 192 205 C 182 213 170 216 156 216 C 142 216 128 213 118 205 Z" fill="rgba(255,255,255,0.9)" stroke="rgba(29,29,29,0.30)" strokeWidth="0.9"/>
-      <path d="M 118 205 C 128 196 142 192 156 192 C 170 192 182 196 192 205" stroke="rgba(29,29,29,0.65)" strokeWidth="2" fill="none" strokeLinecap="round"/>
-      <circle cx="155" cy="205" r="6.5" fill="rgba(80,55,28,0.55)" stroke="rgba(29,29,29,0.35)" strokeWidth="0.8"/>
-      <circle cx="155" cy="205" r="3.5" fill="rgba(15,8,0,0.85)"/>
-      <circle cx="157" cy="202" r="1.5" fill="white"/>
+      {/* Olho esquerdo */}
+      <path d="M 112 212 C 125 201 141 198 158 198 C 175 198 189 201 200 212 C 189 222 175 226 158 226 C 141 226 125 222 112 212 Z"
+        fill="rgba(255,255,255,0.96)" stroke="rgba(29,29,29,0.24)" strokeWidth="1"/>
+      <path d="M 112 212 C 125 201 141 198 158 198 C 175 198 189 201 200 212"
+        stroke="rgba(29,29,29,0.68)" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
+      <circle cx="156" cy="212" r="8" fill="rgba(62,42,20,0.62)" stroke="rgba(29,29,29,0.28)" strokeWidth="0.9"/>
+      <circle cx="156" cy="212" r="4.2" fill="rgba(10,5,0,0.92)"/>
+      <circle cx="159" cy="208" r="1.9" fill="white"/>
 
       {/* Olho direito */}
-      <path d="M 208 205 C 218 196 232 192 244 192 C 258 192 270 196 282 205 C 270 213 258 216 244 216 C 232 216 218 213 208 205 Z" fill="rgba(255,255,255,0.9)" stroke="rgba(29,29,29,0.30)" strokeWidth="0.9"/>
-      <path d="M 208 205 C 218 196 232 192 244 192 C 258 192 270 196 282 205" stroke="rgba(29,29,29,0.65)" strokeWidth="2" fill="none" strokeLinecap="round"/>
-      <circle cx="245" cy="205" r="6.5" fill="rgba(80,55,28,0.55)" stroke="rgba(29,29,29,0.35)" strokeWidth="0.8"/>
-      <circle cx="245" cy="205" r="3.5" fill="rgba(15,8,0,0.85)"/>
-      <circle cx="247" cy="202" r="1.5" fill="white"/>
+      <path d="M 200 212 C 211 201 225 198 242 198 C 259 198 275 201 288 212 C 275 222 259 226 242 226 C 225 226 211 222 200 212 Z"
+        fill="rgba(255,255,255,0.96)" stroke="rgba(29,29,29,0.24)" strokeWidth="1"/>
+      <path d="M 200 212 C 211 201 225 198 242 198 C 259 198 275 201 288 212"
+        stroke="rgba(29,29,29,0.68)" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
+      <circle cx="244" cy="212" r="8" fill="rgba(62,42,20,0.62)" stroke="rgba(29,29,29,0.28)" strokeWidth="0.9"/>
+      <circle cx="244" cy="212" r="4.2" fill="rgba(10,5,0,0.92)"/>
+      <circle cx="247" cy="208" r="1.9" fill="white"/>
 
       {/* Nariz — mais largo */}
-      <path d="M 188 214 C 184 238 182 260 185 278" stroke="rgba(29,29,29,0.22)" strokeWidth="1" fill="none" strokeLinecap="round"/>
-      <path d="M 212 214 C 216 238 218 260 215 278" stroke="rgba(29,29,29,0.22)" strokeWidth="1" fill="none" strokeLinecap="round"/>
-      <path d="M 185 278 C 185 290 192 295 200 295 C 208 295 215 290 215 278" stroke="rgba(29,29,29,0.30)" strokeWidth="1.2" fill="none"/>
-      <path d="M 185 282 C 179 290 180 299 186 300 C 193 301 195 291 194 282" stroke="rgba(29,29,29,0.26)" strokeWidth="1" fill="none" strokeLinecap="round"/>
-      <path d="M 215 282 C 221 290 220 299 214 300 C 207 301 205 291 206 282" stroke="rgba(29,29,29,0.26)" strokeWidth="1" fill="none" strokeLinecap="round"/>
+      <path d="M 189 221 C 185 246 183 270 187 287" stroke="rgba(29,29,29,0.20)" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+      <path d="M 211 221 C 215 246 217 270 213 287" stroke="rgba(29,29,29,0.20)" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+      <path d="M 187 287 C 187 300 193 306 200 306 C 207 306 213 300 213 287" stroke="rgba(29,29,29,0.28)" strokeWidth="1.3" fill="none"/>
+      <path d="M 187 293 C 180 302 181 312 188 313 C 196 314 198 303 196 292" stroke="rgba(29,29,29,0.24)" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+      <path d="M 213 293 C 220 302 219 312 212 313 C 204 314 202 303 204 292" stroke="rgba(29,29,29,0.24)" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
 
-      {/* Boca — lábios finos e retos (masculino) */}
-      <path d="M 162 334 C 178 328 192 326 200 327 C 208 326 222 328 238 334" stroke="rgba(29,29,29,0.42)" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
-      <path d="M 162 334 C 178 344 200 347 238 334" stroke="rgba(29,29,29,0.38)" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
-      <path d="M 162 334 Q 200 336 238 334" stroke="rgba(29,29,29,0.30)" strokeWidth="0.9" fill="none"/>
-      <path d="M 162 334 C 178 344 200 347 238 334 C 222 328 208 326 200 327 C 192 326 178 328 162 334 Z" fill="rgba(175,110,90,0.14)" stroke="none"/>
+      {/* Boca — lábios finos e retos */}
+      <path d="M 158 338 C 176 330 193 328 200 329 C 207 328 224 330 242 338"
+        stroke="rgba(29,29,29,0.44)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      <path d="M 158 338 C 176 350 200 354 242 338"
+        stroke="rgba(29,29,29,0.40)" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+      <path d="M 158 338 Q 200 340 242 338" stroke="rgba(29,29,29,0.28)" strokeWidth="1" fill="none"/>
+      <path d="M 158 338 C 176 350 200 354 242 338 C 224 330 207 328 200 329 C 193 328 176 330 158 338 Z"
+        fill="rgba(160,95,75,0.13)" stroke="none"/>
 
-      {/* Barba sugerida — pontos sutis */}
-      <g fill="rgba(29,29,29,0.12)">
-        <circle cx="165" cy="348" r="1.2"/><circle cx="175" cy="356" r="1.2"/><circle cx="185" cy="362" r="1.2"/>
-        <circle cx="195" cy="365" r="1.2"/><circle cx="205" cy="365" r="1.2"/><circle cx="215" cy="362" r="1.2"/>
-        <circle cx="225" cy="356" r="1.2"/><circle cx="235" cy="348" r="1.2"/>
-        <circle cx="158" cy="338" r="1"/><circle cx="242" cy="338" r="1"/>
-      </g>
-
-      {/* Linhas guia de regiões */}
-      <g stroke="#B89968" strokeWidth="0.6" strokeDasharray="3.5 2.5" opacity="0.28" fill="none">
-        <line x1="100" y1="165" x2="300" y2="165"/>
-        <line x1="100" y1="205" x2="116" y2="205"/>
-        <line x1="284" y1="205" x2="300" y2="205"/>
-        <line x1="96" y1="248" x2="116" y2="248"/>
-        <line x1="284" y1="248" x2="304" y2="248"/>
-        <path d="M 180 300 Q 158 326 162 356"/>
-        <path d="M 220 300 Q 242 326 238 356"/>
-      </g>
-
-      {/* Labels das regiões */}
-      <g fill="#a08858" fontSize="7.5" fontFamily="system-ui,sans-serif" stroke="none" opacity="0.85">
-        <text x="108" y="161">TESTA</text>
-        <text x="178" y="157">GLABELA</text>
-        <text x="52" y="201">TEMPORAL</text>
-        <text x="302" y="201">TEMPORAL</text>
-        <text x="46" y="244">PÉ DE</text>
-        <text x="44" y="254">GALINHA</text>
-        <text x="306" y="244">PÉ DE</text>
-        <text x="304" y="254">GALINHA</text>
-        <text x="43" y="330">NASO-</text>
-        <text x="39" y="340">GENIANO</text>
-        <text x="306" y="330">NASO-</text>
-        <text x="302" y="340">GENIANO</text>
-        <text x="179" y="372">LÁBIO</text>
-        <text x="178" y="400">MENTO</text>
+      {/* Barba sugerida — sutil */}
+      <g fill="rgba(29,29,29,0.10)">
+        <circle cx="160" cy="355" r="1.4"/><circle cx="173" cy="364" r="1.4"/>
+        <circle cx="186" cy="372" r="1.4"/><circle cx="200" cy="375" r="1.4"/>
+        <circle cx="214" cy="372" r="1.4"/><circle cx="227" cy="364" r="1.4"/>
+        <circle cx="240" cy="355" r="1.4"/><circle cx="152" cy="345" r="1.1"/>
+        <circle cx="248" cy="345" r="1.1"/>
       </g>
     </g>
   );
