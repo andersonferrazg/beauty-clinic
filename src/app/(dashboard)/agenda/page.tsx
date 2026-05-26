@@ -290,15 +290,6 @@ export default function AgendaPage() {
 
   useEffect(() => { carregarAgendamentos(); }, [carregarAgendamentos]);
 
-  // Ao montar, rola o main para além do padding-top (safe area + botões)
-  // para que a barra de semana fique colada nos botões do topo sem gap visível.
-  useEffect(() => {
-    const main = document.querySelector("main");
-    if (!main) return;
-    const pt = parseFloat(getComputedStyle(main).paddingTop) || 0;
-    if (pt > 0) main.scrollTop = pt;
-  }, []);
-
   function navegar(delta: number) {
     const nova = new Date(dataAtual);
     nova.setDate(nova.getDate() + delta);
@@ -328,7 +319,16 @@ export default function AgendaPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f6f8]">
+    <div
+      className="flex flex-col bg-[#f4f6f8]"
+      style={{
+        marginTop: "calc(-1 * var(--header-offset))",
+        minHeight: "calc(100% + var(--header-offset))",
+      }}
+    >
+      {/* Espaçador mobile: ocupa o espaço dos botões fixos do topo (hambúrguer + calendário + Hoje).
+          No desktop --header-offset=0px, então a div tem altura 0 e lg:hidden a remove do layout. */}
+      <div className="flex-shrink-0 lg:hidden" style={{ height: "var(--header-offset)" }} />
 
       {/* ── Barra de navegação semanal + nomes das profissionais ───────────── */}
       <div className="bg-white border-b border-[#e8dcc4] sticky lg:top-0 z-30 px-3 py-1" style={{ top: "var(--header-offset)" }}>
