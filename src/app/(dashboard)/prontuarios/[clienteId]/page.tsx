@@ -192,95 +192,104 @@ function CardFicha({ proc, clienteId, onVerFoto, onExcluido }: {
     try { dados = JSON.parse(proc.anamnese); } catch { /* */ }
   }
 
+  const printUrl = `/prontuarios/${clienteId}/ficha/${proc.id}/imprimir`;
+
   return (
     <div className="bg-white rounded-xl border border-[#e8dcc4] overflow-hidden">
-      <button
-        className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#faf5ee] transition-colors text-left"
-        onClick={() => setExpandido(!expandido)}
-      >
-        {/* Data badge */}
-        <div className="flex-shrink-0 w-12 text-center">
-          <p className="text-xl font-bold text-[#B89968] leading-none">
-            {new Date(proc.data).getDate().toString().padStart(2, "0")}
-          </p>
-          <p className="text-xs text-[#9a7d50] capitalize">
-            {new Date(proc.data).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}
-          </p>
-          <p className="text-[10px] text-[#9a7d50]/70">{new Date(proc.data).getFullYear()}</p>
+      {/* Modal de confirmação de exclusão */}
+      {confirmando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setConfirmando(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-[#5a4530] text-center">Excluir Ficha</h3>
+            <p className="text-sm text-[#9a7d50] text-center mt-2">Tem certeza que deseja excluir esta ficha?</p>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setConfirmando(false)}
+                className="flex-1 py-2.5 rounded-xl border border-[#e8dcc4] text-[#9a7d50] font-semibold hover:bg-[#faf5ee] text-sm"
+              >
+                CANCELAR
+              </button>
+              <button
+                onClick={excluir}
+                disabled={excluindo}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {excluindo && <Loader2 size={14} className="animate-spin" />}
+                SIM
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Ícone do tipo */}
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-white flex-shrink-0"
-          style={{ backgroundColor: visual.cor }}
+      {/* Cabeçalho do card */}
+      <div className="flex items-center gap-3 px-4 py-3.5 hover:bg-[#faf5ee] transition-colors">
+        {/* Área principal → abre ficha em nova aba */}
+        <a
+          href={printUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 flex-1 min-w-0"
         >
-          <Icon size={16} />
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-[#5a4530]">{visual.titulo}</span>
-            {proc.assinaturaPaciente && proc.assinaturaProfissional && (
-              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
-                Assinada ✓
-              </span>
-            )}
+          {/* Data badge */}
+          <div className="flex-shrink-0 w-12 text-center">
+            <p className="text-xl font-bold text-[#B89968] leading-none">
+              {new Date(proc.data).getDate().toString().padStart(2, "0")}
+            </p>
+            <p className="text-xs text-[#9a7d50] capitalize">
+              {new Date(proc.data).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}
+            </p>
+            <p className="text-[10px] text-[#9a7d50]/70">{new Date(proc.data).getFullYear()}</p>
           </div>
-          <p className="text-xs text-[#9a7d50] mt-0.5">
-            {proc.profissional.nome}
-            {proc.fotos.length > 0 && (
-              <span className="ml-2">
-                <Camera size={11} className="inline mr-0.5" />
-                {proc.fotos.length}
-              </span>
-            )}
-          </p>
-        </div>
 
-        {confirmando ? (
-          <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            <span className="text-xs text-red-600 font-medium whitespace-nowrap">Excluir?</span>
-            <button
-              onClick={() => setConfirmando(false)}
-              className="text-xs px-2 py-1 rounded border border-[#e8dcc4] text-[#9a7d50] hover:bg-[#faf5ee]"
-            >
-              Não
-            </button>
-            <button
-              onClick={excluir}
-              disabled={excluindo}
-              className="text-xs px-2 py-1 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 flex items-center gap-1"
-            >
-              {excluindo ? <Loader2 size={11} className="animate-spin" /> : null}
-              Sim
-            </button>
+          {/* Ícone do tipo */}
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-white flex-shrink-0"
+            style={{ backgroundColor: visual.cor }}
+          >
+            <Icon size={16} />
           </div>
-        ) : (
-          <>
-            <a
-              href={`/prontuarios/${clienteId}/ficha/${proc.id}/imprimir`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-[#9a7d50] hover:text-[#B89968] flex-shrink-0 p-1"
-              title="Imprimir esta ficha"
-            >
-              <Printer size={15} />
-            </a>
-            <button
-              onClick={(e) => { e.stopPropagation(); setConfirmando(true); }}
-              className="text-[#9a7d50] hover:text-red-500 flex-shrink-0 p-1 transition-colors"
-              title="Excluir ficha"
-            >
-              <Trash2 size={15} />
-            </button>
-          </>
-        )}
 
-        {!confirmando && (expandido
-          ? <ChevronUp size={16} className="text-[#9a7d50] flex-shrink-0" />
-          : <ChevronDown size={16} className="text-[#9a7d50] flex-shrink-0" />)}
-      </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-[#5a4530]">{visual.titulo}</span>
+              {proc.assinaturaPaciente && proc.assinaturaProfissional && (
+                <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+                  Assinada ✓
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-[#9a7d50] mt-0.5">
+              {proc.profissional.nome}
+              {proc.fotos.length > 0 && (
+                <span className="ml-2">
+                  <Camera size={11} className="inline mr-0.5" />
+                  {proc.fotos.length}
+                </span>
+              )}
+            </p>
+          </div>
+        </a>
+
+        {/* Botão excluir */}
+        <button
+          onClick={() => setConfirmando(true)}
+          className="text-[#9a7d50] hover:text-red-500 flex-shrink-0 p-1 transition-colors"
+          title="Excluir ficha"
+        >
+          <Trash2 size={15} />
+        </button>
+
+        {/* Seta — expandir/recolher */}
+        <button
+          onClick={() => setExpandido(!expandido)}
+          className="text-[#9a7d50] flex-shrink-0 p-1 hover:bg-[#e8dcc4] rounded-lg transition-colors"
+          title={expandido ? "Recolher" : "Expandir"}
+        >
+          {expandido ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+      </div>
 
       {expandido && (
         <div className="border-t border-[#e8dcc4] px-4 py-4 space-y-4">

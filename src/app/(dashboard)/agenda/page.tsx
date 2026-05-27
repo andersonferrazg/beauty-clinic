@@ -112,12 +112,12 @@ function CalendarioPopup({
       </div>
 
       {/* Grade de dias */}
-      <div className="grid grid-cols-7 px-2 pb-2">
+      <div className="grid grid-cols-7 px-2 pb-3">
         {celulas.map((dia, idx) => (
           <div key={idx} className="flex items-center justify-center py-0.5">
             {dia ? (
               <button
-                onClick={() => setSelecionado(new Date(ano, mes, dia))}
+                onClick={() => { onSelecionar(new Date(ano, mes, dia)); onFechar(); }}
                 className={cn(
                   "w-8 h-8 rounded-full text-sm transition-colors font-medium",
                   isSelecionado(dia)
@@ -132,22 +132,6 @@ function CalendarioPopup({
             ) : null}
           </div>
         ))}
-      </div>
-
-      {/* Botões */}
-      <div className="flex justify-end gap-2 px-4 py-3 border-t border-[#e8dcc4]">
-        <button
-          onClick={onFechar}
-          className="text-sm font-semibold text-[#9a7d50] hover:text-[#5a4530] px-3 py-1.5"
-        >
-          CANCELAR
-        </button>
-        <button
-          onClick={() => { onSelecionar(selecionado); onFechar(); }}
-          className="text-sm font-semibold text-[#B89968] hover:text-[#9a7d50] px-3 py-1.5"
-        >
-          OK
-        </button>
       </div>
     </div>
   );
