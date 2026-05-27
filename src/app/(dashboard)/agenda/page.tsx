@@ -215,6 +215,8 @@ export default function AgendaPage() {
   const [modalProfissionalId, setModalProfissionalId] = useState("");
   const [modalAgendamentoId, setModalAgendamentoId] = useState<string | undefined>();
   const [calAberto, setCalAberto] = useState(false);
+  const fecharCal = useCallback(() => setCalAberto(false), []);
+  const selecionarData = useCallback((d: Date) => { setDataAtual(d); salvarDataLocal(d); }, []);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
@@ -367,8 +369,6 @@ export default function AgendaPage() {
                     "flex flex-col items-center px-2 py-1 rounded-xl transition-colors min-w-[42px]",
                     isAtual
                       ? "bg-[#B89968] text-white"
-                      : isHojeFlag
-                      ? "bg-[#B89968]/10 text-[#B89968]"
                       : "text-[#5a4530] hover:bg-[#faf5ee]"
                   )}
                 >
@@ -382,6 +382,10 @@ export default function AgendaPage() {
                     {String(dia.getMonth() + 1).padStart(2, "0")}/
                     {String(dia.getFullYear()).slice(-2)}
                   </span>
+                  {/* Ponto dourado indica "hoje" sem colidir com o dia selecionado */}
+                  {isHojeFlag && !isAtual && (
+                    <span className="w-1 h-1 rounded-full bg-[#B89968] mt-0.5" />
+                  )}
                 </button>
               );
             })}
@@ -408,8 +412,8 @@ export default function AgendaPage() {
             {calAberto && (
               <CalendarioPopup
                 dataAtual={dataAtual}
-                onSelecionar={(d) => { setDataAtual(d); salvarDataLocal(d); }}
-                onFechar={() => setCalAberto(false)}
+                onSelecionar={selecionarData}
+                onFechar={fecharCal}
               />
             )}
           </div>
@@ -667,8 +671,8 @@ export default function AgendaPage() {
           {calAberto && (
             <CalendarioPopup
               dataAtual={dataAtual}
-              onSelecionar={(d) => { setDataAtual(d); salvarDataLocal(d); }}
-              onFechar={() => setCalAberto(false)}
+              onSelecionar={selecionarData}
+              onFechar={fecharCal}
               modoFixed
             />
           )}
