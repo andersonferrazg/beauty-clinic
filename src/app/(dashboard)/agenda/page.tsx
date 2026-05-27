@@ -23,7 +23,6 @@ function CalendarioPopup({
 }) {
   const hoje = new Date();
   const [mesVis, setMesVis] = useState(new Date(dataAtual.getFullYear(), dataAtual.getMonth(), 1));
-  const [selecionado, setSelecionado] = useState(new Date(dataAtual));
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,31 +41,52 @@ function CalendarioPopup({
   const mes = mesVis.getMonth();
   const primeiroDia = new Date(ano, mes, 1).getDay();
   const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+  const diasMesAnterior = new Date(ano, mes, 0).getDate();
 
-  function navMes(delta: number) {
+  function navMes(e: React.MouseEvent, delta: number) {
+    e.stopPropagation();
     setMesVis(new Date(ano, mes + delta, 1));
   }
 
-  const celulas = Array.from({ length: primeiroDia + diasNoMes }, (_, i) =>
-    i < primeiroDia ? null : i - primeiroDia + 1
-  );
-  // completar para múltiplos de 7
-  while (celulas.length % 7 !== 0) celulas.push(null);
+  // Grade de 6 semanas com dias do mês anterior e próximo em cinza
+  type Celula = { dia: number; tipo: "atual" | "anterior" | "proximo" };
+  const celulas: Celula[] = [
+    ...Array.from({ length: primeiroDia }, (_, i) => ({
+      dia: diasMesAnterior - primeiroDia + 1 + i,
+      tipo: "anterior" as const,
+    })),
+    ...Array.from({ length: diasNoMes }, (_, i) => ({ dia: i + 1, tipo: "atual" as const })),
+  ];
+  let proximoDia = 1;
+  while (celulas.length % 7 !== 0) celulas.push({ dia: proximoDia++, tipo: "proximo" as const });
 
-  function isSelecionado(dia: number) {
+  function isSelecionado(c: Celula) {
+    if (c.tipo !== "atual") return false;
     return (
-      selecionado.getDate() === dia &&
-      selecionado.getMonth() === mes &&
-      selecionado.getFullYear() === ano
+      dataAtual.getDate() === c.dia &&
+      dataAtual.getMonth() === mes &&
+      dataAtual.getFullYear() === ano
     );
   }
 
-  function isHoje(dia: number) {
+  function isHoje(c: Celula) {
+    if (c.tipo !== "atual") return false;
     return (
-      hoje.getDate() === dia &&
+      hoje.getDate() === c.dia &&
       hoje.getMonth() === mes &&
       hoje.getFullYear() === ano
     );
+  }
+
+  function selecionarCelula(c: Celula) {
+    const d =
+      c.tipo === "anterior"
+        ? new Date(ano, mes - 1, c.dia)
+        : c.tipo === "proximo"
+        ? new Date(ano, mes + 1, c.dia)
+        : new Date(ano, mes, c.dia);
+    onSelecionar(d);
+    onFechar();
   }
 
   const popup = (
@@ -79,27 +99,29 @@ function CalendarioPopup({
           : "calc(var(--nav-bar-height, 80px) + 4px)",
       }}
     >
-      {/* Cabeçalho com data selecionada */}
+      {/* Cabeçalho */}
       <div className="bg-[#B89968] px-4 py-3">
         <p className="text-white/70 text-xs font-medium uppercase tracking-wide">Data</p>
         <p className="text-white text-lg font-bold">
-          {selecionado.getDate()} de {MESES[selecionado.getMonth()]}
+          {dataAtual.getDate()} de {MESES[dataAtual.getMonth()]}
         </p>
       </div>
 
       {/* Navegação de mês */}
       <div className="flex items-center justify-between px-4 py-3">
-        <button onClick={() => navMes(-1)} className="p-1 rounded hover:bg-[#faf5ee] text-[#9a7d50]">
+        <button
+          onClick={(e) => navMes(e, -1)}
+          className="p-1 rounded hover:bg-[#faf5ee] text-[#9a7d50]"
+        >
           <ChevronLeft size={16} />
         </button>
-        <button
-          onClick={() => {}}
-          className="text-sm font-semibold text-[#5a4530] flex items-center gap-1"
-        >
+        <span className="text-sm font-semibold text-[#5a4530]">
           {MESES[mes]} {ano}
-          <ChevronRight size={12} className="rotate-90 text-[#9a7d50]" />
-        </button>
-        <button onClick={() => navMes(1)} className="p-1 rounded hover:bg-[#faf5ee] text-[#9a7d50]">
+        </span>
+        <button
+          onClick={(e) => navMes(e, 1)}
+          className="p-1 rounded hover:bg-[#faf5ee] text-[#9a7d50]"
+        >
           <ChevronRight size={16} />
         </button>
       </div>
@@ -113,25 +135,25 @@ function CalendarioPopup({
         ))}
       </div>
 
-      {/* Grade de dias */}
+      {/* Grade de dias — sempre 5 ou 6 semanas completas */}
       <div className="grid grid-cols-7 px-2 pb-3">
-        {celulas.map((dia, idx) => (
+        {celulas.map((celula, idx) => (
           <div key={idx} className="flex items-center justify-center py-0.5">
-            {dia ? (
-              <button
-                onClick={() => { onSelecionar(new Date(ano, mes, dia)); onFechar(); }}
-                className={cn(
-                  "w-8 h-8 rounded-full text-sm transition-colors font-medium",
-                  isSelecionado(dia)
-                    ? "bg-[#B89968] text-white"
-                    : isHoje(dia)
-                    ? "bg-[#B89968]/15 text-[#B89968] font-bold"
-                    : "text-[#5a4530] hover:bg-[#faf5ee]"
-                )}
-              >
-                {dia}
-              </button>
-            ) : null}
+            <button
+              onClick={() => selecionarCelula(celula)}
+              className={cn(
+                "w-8 h-8 rounded-full text-sm transition-colors font-medium",
+                isSelecionado(celula)
+                  ? "bg-[#B89968] text-white"
+                  : isHoje(celula)
+                  ? "bg-[#B89968]/15 text-[#B89968] font-bold"
+                  : celula.tipo !== "atual"
+                  ? "text-[#9a7d50]/40 hover:bg-[#faf5ee]"
+                  : "text-[#5a4530] hover:bg-[#faf5ee]"
+              )}
+            >
+              {celula.dia}
+            </button>
           </div>
         ))}
       </div>
@@ -215,6 +237,7 @@ export default function AgendaPage() {
   const [modalProfissionalId, setModalProfissionalId] = useState("");
   const [modalAgendamentoId, setModalAgendamentoId] = useState<string | undefined>();
   const [calAberto, setCalAberto] = useState(false);
+  const [calIsMobile, setCalIsMobile] = useState(false);
   const fecharCal = useCallback(() => setCalAberto(false), []);
   const selecionarData = useCallback((d: Date) => { setDataAtual(d); salvarDataLocal(d); }, []);
 
@@ -401,21 +424,14 @@ export default function AgendaPage() {
           {/* Botão calendário — visível só no desktop */}
           <div className="relative flex-shrink-0 hidden lg:block">
             <button
-              onClick={() => setCalAberto(!calAberto)}
+              onClick={() => { setCalIsMobile(false); setCalAberto(!calAberto); }}
               className={cn(
                 "p-1.5 rounded-lg transition-colors",
-                calAberto ? "bg-[#B89968] text-white" : "hover:bg-[#faf5ee] text-[#9a7d50]"
+                calAberto && !calIsMobile ? "bg-[#B89968] text-white" : "hover:bg-[#faf5ee] text-[#9a7d50]"
               )}
             >
               <CalendarDays size={16} />
             </button>
-            {calAberto && (
-              <CalendarioPopup
-                dataAtual={dataAtual}
-                onSelecionar={selecionarData}
-                onFechar={fecharCal}
-              />
-            )}
           </div>
 
           <button
@@ -658,24 +674,16 @@ export default function AgendaPage() {
       <div className="fixed right-3 z-50 lg:hidden flex items-center gap-1" style={{ top: "var(--header-btn-top)" }}>
         <div className="relative">
           <button
-            onClick={() => setCalAberto(!calAberto)}
+            onClick={() => { setCalIsMobile(true); setCalAberto(!calAberto); }}
             className={cn(
               "p-2 rounded-md shadow-md transition-colors",
-              calAberto
+              calAberto && calIsMobile
                 ? "bg-[#B89968] text-white"
                 : "bg-[#1a1208] text-[#B89968]"
             )}
           >
             <CalendarDays size={18} />
           </button>
-          {calAberto && (
-            <CalendarioPopup
-              dataAtual={dataAtual}
-              onSelecionar={selecionarData}
-              onFechar={fecharCal}
-              modoFixed
-            />
-          )}
         </div>
         <button
           onClick={() => { setDataAtual(hoje); salvarDataLocal(hoje); }}
@@ -698,6 +706,16 @@ export default function AgendaPage() {
       >
         <Plus size={24} />
       </button>
+
+      {/* ── Calendário popup — INSTÂNCIA ÚNICA para desktop e mobile ── */}
+      {calAberto && (
+        <CalendarioPopup
+          dataAtual={dataAtual}
+          onSelecionar={selecionarData}
+          onFechar={fecharCal}
+          modoFixed={calIsMobile}
+        />
+      )}
 
       {/* ── Modal ────────────────────────────────────────────────────────────── */}
       <ModalAgendamento
