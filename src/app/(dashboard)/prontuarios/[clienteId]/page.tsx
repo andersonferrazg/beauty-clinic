@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Calendar, User, Camera, FileText, IdCard,
   ChevronDown, ChevronUp, Loader2, ClipboardList, Syringe, ScrollText,
-  Pencil, Printer, Upload, MapPin, Phone, FileSearch, BookOpen, Activity, X,
+  Pencil, Printer, Upload, MapPin, Phone, FileSearch, BookOpen, Activity, X, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModalCliente } from "@/components/modal-cliente";
@@ -164,10 +164,28 @@ function formatarSexo(s: string | null) {
 }
 
 // ── Card de procedimento (timeline) ───────────────────────────────────────────
-function CardFicha({ proc, clienteId, onVerFoto }: { proc: Procedimento; clienteId: string; onVerFoto: (url: string) => void }) {
+function CardFicha({ proc, clienteId, onVerFoto, onExcluido }: {
+  proc: Procedimento;
+  clienteId: string;
+  onVerFoto: (url: string) => void;
+  onExcluido: () => void;
+}) {
   const [expandido, setExpandido] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
   const visual = visualPorTipo(proc.tipo);
   const Icon = visual.Icon;
+
+  async function excluir() {
+    setExcluindo(true);
+    try {
+      await fetch(`/api/prontuarios/${clienteId}/procedimentos/${proc.id}`, { method: "DELETE" });
+      onExcluido();
+    } finally {
+      setExcluindo(false);
+      setConfirmando(false);
+    }
+  }
 
   let dados: Record<string, unknown> | null = null;
   if (proc.anamnese) {
@@ -219,20 +237,49 @@ function CardFicha({ proc, clienteId, onVerFoto }: { proc: Procedimento; cliente
           </p>
         </div>
 
-        <a
-          href={`/prontuarios/${clienteId}/ficha/${proc.id}/imprimir`}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="text-[#9a7d50] hover:text-[#B89968] flex-shrink-0 p-1"
-          title="Imprimir esta ficha"
-        >
-          <Printer size={15} />
-        </a>
+        {confirmando ? (
+          <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            <span className="text-xs text-red-600 font-medium whitespace-nowrap">Excluir?</span>
+            <button
+              onClick={() => setConfirmando(false)}
+              className="text-xs px-2 py-1 rounded border border-[#e8dcc4] text-[#9a7d50] hover:bg-[#faf5ee]"
+            >
+              Não
+            </button>
+            <button
+              onClick={excluir}
+              disabled={excluindo}
+              className="text-xs px-2 py-1 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 flex items-center gap-1"
+            >
+              {excluindo ? <Loader2 size={11} className="animate-spin" /> : null}
+              Sim
+            </button>
+          </div>
+        ) : (
+          <>
+            <a
+              href={`/prontuarios/${clienteId}/ficha/${proc.id}/imprimir`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-[#9a7d50] hover:text-[#B89968] flex-shrink-0 p-1"
+              title="Imprimir esta ficha"
+            >
+              <Printer size={15} />
+            </a>
+            <button
+              onClick={(e) => { e.stopPropagation(); setConfirmando(true); }}
+              className="text-[#9a7d50] hover:text-red-500 flex-shrink-0 p-1 transition-colors"
+              title="Excluir ficha"
+            >
+              <Trash2 size={15} />
+            </button>
+          </>
+        )}
 
-        {expandido
+        {!confirmando && (expandido
           ? <ChevronUp size={16} className="text-[#9a7d50] flex-shrink-0" />
-          : <ChevronDown size={16} className="text-[#9a7d50] flex-shrink-0" />}
+          : <ChevronDown size={16} className="text-[#9a7d50] flex-shrink-0" />)}
       </button>
 
       {expandido && (
@@ -782,7 +829,7 @@ export default function ProntuarioClientePage({
       ) : (
         <div className="space-y-2">
           {prontuario.procedimentos.map((proc) => (
-            <CardFicha key={proc.id} proc={proc} clienteId={clienteId} onVerFoto={setLightboxUrl} />
+            <CardFicha key={proc.id} proc={proc} clienteId={clienteId} onVerFoto={setLightboxUrl} onExcluido={carregar} />
           ))}
         </div>
       )}
