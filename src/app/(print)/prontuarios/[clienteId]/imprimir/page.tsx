@@ -286,6 +286,7 @@ export default function ImprimirProntuarioPage({
         }
         .prontuario-impressao { font-family: Geist, system-ui, sans-serif; color: #1f2937; line-height: 1.5; }
       `}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');`}</style>
 
       <div className="min-h-screen bg-gray-100 prontuario-impressao">
         <div className="no-print bg-white border-b px-6 py-3 sticky top-0 z-10">
@@ -333,7 +334,7 @@ export default function ImprimirProntuarioPage({
               </div>
             )}
             <div>
-              <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "var(--font-playfair)" }}>{nomeClinica}</p>
+              <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{nomeClinica}</p>
               <p className="text-sm text-gray-600 mt-1">Prontuário do(a) Paciente</p>
               <p className="text-xs text-gray-500 mt-0.5">Emitido em: {new Date().toLocaleDateString("pt-BR")}</p>
             </div>

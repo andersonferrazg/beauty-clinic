@@ -13,10 +13,12 @@ function CalendarioPopup({
   dataAtual,
   onSelecionar,
   onFechar,
+  modoFixed,
 }: {
   dataAtual: Date;
   onSelecionar: (d: Date) => void;
   onFechar: () => void;
+  modoFixed?: boolean;
 }) {
   const hoje = new Date();
   const [mesVis, setMesVis] = useState(new Date(dataAtual.getFullYear(), dataAtual.getMonth(), 1));
@@ -24,11 +26,15 @@ function CalendarioPopup({
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handler(e: MouseEvent) {
+    function handler(e: MouseEvent | TouchEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) onFechar();
     }
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [onFechar]);
 
   const ano = mesVis.getFullYear();
@@ -65,7 +71,11 @@ function CalendarioPopup({
   return (
     <div
       ref={ref}
-      className="absolute top-full mt-1 right-0 z-50 bg-white rounded-2xl shadow-2xl border border-[#e8dcc4] w-72 overflow-hidden"
+      className={cn(
+        "z-[60] bg-white rounded-2xl shadow-2xl border border-[#e8dcc4] w-72 overflow-hidden",
+        modoFixed ? "fixed right-3" : "absolute top-full mt-1 right-0"
+      )}
+      style={modoFixed ? { top: "calc(var(--header-btn-top) + 44px)" } : undefined}
     >
       {/* Cabeçalho com data selecionada */}
       <div className="bg-[#B89968] px-4 py-3">
@@ -666,6 +676,7 @@ export default function AgendaPage() {
               dataAtual={dataAtual}
               onSelecionar={(d) => { setDataAtual(d); salvarDataLocal(d); }}
               onFechar={() => setCalAberto(false)}
+              modoFixed
             />
           )}
         </div>
