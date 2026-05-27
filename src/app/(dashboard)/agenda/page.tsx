@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { ModalAgendamento } from "@/components/modal-agendamento";
 import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -68,10 +69,10 @@ function CalendarioPopup({
     );
   }
 
-  return (
+  const popup = (
     <div
       ref={ref}
-      className="fixed right-3 z-[999] bg-white rounded-2xl shadow-2xl border border-[#e8dcc4] w-72 overflow-hidden"
+      className="fixed right-3 z-[9999] bg-white rounded-2xl shadow-2xl border border-[#e8dcc4] w-72 overflow-hidden"
       style={{
         top: modoFixed
           ? "calc(var(--header-btn-top) + 44px)"
@@ -136,6 +137,9 @@ function CalendarioPopup({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(popup, document.body);
 }
 
 // ── Constantes de layout ──────────────────────────────────────────────────────
