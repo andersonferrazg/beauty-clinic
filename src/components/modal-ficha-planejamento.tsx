@@ -92,9 +92,12 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
 
   useEffect(() => {
     if (!aberto) return;
-    fetch("/api/profissionais").then((r) => r.json()).then((lista) => {
+    Promise.all([
+      fetch("/api/profissionais").then((r) => r.json()),
+      fetch("/api/me/sessao").then((r) => r.json()).catch(() => null),
+    ]).then(([lista, sessao]) => {
       setProfissionais(lista);
-      if (!profissionalId && lista.length) setProfissionalId(lista[0].id);
+      if (!profissionalId) setProfissionalId(sessao?.profissionalId ?? lista[0]?.id ?? "");
     });
   }, [aberto]);
 
@@ -341,8 +344,8 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
         </div>
 
         {/* Profissional + Data */}
-        <div className="px-5 pt-4 pb-3 border-b border-[#e8dcc4] flex-shrink-0 grid grid-cols-2 gap-3">
-          <div className="space-y-1">
+        <div className="px-5 pt-4 pb-3 border-b border-[#e8dcc4] flex-shrink-0 flex gap-3 items-end">
+          <div className="space-y-1 flex-1 min-w-0">
             <Label className="text-[#5a4530] text-xs">Profissional</Label>
             <select
               value={profissionalId}
@@ -353,7 +356,7 @@ export function ModalFichaPlanejamento({ clienteId, cliente, aberto, onFechar, o
               {profissionais.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </select>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 w-[148px] flex-shrink-0">
             <Label className="text-[#5a4530] text-xs">Data</Label>
             <Input
               type="date"

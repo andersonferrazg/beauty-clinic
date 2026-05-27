@@ -34,9 +34,12 @@ export function ModalFichaControleSessoes({ clienteId, aberto, onFechar, onSalvo
 
   useEffect(() => {
     if (!aberto) return;
-    fetch("/api/profissionais").then((r) => r.json()).then((lista) => {
+    Promise.all([
+      fetch("/api/profissionais").then((r) => r.json()),
+      fetch("/api/me/sessao").then((r) => r.json()).catch(() => null),
+    ]).then(([lista, sessao]) => {
       setProfissionais(lista);
-      if (!profissionalId && lista.length) setProfissionalId(lista[0].id);
+      if (!profissionalId) setProfissionalId(sessao?.profissionalId ?? lista[0]?.id ?? "");
     });
   }, [aberto]);
 
@@ -106,8 +109,8 @@ export function ModalFichaControleSessoes({ clienteId, aberto, onFechar, onSalvo
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
+          <div className="flex gap-3 items-end">
+            <div className="space-y-1 flex-1 min-w-0">
               <Label className="text-[#5a4530] text-xs">Profissional</Label>
               <select
                 value={profissionalId}
@@ -118,7 +121,7 @@ export function ModalFichaControleSessoes({ clienteId, aberto, onFechar, onSalvo
                 {profissionais.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 w-[148px] flex-shrink-0">
               <Label className="text-[#5a4530] text-xs">Data</Label>
               <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="border-[#B89968]/30 h-9 text-sm" />
             </div>

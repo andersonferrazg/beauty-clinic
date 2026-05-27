@@ -138,7 +138,7 @@ export default function ImprimirFichaPage({
               </div>
             )}
             <div>
-              <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{nomeClinica}</p>
+              <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "var(--font-playfair)" }}>{nomeClinica}</p>
               <p className="text-sm text-gray-600 mt-1">{tituloTipo(proc.tipo)}</p>
               <p className="text-xs text-gray-500 mt-0.5">Data: {formatarData(proc.data)}</p>
             </div>

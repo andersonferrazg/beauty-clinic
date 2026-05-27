@@ -179,12 +179,13 @@ export function ModalProcedimento({ clienteId, clienteNome, procedimentoId, aber
 
   useEffect(() => {
     if (!aberto) return;
-    fetch("/api/profissionais")
-      .then((r) => r.json())
-      .then((lista) => {
-        setProfissionais(lista);
-        if (!profissionalId && lista.length) setProfissionalId(lista[0].id);
-      });
+    Promise.all([
+      fetch("/api/profissionais").then((r) => r.json()),
+      fetch("/api/me/sessao").then((r) => r.json()).catch(() => null),
+    ]).then(([lista, sessao]) => {
+      setProfissionais(lista);
+      if (!profissionalId) setProfissionalId(sessao?.profissionalId ?? lista[0]?.id ?? "");
+    });
   }, [aberto]);
 
   useEffect(() => {
