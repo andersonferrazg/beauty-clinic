@@ -272,6 +272,18 @@ function CardFicha({ proc, clienteId, onVerFoto, onExcluido }: {
           </div>
         </a>
 
+        {/* Botão imprimir */}
+        <a
+          href={printUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-[#9a7d50] hover:text-[#B89968] flex-shrink-0 p-1 transition-colors"
+          title="Imprimir esta ficha"
+        >
+          <Printer size={15} />
+        </a>
+
         {/* Botão excluir */}
         <button
           onClick={() => setConfirmando(true)}

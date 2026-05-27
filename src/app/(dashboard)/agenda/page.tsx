@@ -71,11 +71,12 @@ function CalendarioPopup({
   return (
     <div
       ref={ref}
-      className={cn(
-        "z-[60] bg-white rounded-2xl shadow-2xl border border-[#e8dcc4] w-72 overflow-hidden",
-        modoFixed ? "fixed right-3" : "absolute top-full mt-1 right-0"
-      )}
-      style={modoFixed ? { top: "calc(var(--header-btn-top) + 44px)" } : undefined}
+      className="fixed right-3 z-[999] bg-white rounded-2xl shadow-2xl border border-[#e8dcc4] w-72 overflow-hidden"
+      style={{
+        top: modoFixed
+          ? "calc(var(--header-btn-top) + 44px)"
+          : "calc(var(--nav-bar-height, 80px) + 4px)",
+      }}
     >
       {/* Cabeçalho com data selecionada */}
       <div className="bg-[#B89968] px-4 py-3">
@@ -290,7 +291,11 @@ export default function AgendaPage() {
   useEffect(() => {
     const el = navRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setNavAlt(Math.ceil(e.contentRect.height)));
+    const ro = new ResizeObserver(([e]) => {
+      const h = Math.ceil(e.contentRect.height);
+      setNavAlt(h);
+      document.documentElement.style.setProperty("--nav-bar-height", `${h}px`);
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);

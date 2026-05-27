@@ -288,15 +288,27 @@ export default function ImprimirFichaPage({
           {proc.fotos.length > 0 && (
             <div className="mt-5">
               <p className="font-semibold text-[#B89968] uppercase text-xs tracking-wide mb-2">Imagens</p>
-              <div className="grid grid-cols-3 gap-2">
-                {proc.fotos.map((f) => (
-                  <div key={f.id}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={f.url} alt={f.tag} className="w-full h-28 object-cover border" />
-                    <p className="text-xs text-gray-500 capitalize text-center mt-0.5">{f.tag}</p>
-                  </div>
-                ))}
-              </div>
+              {proc.tipo === "registro_fotos" ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {proc.fotos.map((f) => (
+                    <div key={f.id}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={f.url} alt={f.tag} className="w-full object-contain border rounded" />
+                      <p className="text-xs text-gray-500 capitalize text-center mt-0.5">{f.tag}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {proc.fotos.map((f) => (
+                    <div key={f.id}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={f.url} alt={f.tag} className="w-full h-28 object-cover border" />
+                      <p className="text-xs text-gray-500 capitalize text-center mt-0.5">{f.tag}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
