@@ -243,6 +243,7 @@ export default function AgendaPage() {
 
   const gridRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
+  const swipeStartX = useRef<number | null>(null);
   const [navAlt, setNavAlt] = useState(82); // estimativa inicial; ResizeObserver corrige
 
   const dataStr = formatarDataISO(dataAtual);
@@ -379,7 +380,16 @@ export default function AgendaPage() {
             <ChevronLeft size={16} />
           </button>
 
-          <div className="flex-1 flex justify-around gap-0.5">
+          <div
+            className="flex-1 flex justify-around gap-0.5"
+            onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (swipeStartX.current === null) return;
+              const dx = e.changedTouches[0].clientX - swipeStartX.current;
+              swipeStartX.current = null;
+              if (Math.abs(dx) > 50) { e.preventDefault(); navegar(dx < 0 ? 7 : -7); }
+            }}
+          >
             {diasSemana.map((dia) => {
               const diaStr = formatarDataISO(dia);
               const isAtual = diaStr === dataStr;
