@@ -244,6 +244,7 @@ export default function AgendaPage() {
   const gridRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const swipeStartX = useRef<number | null>(null);
+  const swipeStartY = useRef<number | null>(null);
   const [navAlt, setNavAlt] = useState(82); // estimativa inicial; ResizeObserver corrige
 
   const dataStr = formatarDataISO(dataAtual);
@@ -381,13 +382,21 @@ export default function AgendaPage() {
           </button>
 
           <div
-            className="flex-1 flex justify-around gap-0.5"
-            onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; }}
+            className="flex-1 flex justify-around gap-0.5 touch-pan-y"
+            onTouchStart={(e) => {
+              swipeStartX.current = e.touches[0].clientX;
+              swipeStartY.current = e.touches[0].clientY;
+            }}
             onTouchEnd={(e) => {
-              if (swipeStartX.current === null) return;
+              if (swipeStartX.current === null || swipeStartY.current === null) return;
               const dx = e.changedTouches[0].clientX - swipeStartX.current;
+              const dy = e.changedTouches[0].clientY - swipeStartY.current;
               swipeStartX.current = null;
-              if (Math.abs(dx) > 50) { e.preventDefault(); navegar(dx < 0 ? 7 : -7); }
+              swipeStartY.current = null;
+              // só dispara se o gesto for predominantemente horizontal
+              if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                navegar(dx < 0 ? 7 : -7);
+              }
             }}
           >
             {diasSemana.map((dia) => {
