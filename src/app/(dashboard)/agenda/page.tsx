@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { ModalAgendamento } from "@/components/modal-agendamento";
 import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays } from "lucide-react";
@@ -243,13 +243,32 @@ export default function AgendaPage() {
 
   const gridRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
-  const swipeStartX = useRef<number | null>(null);
-  const swipeStartY = useRef<number | null>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const isFirstScroll = useRef(true);
   const [navAlt, setNavAlt] = useState(82); // estimativa inicial; ResizeObserver corrige
 
   const dataStr = formatarDataISO(dataAtual);
   const ehHoje = formatarDataISO(hoje) === dataStr;
   const diasSemana = semanaDosDias(dataAtual);
+
+  // 180 dias centrados em hoje — calculados uma única vez
+  const diasStrip = useMemo(() => {
+    const t = new Date();
+    return Array.from({ length: 180 }, (_, i) =>
+      new Date(t.getFullYear(), t.getMonth(), t.getDate() + i - 90)
+    );
+  }, []);
+
+  // Centraliza o dia selecionado na barra rolável
+  useEffect(() => {
+    if (!stripRef.current) return;
+    const el = stripRef.current.querySelector("[data-sel='true']") as HTMLElement | null;
+    if (!el) return;
+    const c = stripRef.current;
+    const left = el.offsetLeft - c.offsetWidth / 2 + el.offsetWidth / 2;
+    c.scrollTo({ left, behavior: isFirstScroll.current ? "auto" : "smooth" });
+    isFirstScroll.current = false;
+  }, [dataStr]);
 
   const TOTAL_SLOTS = Math.max((horaFim - horaInicio) * 2, 1);
   const SLOTS = Array.from({ length: TOTAL_SLOTS }, (_, i) => ({
@@ -374,41 +393,31 @@ export default function AgendaPage() {
         style={{ top: "var(--header-offset)" }}
       >
         <div className="flex items-center gap-1 relative">
+          {/* Seta esquerda — só desktop */}
           <button
             onClick={() => navegar(-7)}
-            className="p-1.5 rounded-lg hover:bg-[#faf5ee] text-[#9a7d50] flex-shrink-0"
+            className="hidden lg:flex p-1.5 rounded-lg hover:bg-[#faf5ee] text-[#9a7d50] flex-shrink-0"
           >
             <ChevronLeft size={16} />
           </button>
 
+          {/* Barra de dias rolável horizontalmente */}
           <div
-            className="flex-1 flex justify-around gap-0.5 touch-pan-y"
-            onTouchStart={(e) => {
-              swipeStartX.current = e.touches[0].clientX;
-              swipeStartY.current = e.touches[0].clientY;
-            }}
-            onTouchEnd={(e) => {
-              if (swipeStartX.current === null || swipeStartY.current === null) return;
-              const dx = e.changedTouches[0].clientX - swipeStartX.current;
-              const dy = e.changedTouches[0].clientY - swipeStartY.current;
-              swipeStartX.current = null;
-              swipeStartY.current = null;
-              // só dispara se o gesto for predominantemente horizontal
-              if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                navegar(dx < 0 ? 7 : -7);
-              }
-            }}
+            ref={stripRef}
+            className="flex-1 flex gap-0.5 overflow-x-auto touch-pan-x"
+            style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
           >
-            {diasSemana.map((dia) => {
-              const diaStr = formatarDataISO(dia);
-              const isAtual = diaStr === dataStr;
-              const isHojeFlag = formatarDataISO(hoje) === diaStr;
+            {diasStrip.map((dia) => {
+              const dStr = formatarDataISO(dia);
+              const isAtual = dStr === dataStr;
+              const isHojeFlag = formatarDataISO(hoje) === dStr;
               return (
                 <button
-                  key={diaStr}
-                  onClick={() => { const d = new Date(dia); setDataAtual(d); salvarDataLocal(d); }}
+                  key={dStr}
+                  data-sel={isAtual ? "true" : undefined}
+                  onClick={() => { setDataAtual(new Date(dia)); salvarDataLocal(new Date(dia)); }}
                   className={cn(
-                    "flex flex-col items-center px-2 py-1 rounded-xl transition-colors min-w-[42px]",
+                    "flex flex-col items-center px-2 py-1 rounded-xl transition-colors flex-shrink-0 min-w-[44px]",
                     isAtual
                       ? "bg-[#B89968] text-white"
                       : "text-[#5a4530] hover:bg-[#faf5ee]"
@@ -424,7 +433,6 @@ export default function AgendaPage() {
                     {String(dia.getMonth() + 1).padStart(2, "0")}/
                     {String(dia.getFullYear()).slice(-2)}
                   </span>
-                  {/* Ponto dourado indica "hoje" sem colidir com o dia selecionado */}
                   {isHojeFlag && !isAtual && (
                     <span className="w-1 h-1 rounded-full bg-[#B89968] mt-0.5" />
                   )}
@@ -433,9 +441,10 @@ export default function AgendaPage() {
             })}
           </div>
 
+          {/* Seta direita — só desktop */}
           <button
             onClick={() => navegar(7)}
-            className="p-1.5 rounded-lg hover:bg-[#faf5ee] text-[#9a7d50] flex-shrink-0"
+            className="hidden lg:flex p-1.5 rounded-lg hover:bg-[#faf5ee] text-[#9a7d50] flex-shrink-0"
           >
             <ChevronRight size={16} />
           </button>
