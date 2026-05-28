@@ -96,7 +96,7 @@ function CalendarioPopup({
       className="fixed right-3 z-[9999] bg-white rounded-2xl shadow-2xl border border-[#e8dcc4] w-72 overflow-hidden"
       style={{
         top: modoFixed
-          ? "calc(var(--header-btn-top) + 44px)"
+          ? "calc(var(--header-offset) + var(--nav-bar-height, 80px) + 4px)"
           : "calc(var(--nav-bar-height, 80px) + 4px)",
       }}
     >
@@ -428,8 +428,8 @@ export default function AgendaPage() {
       >
         <div className="flex items-center gap-1 relative">
 
-          {/* Toggle Dia / Semana — só desktop */}
-          <div className="hidden lg:inline-flex rounded border border-[#e8dcc4] overflow-hidden text-[11px] flex-shrink-0">
+          {/* Toggle Dia / Semana — sempre visível */}
+          <div className="inline-flex rounded border border-[#e8dcc4] overflow-hidden text-[11px] flex-shrink-0">
             <button
               onClick={() => setModoVista('diario')}
               className={cn("px-2 py-1.5 transition-colors", modoVista === 'diario' ? "bg-[#B89968] text-white" : "bg-white text-[#5a4530]")}
@@ -822,41 +822,30 @@ export default function AgendaPage() {
         </div>{/* fecha wrapper */}
       </div>
 
-      {/* ── Controles mobile ao lado do hambúrguer ── */}
-      <div className="fixed right-3 z-50 lg:hidden flex items-center gap-1" style={{ top: "var(--header-btn-top)" }}>
-        {/* Toggle Dia/Sem */}
-        <div className="inline-flex rounded border border-[#B89968]/40 overflow-hidden text-[11px]">
-          <button
-            onClick={() => setModoVista('diario')}
-            className={cn("px-2 py-1.5 transition-colors", modoVista === 'diario' ? "bg-[#B89968] text-white" : "bg-[#1a1208] text-[#B89968]")}
-          >Dia</button>
-          <button
-            onClick={() => setModoVista('semanal')}
-            className={cn("px-2 py-1.5 border-l border-[#B89968]/40 transition-colors", modoVista === 'semanal' ? "bg-[#B89968] text-white" : "bg-[#1a1208] text-[#B89968]")}
-          >Sem.</button>
-        </div>
-        {/* Lupa */}
+      {/* ── Header mobile unificado — ocupa o mesmo espaço do hamburger ── */}
+      <div
+        className="fixed top-0 left-0 right-0 z-20 lg:hidden bg-[#faf8f4] border-b border-[#e8dcc4] flex items-center justify-end px-3 gap-1"
+        style={{ paddingTop: "var(--sat)", height: "var(--header-offset)" }}
+      >
         <button
           onClick={() => setBuscaAberta(true)}
-          className="p-2 rounded-md shadow-md bg-[#1a1208] text-[#B89968]"
+          className="p-2 rounded-md bg-[#1a1208] text-[#B89968] shadow-sm"
         >
-          <Search size={18} />
+          <Search size={17} />
         </button>
-        {/* Calendário */}
         <button
           onClick={() => { setCalIsMobile(true); setCalAberto(!calAberto); }}
           className={cn(
-            "p-2 rounded-md shadow-md transition-colors",
+            "p-2 rounded-md shadow-sm transition-colors",
             calAberto && calIsMobile ? "bg-[#B89968] text-white" : "bg-[#1a1208] text-[#B89968]"
           )}
         >
-          <CalendarDays size={18} />
+          <CalendarDays size={17} />
         </button>
-        {/* Hoje */}
         <button
           onClick={() => { setDataAtual(hoje); salvarDataLocal(hoje); }}
           className={cn(
-            "px-2.5 py-1.5 rounded-md text-xs font-semibold shadow-md transition-colors",
+            "px-2.5 py-1.5 rounded-md text-xs font-semibold shadow-sm transition-colors",
             ehHoje ? "bg-[#B89968] text-white" : "bg-[#1a1208] text-[#B89968]"
           )}
         >
