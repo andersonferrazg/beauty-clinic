@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ModalAgendamento } from "@/components/modal-agendamento";
-import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays, Search } from "lucide-react";
+import { BuscaCliente } from "@/components/agenda/BuscaCliente";
 import { cn } from "@/lib/utils";
 
 // ── Mini calendário popup ─────────────────────────────────────────────────────
@@ -188,7 +189,7 @@ function iniciais(nome: string) {
 function semanaDosDias(data: Date): Date[] {
   const dias: Date[] = [];
   const seg = new Date(data);
-  seg.setDate(data.getDate() - (data.getDay() + 6) % 7); // começa na segunda
+  seg.setDate(data.getDate() - data.getDay()); // começa no domingo
   for (let i = 0; i < 7; i++) {
     const d = new Date(seg);
     d.setDate(seg.getDate() + i);
@@ -243,6 +244,7 @@ export default function AgendaPage() {
   const [agendamentosSemana, setAgendamentosSemana] = useState<Record<string, Agendamento[]>>({});
   const [carregandoSemana, setCarregandoSemana] = useState(false);
   const [semanaRefreshKey, setSemanaRefreshKey] = useState(0);
+  const [buscaAberta, setBuscaAberta] = useState(false);
   const fecharCal = useCallback(() => setCalAberto(false), []);
   const selecionarData = useCallback((d: Date) => { setDataAtual(d); salvarDataLocal(d); }, []);
 
@@ -404,6 +406,12 @@ export default function AgendaPage() {
     setModalAberto(true);
   }
 
+  function navegarParaData(data: Date, agId?: string) {
+    setDataAtual(data);
+    salvarDataLocal(data);
+    if (agId) abrirEdicao(agId);
+  }
+
   return (
     <div className="flex flex-col h-full bg-[#f4f6f8]">
 
@@ -420,8 +428,8 @@ export default function AgendaPage() {
       >
         <div className="flex items-center gap-1 relative">
 
-          {/* Toggle Dia / Semana */}
-          <div className="inline-flex rounded border border-[#e8dcc4] overflow-hidden text-[11px] flex-shrink-0">
+          {/* Toggle Dia / Semana — só desktop */}
+          <div className="hidden lg:inline-flex rounded border border-[#e8dcc4] overflow-hidden text-[11px] flex-shrink-0">
             <button
               onClick={() => setModoVista('diario')}
               className={cn("px-2 py-1.5 transition-colors", modoVista === 'diario' ? "bg-[#B89968] text-white" : "bg-white text-[#5a4530]")}
@@ -494,8 +502,15 @@ export default function AgendaPage() {
             </>
           )}
 
-          {/* Calendário + Hoje — desktop, ambos os modos */}
-          <div className="relative flex-shrink-0 hidden lg:block">
+          {/* Calendário + Busca + Hoje — desktop */}
+          <div className="relative flex-shrink-0 hidden lg:flex items-center gap-1">
+            <button
+              onClick={() => setBuscaAberta(true)}
+              className="p-1.5 rounded-lg transition-colors hover:bg-[#faf5ee] text-[#9a7d50]"
+              title="Buscar agendamento"
+            >
+              <Search size={16} />
+            </button>
             <button
               onClick={() => { setCalIsMobile(false); setCalAberto(!calAberto); }}
               className={cn("p-1.5 rounded-lg transition-colors", calAberto && !calIsMobile ? "bg-[#B89968] text-white" : "hover:bg-[#faf5ee] text-[#9a7d50]")}
@@ -807,28 +822,42 @@ export default function AgendaPage() {
         </div>{/* fecha wrapper */}
       </div>
 
-      {/* ── Controles mobile (calendário + Hoje) ao lado do hambúrguer ── */}
+      {/* ── Controles mobile ao lado do hambúrguer ── */}
       <div className="fixed right-3 z-50 lg:hidden flex items-center gap-1" style={{ top: "var(--header-btn-top)" }}>
-        <div className="relative">
+        {/* Toggle Dia/Sem */}
+        <div className="inline-flex rounded border border-[#B89968]/40 overflow-hidden text-[11px]">
           <button
-            onClick={() => { setCalIsMobile(true); setCalAberto(!calAberto); }}
-            className={cn(
-              "p-2 rounded-md shadow-md transition-colors",
-              calAberto && calIsMobile
-                ? "bg-[#B89968] text-white"
-                : "bg-[#1a1208] text-[#B89968]"
-            )}
-          >
-            <CalendarDays size={18} />
-          </button>
+            onClick={() => setModoVista('diario')}
+            className={cn("px-2 py-1.5 transition-colors", modoVista === 'diario' ? "bg-[#B89968] text-white" : "bg-[#1a1208] text-[#B89968]")}
+          >Dia</button>
+          <button
+            onClick={() => setModoVista('semanal')}
+            className={cn("px-2 py-1.5 border-l border-[#B89968]/40 transition-colors", modoVista === 'semanal' ? "bg-[#B89968] text-white" : "bg-[#1a1208] text-[#B89968]")}
+          >Sem.</button>
         </div>
+        {/* Lupa */}
+        <button
+          onClick={() => setBuscaAberta(true)}
+          className="p-2 rounded-md shadow-md bg-[#1a1208] text-[#B89968]"
+        >
+          <Search size={18} />
+        </button>
+        {/* Calendário */}
+        <button
+          onClick={() => { setCalIsMobile(true); setCalAberto(!calAberto); }}
+          className={cn(
+            "p-2 rounded-md shadow-md transition-colors",
+            calAberto && calIsMobile ? "bg-[#B89968] text-white" : "bg-[#1a1208] text-[#B89968]"
+          )}
+        >
+          <CalendarDays size={18} />
+        </button>
+        {/* Hoje */}
         <button
           onClick={() => { setDataAtual(hoje); salvarDataLocal(hoje); }}
           className={cn(
             "px-2.5 py-1.5 rounded-md text-xs font-semibold shadow-md transition-colors",
-            ehHoje
-              ? "bg-[#B89968] text-white"
-              : "bg-[#1a1208] text-[#B89968]"
+            ehHoje ? "bg-[#B89968] text-white" : "bg-[#1a1208] text-[#B89968]"
           )}
         >
           Hoje
@@ -852,6 +881,16 @@ export default function AgendaPage() {
           onFechar={fecharCal}
           modoFixed={calIsMobile}
         />
+      )}
+
+      {/* ── Busca de agendamentos ─────────────────────────────────────────── */}
+      {buscaAberta && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-[#faf8f4]">
+          <BuscaCliente
+            onClose={() => setBuscaAberta(false)}
+            onNavegar={(data, agId) => navegarParaData(data, agId)}
+          />
+        </div>
       )}
 
       {/* ── Modal ────────────────────────────────────────────────────────────── */}
