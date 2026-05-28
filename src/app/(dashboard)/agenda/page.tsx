@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ModalAgendamento } from "@/components/modal-agendamento";
 import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays } from "lucide-react";
@@ -238,37 +238,56 @@ export default function AgendaPage() {
   const [modalAgendamentoId, setModalAgendamentoId] = useState<string | undefined>();
   const [calAberto, setCalAberto] = useState(false);
   const [calIsMobile, setCalIsMobile] = useState(false);
+  const [modoVista, setModoVista] = useState<'diario' | 'semanal'>('diario');
+  const [profSemanaId, setProfSemanaId] = useState('');
+  const [agendamentosSemana, setAgendamentosSemana] = useState<Record<string, Agendamento[]>>({});
+  const [carregandoSemana, setCarregandoSemana] = useState(false);
+  const [semanaRefreshKey, setSemanaRefreshKey] = useState(0);
   const fecharCal = useCallback(() => setCalAberto(false), []);
   const selecionarData = useCallback((d: Date) => { setDataAtual(d); salvarDataLocal(d); }, []);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
-  const stripRef = useRef<HTMLDivElement>(null);
-  const isFirstScroll = useRef(true);
+  const swipeStartX = useRef<number | null>(null);
+  const swipeStartY = useRef<number | null>(null);
   const [navAlt, setNavAlt] = useState(82); // estimativa inicial; ResizeObserver corrige
 
   const dataStr = formatarDataISO(dataAtual);
   const ehHoje = formatarDataISO(hoje) === dataStr;
   const diasSemana = semanaDosDias(dataAtual);
 
-  // 180 dias centrados em hoje — calculados uma única vez
-  const diasStrip = useMemo(() => {
-    const t = new Date();
-    return Array.from({ length: 180 }, (_, i) =>
-      new Date(t.getFullYear(), t.getMonth(), t.getDate() + i - 90)
-    );
-  }, []);
-
-  // Centraliza o dia selecionado na barra rolável
+  // Persistir modo de visualização
   useEffect(() => {
-    if (!stripRef.current) return;
-    const el = stripRef.current.querySelector("[data-sel='true']") as HTMLElement | null;
-    if (!el) return;
-    const c = stripRef.current;
-    const left = el.offsetLeft - c.offsetWidth / 2 + el.offsetWidth / 2;
-    c.scrollTo({ left, behavior: isFirstScroll.current ? "auto" : "smooth" });
-    isFirstScroll.current = false;
-  }, [dataStr]);
+    try { localStorage.setItem('beauty-view-mode', modoVista); } catch {}
+  }, [modoVista]);
+
+  // Inicializar profissional do modo semana quando a lista carrega
+  useEffect(() => {
+    if (profissionais.length > 0 && !profSemanaId) {
+      setProfSemanaId(profissionais[0].id);
+    }
+  }, [profissionais, profSemanaId]);
+
+  // Carregar dados da semana inteira (modo SEMANAL)
+  useEffect(() => {
+    if (modoVista !== 'semanal' || !profSemanaId) return;
+    let cancelled = false;
+    setCarregandoSemana(true);
+    Promise.all(
+      diasSemana.map(async (dia) => {
+        const dStr = formatarDataISO(dia);
+        const r = await fetch(`/api/agendamentos?data=${dStr}`);
+        const dados = await r.json();
+        const filtrados = (Array.isArray(dados) ? dados : []).filter(
+          (a: Agendamento) => a.profissionalId === profSemanaId
+        );
+        return [dStr, filtrados] as [string, Agendamento[]];
+      })
+    )
+      .then((results) => { if (!cancelled) { setAgendamentosSemana(Object.fromEntries(results)); setCarregandoSemana(false); } })
+      .catch(() => { if (!cancelled) setCarregandoSemana(false); });
+    return () => { cancelled = true; };
+  }, [modoVista, profSemanaId, dataStr, semanaRefreshKey]);
 
   const TOTAL_SLOTS = Math.max((horaFim - horaInicio) * 2, 1);
   const SLOTS = Array.from({ length: TOTAL_SLOTS }, (_, i) => ({
@@ -295,6 +314,8 @@ export default function AgendaPage() {
     try {
       const salvo = localStorage.getItem("agendaData");
       if (salvo) { const d = new Date(salvo + "T12:00"); if (!isNaN(d.getTime())) setDataAtual(d); }
+      const m = localStorage.getItem('beauty-view-mode');
+      if (m === 'semanal' || m === 'diario') setModoVista(m);
     } catch {}
     Promise.all([
       fetch("/api/profissionais").then((r) => r.json()),
@@ -337,6 +358,11 @@ export default function AgendaPage() {
 
   useEffect(() => { carregarAgendamentos(); }, [carregarAgendamentos]);
 
+  const recarregar = useCallback(() => {
+    carregarAgendamentos();
+    setSemanaRefreshKey(k => k + 1);
+  }, [carregarAgendamentos]);
+
   // Mede a altura real da barra de semana para o placeholder reservar o espaço correto.
   useEffect(() => {
     const el = navRef.current;
@@ -357,8 +383,8 @@ export default function AgendaPage() {
     salvarDataLocal(nova);
   }
 
-  function abrirNovoAgendamento(profissionalId: string, horaMin: number) {
-    setModalDataInicial(dataAtual);
+  function abrirNovoAgendamento(profissionalId: string, horaMin: number, data?: Date) {
+    setModalDataInicial(data ?? dataAtual);
     setModalHoraInicial(horaMin);
     setModalProfissionalId(profissionalId);
     setModalAgendamentoId(undefined);
@@ -393,70 +419,86 @@ export default function AgendaPage() {
         style={{ top: "var(--header-offset)" }}
       >
         <div className="flex items-center gap-1 relative">
-          {/* Seta esquerda — só desktop */}
-          <button
-            onClick={() => navegar(-7)}
-            className="hidden lg:flex p-1.5 rounded-lg hover:bg-[#faf5ee] text-[#9a7d50] flex-shrink-0"
-          >
-            <ChevronLeft size={16} />
-          </button>
 
-          {/* Barra de dias rolável horizontalmente */}
-          <div
-            ref={stripRef}
-            className="flex-1 flex gap-0.5 overflow-x-auto touch-pan-x"
-            style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
-          >
-            {diasStrip.map((dia) => {
-              const dStr = formatarDataISO(dia);
-              const isAtual = dStr === dataStr;
-              const isHojeFlag = formatarDataISO(hoje) === dStr;
-              return (
-                <button
-                  key={dStr}
-                  data-sel={isAtual ? "true" : undefined}
-                  onClick={() => { setDataAtual(new Date(dia)); salvarDataLocal(new Date(dia)); }}
-                  className={cn(
-                    "flex flex-col items-center px-2 py-1 rounded-xl transition-colors flex-shrink-0 min-w-[44px]",
-                    isAtual
-                      ? "bg-[#B89968] text-white"
-                      : "text-[#5a4530] hover:bg-[#faf5ee]"
-                  )}
-                >
-                  <span className="text-[10px] font-medium uppercase tracking-wide">
-                    {diaSemanaAbrev(dia.getDay())}
-                  </span>
-                  <span className="text-base font-bold leading-tight">
-                    {dia.getDate()}
-                  </span>
-                  <span className="text-[10px] opacity-70">
-                    {String(dia.getMonth() + 1).padStart(2, "0")}/
-                    {String(dia.getFullYear()).slice(-2)}
-                  </span>
-                  {isHojeFlag && !isAtual && (
-                    <span className="w-1 h-1 rounded-full bg-[#B89968] mt-0.5" />
-                  )}
-                </button>
-              );
-            })}
+          {/* Toggle Dia / Semana */}
+          <div className="inline-flex rounded border border-[#e8dcc4] overflow-hidden text-[11px] flex-shrink-0">
+            <button
+              onClick={() => setModoVista('diario')}
+              className={cn("px-2 py-1.5 transition-colors", modoVista === 'diario' ? "bg-[#B89968] text-white" : "bg-white text-[#5a4530]")}
+            >Dia</button>
+            <button
+              onClick={() => setModoVista('semanal')}
+              className={cn("px-2 py-1.5 border-l border-[#e8dcc4] transition-colors", modoVista === 'semanal' ? "bg-[#B89968] text-white" : "bg-white text-[#5a4530]")}
+            >Sem.</button>
           </div>
 
-          {/* Seta direita — só desktop */}
-          <button
-            onClick={() => navegar(7)}
-            className="hidden lg:flex p-1.5 rounded-lg hover:bg-[#faf5ee] text-[#9a7d50] flex-shrink-0"
-          >
-            <ChevronRight size={16} />
-          </button>
+          {/* ── MODO DIÁRIO: setas + 7 dias ── */}
+          {modoVista === 'diario' && (
+            <>
+              <button onClick={() => navegar(-7)} className="hidden lg:flex p-1.5 rounded-lg hover:bg-[#faf5ee] text-[#9a7d50] flex-shrink-0">
+                <ChevronLeft size={16} />
+              </button>
 
-          {/* Botão calendário — visível só no desktop */}
+              <div
+                className="flex-1 flex justify-around gap-0.5 touch-pan-y"
+                onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; swipeStartY.current = e.touches[0].clientY; }}
+                onTouchEnd={(e) => {
+                  if (swipeStartX.current === null || swipeStartY.current === null) return;
+                  const dx = e.changedTouches[0].clientX - swipeStartX.current;
+                  const dy = e.changedTouches[0].clientY - swipeStartY.current;
+                  swipeStartX.current = null; swipeStartY.current = null;
+                  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) navegar(dx < 0 ? 7 : -7);
+                }}
+              >
+                {diasSemana.map((dia) => {
+                  const dStr = formatarDataISO(dia);
+                  const isAtual = dStr === dataStr;
+                  const isHojeFlag = formatarDataISO(hoje) === dStr;
+                  return (
+                    <button
+                      key={dStr}
+                      onClick={() => { const d = new Date(dia); setDataAtual(d); salvarDataLocal(d); }}
+                      className={cn(
+                        "flex flex-col items-center px-2 py-1 rounded-xl transition-colors min-w-[42px]",
+                        isAtual ? "bg-[#B89968] text-white" : "text-[#5a4530] hover:bg-[#faf5ee]"
+                      )}
+                    >
+                      <span className="text-[10px] font-medium uppercase tracking-wide">{diaSemanaAbrev(dia.getDay())}</span>
+                      <span className="text-base font-bold leading-tight">{dia.getDate()}</span>
+                      <span className="text-[10px] opacity-70">{String(dia.getMonth() + 1).padStart(2, "0")}/{String(dia.getFullYear()).slice(-2)}</span>
+                      {isHojeFlag && !isAtual && <span className="w-1 h-1 rounded-full bg-[#B89968] mt-0.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button onClick={() => navegar(7)} className="hidden lg:flex p-1.5 rounded-lg hover:bg-[#faf5ee] text-[#9a7d50] flex-shrink-0">
+                <ChevronRight size={16} />
+              </button>
+            </>
+          )}
+
+          {/* ── MODO SEMANAL: data range + selector de profissional ── */}
+          {modoVista === 'semanal' && (
+            <>
+              <span className="flex-1 text-xs font-medium text-[#5a4530] truncate">
+                {diasSemana[0].getDate()}/{String(diasSemana[0].getMonth()+1).padStart(2,"0")} → {diasSemana[6].getDate()}/{String(diasSemana[6].getMonth()+1).padStart(2,"0")}/{String(diasSemana[6].getFullYear()).slice(-2)}
+              </span>
+              <select
+                value={profSemanaId}
+                onChange={(e) => setProfSemanaId(e.target.value)}
+                className="text-xs border border-[#e8dcc4] rounded px-1.5 py-1 text-[#5a4530] bg-white flex-shrink-0 max-w-[120px] truncate"
+              >
+                {profissionais.map(p => <option key={p.id} value={p.id}>{p.nome.replace("Dra. ", "")}</option>)}
+              </select>
+            </>
+          )}
+
+          {/* Calendário + Hoje — desktop, ambos os modos */}
           <div className="relative flex-shrink-0 hidden lg:block">
             <button
               onClick={() => { setCalIsMobile(false); setCalAberto(!calAberto); }}
-              className={cn(
-                "p-1.5 rounded-lg transition-colors",
-                calAberto && !calIsMobile ? "bg-[#B89968] text-white" : "hover:bg-[#faf5ee] text-[#9a7d50]"
-              )}
+              className={cn("p-1.5 rounded-lg transition-colors", calAberto && !calIsMobile ? "bg-[#B89968] text-white" : "hover:bg-[#faf5ee] text-[#9a7d50]")}
             >
               <CalendarDays size={16} />
             </button>
@@ -464,45 +506,53 @@ export default function AgendaPage() {
 
           <button
             onClick={() => { setDataAtual(hoje); salvarDataLocal(hoje); }}
-            className={cn(
-              "ml-1 px-2.5 py-1 rounded-lg text-xs font-medium flex-shrink-0 transition-colors hidden lg:block",
-              ehHoje
-                ? "bg-[#B89968] text-white"
-                : "border border-[#B89968]/40 text-[#B89968] hover:bg-[#B89968]/10"
+            className={cn("ml-1 px-2.5 py-1 rounded-lg text-xs font-medium flex-shrink-0 transition-colors hidden lg:block",
+              ehHoje ? "bg-[#B89968] text-white" : "border border-[#B89968]/40 text-[#B89968] hover:bg-[#B89968]/10"
             )}
-          >
-            Hoje
-          </button>
+          >Hoje</button>
 
-          {carregando && (
+          {(carregando || carregandoSemana) && (
             <div className="w-3.5 h-3.5 border-2 border-[#B89968] border-t-transparent rounded-full animate-spin ml-1 flex-shrink-0" />
           )}
         </div>
 
-        {/* ── Linha com nomes das profissionais — sempre visível ───────────── */}
-        {/* -mx-3 cancela o px-3 do pai; pl-14 (56px) compensa a coluna de horários do grid */}
+        {/* ── Segunda linha: nomes das profissionais (DIÁRIO) ou dias (SEMANAL) ── */}
         <div className="flex border-t border-[#e8dcc4]/60 mt-1 pt-1 pb-0.5 -mx-3 pl-14">
-          {!profissionaisCarregadas ? (
-            [1, 2].map((i) => (
-              <div key={i} className="flex-1 flex items-center justify-center gap-1.5 px-1">
-                <div className="w-5 h-5 rounded-full bg-[#e8dcc4] animate-pulse flex-shrink-0" />
-                <div className="h-2.5 w-20 bg-[#e8dcc4] rounded animate-pulse" />
-              </div>
-            ))
-          ) : (
-            profissionais.map((prof) => (
-              <div key={prof.id} className="flex-1 flex items-center justify-center gap-1.5 px-1 min-w-0">
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
-                  style={{ backgroundColor: prof.cor }}
-                >
-                  {iniciais(prof.nome)}
+          {modoVista === 'diario' ? (
+            !profissionaisCarregadas ? (
+              [1, 2].map((i) => (
+                <div key={i} className="flex-1 flex items-center justify-center gap-1.5 px-1">
+                  <div className="w-5 h-5 rounded-full bg-[#e8dcc4] animate-pulse flex-shrink-0" />
+                  <div className="h-2.5 w-20 bg-[#e8dcc4] rounded animate-pulse" />
                 </div>
-                <span className="text-[11px] font-medium text-[#5a4530] truncate">
-                  {prof.nome.replace("Dra. ", "")}
-                </span>
-              </div>
-            ))
+              ))
+            ) : (
+              profissionais.map((prof) => (
+                <div key={prof.id} className="flex-1 flex items-center justify-center gap-1.5 px-1 min-w-0">
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0" style={{ backgroundColor: prof.cor }}>
+                    {iniciais(prof.nome)}
+                  </div>
+                  <span className="text-[11px] font-medium text-[#5a4530] truncate">{prof.nome.replace("Dra. ", "")}</span>
+                </div>
+              ))
+            )
+          ) : (
+            diasSemana.map((dia) => {
+              const dStr = formatarDataISO(dia);
+              const isAtual = dStr === dataStr;
+              return (
+                <button
+                  key={dStr}
+                  onClick={() => { setDataAtual(new Date(dia)); salvarDataLocal(new Date(dia)); setModoVista('diario'); }}
+                  className={cn("flex-1 flex flex-col items-center justify-center py-0.5 min-w-0 transition-colors rounded",
+                    isAtual ? "text-[#B89968]" : "text-[#5a4530] hover:bg-[#faf5ee]"
+                  )}
+                >
+                  <span className="text-[10px] font-medium uppercase">{diaSemanaAbrev(dia.getDay())}</span>
+                  <span className="text-sm font-bold leading-tight">{dia.getDate()}</span>
+                </button>
+              );
+            })
           )}
         </div>
       </div>
@@ -515,7 +565,7 @@ export default function AgendaPage() {
       <div className="flex-1 min-h-0 overflow-auto" ref={gridRef}>
         <div>
 
-        {/* Grade de horários */}
+        {/* Coluna de horas compartilhada + colunas condicionais */}
         <div className="flex">
           {/* Coluna de horas */}
           <div className="w-14 flex-shrink-0 bg-white border-r border-[#e8dcc4]">
@@ -540,8 +590,67 @@ export default function AgendaPage() {
             </div>
           </div>
 
-          {/* Colunas por profissional */}
-          {profissionais.length === 0 ? (
+          {/* ── MODO SEMANAL: colunas por dia ── */}
+          {modoVista === 'semanal' && (
+            diasSemana.length === 0 ? null :
+            diasSemana.map((dia) => {
+              const dStr = formatarDataISO(dia);
+              const agsDia = agendamentosSemana[dStr] || [];
+              const isHojeCol = formatarDataISO(hoje) === dStr;
+              return (
+                <div key={dStr} className={cn("flex-1 border-r border-[#e8dcc4] last:border-r-0", isHojeCol && "bg-[#B89968]/5")}>
+                  <div className="relative" style={{ height: `${TOTAL_SLOTS * ALTURA_SLOT}px` }}>
+                    {SLOTS.map((slot) => (
+                      <div
+                        key={slot.idx}
+                        className={cn("absolute w-full cursor-pointer hover:bg-[#B89968]/5 transition-colors",
+                          slot.ehHoraCheia ? "border-t border-[#e8dcc4]" : "border-t border-[#e8dcc4]/40 border-dashed"
+                        )}
+                        style={{ top: `${slot.idx * ALTURA_SLOT}px`, height: `${ALTURA_SLOT}px` }}
+                        onClick={() => abrirNovoAgendamento(profSemanaId, slot.hora * 60 + slot.minuto, new Date(dia))}
+                      />
+                    ))}
+                    {agsDia.map((ag) => {
+                      const { top, height } = posicaoBloco(ag.inicio, ag.fim);
+                      const ehBloqueio = !ag.cliente;
+                      const cor = ehBloqueio ? "transparent" : (ag.corCustom || ag.status?.cor || ag.profissional.cor);
+                      const corTexto = ehBloqueio ? "#9ca3af" : "#fff";
+                      const estiloBloqueio = ehBloqueio ? { background: "repeating-linear-gradient(-45deg,#f3f4f6,#f3f4f6 6px,#e5e7eb 6px,#e5e7eb 12px)", border: "1px solid #d1d5db" } : {};
+                      return (
+                        <div
+                          key={ag.id}
+                          className="absolute left-0.5 right-0.5 rounded-lg overflow-hidden cursor-pointer shadow-sm hover:shadow-md hover:brightness-95 transition-all z-10"
+                          style={{ top, height, minHeight: "28px" }}
+                          onClick={(e) => { e.stopPropagation(); setDataAtual(new Date(dia)); salvarDataLocal(new Date(dia)); abrirEdicao(ag.id); }}
+                        >
+                          <div className="h-full px-1.5 py-1 flex flex-col gap-0.5" style={{ backgroundColor: cor, color: corTexto, ...estiloBloqueio }}>
+                            <span className="text-[10px] opacity-90 font-semibold whitespace-nowrap">{formatarHora(ag.inicio)}–{formatarHora(ag.fim)}</span>
+                            <span className="text-[12px] font-bold truncate leading-tight">{ehBloqueio ? (ag.motivoBloqueio || "Bloqueio") : ag.cliente?.nome}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {isHojeCol && (() => {
+                      const agora = new Date();
+                      const min = (agora.getHours() - horaInicio) * 60 + agora.getMinutes();
+                      if (min < 0 || min > TOTAL_SLOTS * 30) return null;
+                      const pct = (min / (TOTAL_SLOTS * 30)) * 100;
+                      return (
+                        <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: `${pct}%` }}>
+                          <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 -mt-1 absolute" />
+                          <div className="border-t-2 border-red-500 w-full" />
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              );
+            })
+          )}
+
+          {/* ── MODO DIÁRIO: colunas por profissional ── */}
+          {modoVista === 'diario' && (
+          profissionais.length === 0 ? (
             <div className="flex-1 flex items-center justify-center py-20 text-[#9a7d50] text-sm">
               Nenhuma profissional cadastrada.
             </div>
@@ -693,9 +802,9 @@ export default function AgendaPage() {
                 </div>
               );
             })
-          )}
+          ))}
         </div>
-        </div>{/* fecha wrapper minWidth */}
+        </div>{/* fecha wrapper */}
       </div>
 
       {/* ── Controles mobile (calendário + Hoje) ao lado do hambúrguer ── */}
@@ -749,7 +858,7 @@ export default function AgendaPage() {
       <ModalAgendamento
         aberto={modalAberto}
         onFechar={() => setModalAberto(false)}
-        onSalvo={carregarAgendamentos}
+        onSalvo={recarregar}
         dataInicial={modalDataInicial}
         horaInicial={modalHoraInicial}
         profissionalInicial={modalProfissionalId}
