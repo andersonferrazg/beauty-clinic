@@ -447,37 +447,43 @@ export default function AgendaPage() {
                 <ChevronLeft size={16} />
               </button>
 
-              <div
-                className="flex-1 flex justify-around gap-0.5 touch-pan-y"
-                onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; swipeStartY.current = e.touches[0].clientY; }}
-                onTouchEnd={(e) => {
-                  if (swipeStartX.current === null || swipeStartY.current === null) return;
-                  const dx = e.changedTouches[0].clientX - swipeStartX.current;
-                  const dy = e.changedTouches[0].clientY - swipeStartY.current;
-                  swipeStartX.current = null; swipeStartY.current = null;
-                  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) navegar(dx < 0 ? 7 : -7);
-                }}
-              >
-                {diasSemana.map((dia) => {
-                  const dStr = formatarDataISO(dia);
-                  const isAtual = dStr === dataStr;
-                  const isHojeFlag = formatarDataISO(hoje) === dStr;
-                  return (
-                    <button
-                      key={dStr}
-                      onClick={() => { const d = new Date(dia); setDataAtual(d); salvarDataLocal(d); }}
-                      className={cn(
-                        "flex flex-col items-center px-2 py-1 rounded-xl transition-colors min-w-[42px]",
-                        isAtual ? "bg-[#B89968] text-white" : "text-[#5a4530] hover:bg-[#faf5ee]"
-                      )}
-                    >
-                      <span className="text-[10px] font-medium uppercase tracking-wide">{diaSemanaAbrev(dia.getDay())}</span>
-                      <span className="text-base font-bold leading-tight">{dia.getDate()}</span>
-                      <span className="text-[10px] opacity-70">{String(dia.getMonth() + 1).padStart(2, "0")}/{String(dia.getFullYear()).slice(-2)}</span>
-                      {isHojeFlag && !isAtual && <span className="w-1 h-1 rounded-full bg-[#B89968] mt-0.5" />}
-                    </button>
-                  );
-                })}
+              <div className="flex-1 flex flex-col min-w-0">
+                {/* Mês(es) da semana */}
+                <p className="text-center text-[9px] text-[#9a7d50]/60 font-medium capitalize leading-none mb-0.5">
+                  {[...new Set(diasSemana.map(d => MESES[d.getMonth()]))].join(" · ")}
+                </p>
+                {/* Dias */}
+                <div
+                  className="flex justify-around gap-0.5 touch-pan-y"
+                  onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; swipeStartY.current = e.touches[0].clientY; }}
+                  onTouchEnd={(e) => {
+                    if (swipeStartX.current === null || swipeStartY.current === null) return;
+                    const dx = e.changedTouches[0].clientX - swipeStartX.current;
+                    const dy = e.changedTouches[0].clientY - swipeStartY.current;
+                    swipeStartX.current = null; swipeStartY.current = null;
+                    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) navegar(dx < 0 ? 7 : -7);
+                  }}
+                >
+                  {diasSemana.map((dia) => {
+                    const dStr = formatarDataISO(dia);
+                    const isAtual = dStr === dataStr;
+                    const isHojeFlag = formatarDataISO(hoje) === dStr;
+                    return (
+                      <button
+                        key={dStr}
+                        onClick={() => { const d = new Date(dia); setDataAtual(d); salvarDataLocal(d); }}
+                        className={cn(
+                          "flex flex-col items-center px-1 sm:px-2 py-1 rounded-xl transition-colors min-w-[38px] sm:min-w-[42px]",
+                          isAtual ? "bg-[#B89968] text-white" : "text-[#5a4530] hover:bg-[#faf5ee]"
+                        )}
+                      >
+                        <span className="text-[10px] font-medium uppercase tracking-wide">{diaSemanaAbrev(dia.getDay())}</span>
+                        <span className="text-base font-bold leading-tight">{dia.getDate()}</span>
+                        {isHojeFlag && !isAtual && <span className="w-1 h-1 rounded-full bg-[#B89968] mt-0.5" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <button onClick={() => navegar(7)} className="hidden lg:flex p-1.5 rounded-lg hover:bg-[#faf5ee] text-[#9a7d50] flex-shrink-0">
@@ -829,24 +835,24 @@ export default function AgendaPage() {
       >
         <button
           onClick={() => setBuscaAberta(true)}
-          className="p-2 rounded-md bg-[#1a1208] text-[#B89968] shadow-sm"
+          className="p-2 rounded-md text-[#9a7d50] hover:bg-[#B89968]/10 active:bg-[#B89968]/20 transition-colors"
         >
-          <Search size={17} />
+          <Search size={18} />
         </button>
         <button
           onClick={() => { setCalIsMobile(true); setCalAberto(!calAberto); }}
           className={cn(
-            "p-2 rounded-md shadow-sm transition-colors",
-            calAberto && calIsMobile ? "bg-[#B89968] text-white" : "bg-[#1a1208] text-[#B89968]"
+            "p-2 rounded-md transition-colors",
+            calAberto && calIsMobile ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#B89968]/10 active:bg-[#B89968]/20"
           )}
         >
-          <CalendarDays size={17} />
+          <CalendarDays size={18} />
         </button>
         <button
           onClick={() => { setDataAtual(hoje); salvarDataLocal(hoje); }}
           className={cn(
-            "px-2.5 py-1.5 rounded-md text-xs font-semibold shadow-sm transition-colors",
-            ehHoje ? "bg-[#B89968] text-white" : "bg-[#1a1208] text-[#B89968]"
+            "px-2.5 py-1 rounded-lg text-xs font-medium flex-shrink-0 transition-colors",
+            ehHoje ? "bg-[#B89968] text-white" : "border border-[#B89968]/40 text-[#9a7d50] hover:bg-[#B89968]/10"
           )}
         >
           Hoje
@@ -874,12 +880,19 @@ export default function AgendaPage() {
 
       {/* ── Busca de agendamentos ─────────────────────────────────────────── */}
       {buscaAberta && (
-        <div className="fixed inset-0 z-[60] flex flex-col bg-[#faf8f4]">
-          <BuscaCliente
-            onClose={() => setBuscaAberta(false)}
-            onNavegar={(data, agId) => navegarParaData(data, agId)}
-          />
-        </div>
+        <>
+          {/* Backdrop desktop — clica fora para fechar */}
+          <div className="hidden lg:block fixed inset-0 z-[55]" onClick={() => setBuscaAberta(false)} />
+          {/* Painel: tela cheia no mobile, dropdown 420px no desktop */}
+          <div className="fixed inset-0 z-[60] flex flex-col bg-[#faf8f4]
+                          lg:inset-auto lg:top-2 lg:right-4 lg:w-[420px] lg:max-h-[80vh]
+                          lg:rounded-xl lg:shadow-2xl lg:border lg:border-[#e8dcc4] lg:overflow-hidden">
+            <BuscaCliente
+              onClose={() => setBuscaAberta(false)}
+              onNavegar={(data, agId) => navegarParaData(data, agId)}
+            />
+          </div>
+        </>
       )}
 
       {/* ── Modal ────────────────────────────────────────────────────────────── */}
