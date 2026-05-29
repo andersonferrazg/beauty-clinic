@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  X, Plus, Trash2, Loader2, Lock, Calendar, Search, ChevronDown, Clock, ShoppingCart, RefreshCw, FileText, Copy, ExternalLink,
+  X, Plus, Trash2, Loader2, Lock, Calendar, Search, ChevronDown, Clock, ShoppingCart, RefreshCw, FileText, Copy, ExternalLink, MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PickerMensagens } from "@/components/agenda/PickerMensagens";
 
 type Profissional = { id: string; nome: string; cor: string };
 type Cliente = { id: string; nome: string; telefone1: string | null };
@@ -167,6 +168,8 @@ export function ModalAgendamento({
   const [mostrarNF, setMostrarNF] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
   const [maisOpcoes, setMaisOpcoes] = useState(false);
+  const [clienteTelefone, setClienteTelefone] = useState("");
+  const [mostrarPickerWA, setMostrarPickerWA] = useState(false);
 
   // ── Fim calculado (horário local) ──────────────────────────────────────────
   const fimCalculado = (() => {
@@ -228,6 +231,7 @@ export function ModalAgendamento({
         setProfissionalId(ag.profissionalId);
         setClienteId(ag.clienteId ?? "");
         setClienteNome(ag.cliente?.nome ?? "");
+        setClienteTelefone(ag.cliente?.telefone1 ?? "");
         setCpfCliente(ag.cliente?.cpf ?? null);
         setLancamentoId(ag.lancamentoId ?? null);
         setStatusId(ag.statusId ?? "");
@@ -278,6 +282,8 @@ export function ModalAgendamento({
       setCpfCliente(null);
       setMostrarNF(false);
       setCopiado(null);
+      setClienteTelefone("");
+      setMostrarPickerWA(false);
     }
   }, [aberto]);
 
@@ -544,6 +550,7 @@ export function ModalAgendamento({
                       const nova = await res.json();
                       setClienteId(nova.id);
                       setClienteNome(nova.nome);
+                      setClienteTelefone(nova.telefone1 ?? "");
                       setBuscaCliente(nova.nome);
                     }}
                     className="text-xs text-[#B89968] border border-[#B89968]/40 px-2.5 py-0.5 rounded-md hover:bg-[#B89968]/10 transition-colors font-medium"
@@ -575,6 +582,7 @@ export function ModalAgendamento({
                           onMouseDown={() => {
                             setClienteId(c.id);
                             setClienteNome(c.nome);
+                            setClienteTelefone(c.telefone1 ?? "");
                             setBuscaCliente(c.nome);
                             setMostrarSugestoes(false);
                           }}
@@ -981,6 +989,16 @@ export function ModalAgendamento({
                 <Trash2 size={16} />
               </button>
             )}
+            {tipo === "agendamento" && clienteId && clienteTelefone && (
+              <button
+                type="button"
+                onClick={() => setMostrarPickerWA(true)}
+                className="p-2 text-[#25D366] hover:bg-[#25D366]/10 rounded-md transition-colors flex-shrink-0"
+                title="Enviar mensagem via WhatsApp"
+              >
+                <MessageSquare size={16} />
+              </button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -1000,6 +1018,24 @@ export function ModalAgendamento({
           </div>
         </div>
       </div>
+
+      {/* Picker de mensagens WhatsApp */}
+      {mostrarPickerWA && (
+        <PickerMensagens
+          dados={{
+            clienteNome: clienteNome,
+            dataStr: dataStr,
+            horaInicio: horaStr,
+            horaFim: fimCalculado,
+            servicos: itens.map((i) => i.nomeServico).filter(Boolean),
+            profissionalNome: profissionais.find((p) => p.id === profissionalId)?.nome,
+            nomeClinica: nomeClinica ?? undefined,
+            valorTotal: totalServicos,
+          }}
+          telefone={clienteTelefone}
+          onFechar={() => setMostrarPickerWA(false)}
+        />
+      )}
 
       {/* Confirmação de exclusão — overlay sobre o modal inteiro, fora do scroll */}
       {confirmarExclusao && (

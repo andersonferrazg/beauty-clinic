@@ -22,22 +22,23 @@ model Tenant {
   ativo       Boolean  @default(true)
   criadoEm   DateTime @default(now())
 
-  usuarios            Usuario[]
-  profissionais       Profissional[]
-  clientes            Cliente[]
-  servicos            Servico[]
-  produtos            Produto[]
-  agendamentos        Agendamento[]
-  statusAgenda        StatusAgenda[]
-  mensagensWpp        MensagemWpp[]
-  despesas            Despesa[]
-  lancamentos         Lancamento[]
-  configuracoes       TenantConfig?
-  prontuarios         Prontuario[]
-  comissoes           ComissaoLancamento[]
+  usuarios             Usuario[]
+  profissionais        Profissional[]
+  clientes             Cliente[]
+  servicos             Servico[]
+  produtos             Produto[]
+  agendamentos         Agendamento[]
+  statusAgenda         StatusAgenda[]
+  mensagensWpp         MensagemWpp[]
+  despesas             Despesa[]
+  lancamentos          Lancamento[]
+  configuracoes        TenantConfig?
+  prontuarios          Prontuario[]
+  comissoes            ComissaoLancamento[]
   movimentacoesEstoque MovimentacaoEstoque[]
-  orcamentos          Orcamento[]
-  leads               Lead[]
+  orcamentos           Orcamento[]
+  leads                Lead[]
+  mensagensPredefinidas MensagemPredefinida[]
 
   @@map("tenants")
 }
@@ -567,4 +568,18 @@ model InteracaoLead {
 
   @@index([leadId])
   @@map("interacoes_lead")
+}
+
+model MensagemPredefinida {
+  id        String   @id @default(cuid())
+  tenantId  String
+  nome      String
+  texto     String
+  ordem     Int      @default(0)
+  criadaEm  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("mensagens_predefinidas")
 }
