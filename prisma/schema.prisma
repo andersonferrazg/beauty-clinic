@@ -158,7 +158,8 @@ model Profissional {
   comissoes        ComissaoLancamento[]
   orcamentos       Orcamento[]
   leads            Lead[]
-  disponibilidades DisponibilidadeProfissional[]
+  disponibilidades     DisponibilidadeProfissional[]
+  disponibilidadesData DisponibilidadeData[]
 
   @@unique([tenantId, email])
   @@map("profissionais")
@@ -602,11 +603,32 @@ model DisponibilidadeProfissional {
   horaInicio     Int    // ex: 9 representa 09:00
   horaFim        Int    // ex: 18 representa 18:00
 
+  horaInicio2    Int?   // início do 2º período (ex: tarde)
+  horaFim2       Int?   // fim do 2º período
+
   profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
 
   @@unique([profissionalId, diaSemana])
   @@index([tenantId])
   @@map("disponibilidades_profissional")
+}
+
+model DisponibilidadeData {
+  id             String   @id @default(cuid())
+  tenantId       String
+  profissionalId String
+  data           DateTime // data específica (armazenada como meio-dia UTC)
+  tipo           String   // "DISPONIVEL" | "BLOQUEADO"
+  horaInicio     Int?
+  horaFim        Int?
+  horaInicio2    Int?
+  horaFim2       Int?
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+
+  @@unique([profissionalId, data])
+  @@index([tenantId])
+  @@map("disponibilidades_data")
 }
 
 // ─── Notificações do Sistema (Agendamento Online) ─────────────────────────────

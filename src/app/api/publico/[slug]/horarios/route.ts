@@ -20,8 +20,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
       configuracoes: {
         select: {
           agendamentoOnlineAtivo: true,
-          horaInicioAgenda: true,
-          horaFimAgenda: true,
           intervaloAgendaMin: true,
         },
       },
@@ -32,23 +30,47 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     return NextResponse.json({ slots: [] });
   }
 
-  const cfg = tenant.configuracoes;
+  const intervaloMin = tenant.configuracoes.intervaloAgendaMin;
 
-  // Verifica disponibilidade da profissional para o dia da semana
-  const diaSemana = new Date(`${data}T12:00:00`).getDay();
-  const disponibilidade = await prisma.disponibilidadeProfissional.findUnique({
-    where: { profissionalId_diaSemana: { profissionalId, diaSemana } },
+  // 1. Verificar se existe disponibilidade específica para essa data
+  const dataRef = new Date(`${data}T12:00:00`);
+  const dispData = await prisma.disponibilidadeData.findFirst({
+    where: { profissionalId, tenantId: tenant.id, data: dataRef },
   });
 
-  // Se não tem disponibilidade configurada para esse dia, retorna vazio
-  const horaInicio = disponibilidade?.horaInicio ?? cfg.horaInicioAgenda;
-  const horaFim = disponibilidade?.horaFim ?? cfg.horaFimAgenda;
-  if (!disponibilidade) return NextResponse.json({ slots: [] });
+  let periodos: { horaInicio: number; horaFim: number }[] = [];
+
+  if (dispData) {
+    if (dispData.tipo === "BLOQUEADO") {
+      return NextResponse.json({ slots: [] });
+    }
+    // DISPONIVEL com horários específicos
+    if (dispData.horaInicio != null && dispData.horaFim != null) {
+      periodos.push({ horaInicio: dispData.horaInicio, horaFim: dispData.horaFim });
+    }
+    if (dispData.horaInicio2 != null && dispData.horaFim2 != null) {
+      periodos.push({ horaInicio: dispData.horaInicio2, horaFim: dispData.horaFim2 });
+    }
+  } else {
+    // 2. Fallback para disponibilidade recorrente semanal
+    const diaSemana = dataRef.getDay();
+    const dispSemana = await prisma.disponibilidadeProfissional.findUnique({
+      where: { profissionalId_diaSemana: { profissionalId, diaSemana } },
+    });
+
+    if (!dispSemana) return NextResponse.json({ slots: [] });
+
+    periodos.push({ horaInicio: dispSemana.horaInicio, horaFim: dispSemana.horaFim });
+    if (dispSemana.horaInicio2 != null && dispSemana.horaFim2 != null) {
+      periodos.push({ horaInicio: dispSemana.horaInicio2, horaFim: dispSemana.horaFim2 });
+    }
+  }
+
+  if (periodos.length === 0) return NextResponse.json({ slots: [] });
 
   // Busca agendamentos existentes do dia
   const inicioDia = new Date(`${data}T00:00:00`);
   const fimDia = new Date(`${data}T23:59:59`);
-
   const agendamentos = await prisma.agendamento.findMany({
     where: {
       tenantId: tenant.id,
@@ -58,19 +80,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     select: { inicio: true, fim: true },
   });
 
-  // Filtra datas passadas
   const agora = new Date();
   const slots = calcularSlotsLivres({
     data,
     duracaoMin,
-    horaInicio,
-    horaFim,
-    intervaloMin: cfg.intervaloAgendaMin,
+    periodos,
+    intervaloMin,
     agendamentos,
   }).filter((slot) => {
-    const [h, m] = slot.split(":").map(Number);
     const slotDate = new Date(`${data}T${slot}:00`);
-    slotDate.setHours(h, m, 0, 0);
     return slotDate > agora;
   });
 

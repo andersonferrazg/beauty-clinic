@@ -14,12 +14,15 @@ type Props = {
   profissionalId?: string;
 };
 
-type DisponibilidadeDia = { ativo: boolean; horaInicio: number; horaFim: number };
+type DisponibilidadeDia = { ativo: boolean; horaInicio: number; horaFim: number; ativo2: boolean; horaInicio2: number; horaFim2: number };
 const NOMES_DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const DISP_PADRAO: DisponibilidadeDia[] = Array.from({ length: 7 }, () => ({
   ativo: false,
   horaInicio: 9,
-  horaFim: 18,
+  horaFim: 13,
+  ativo2: false,
+  horaInicio2: 14,
+  horaFim2: 18,
 }));
 
 const CORES = [
@@ -194,9 +197,9 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
         if (p.profissionalTerceiro) setMostrarAvancado(true);
         const dispCarregada = DISP_PADRAO.map((d, i) => {
           const encontrado = (p.disponibilidades ?? []).find(
-            (x: { diaSemana: number; horaInicio: number; horaFim: number }) => x.diaSemana === i
+            (x: { diaSemana: number; horaInicio: number; horaFim: number; horaInicio2?: number | null; horaFim2?: number | null }) => x.diaSemana === i
           );
-          if (encontrado) return { ativo: true, horaInicio: encontrado.horaInicio, horaFim: encontrado.horaFim };
+          if (encontrado) return { ativo: true, horaInicio: encontrado.horaInicio, horaFim: encontrado.horaFim, ativo2: encontrado.horaInicio2 != null, horaInicio2: encontrado.horaInicio2 ?? 14, horaFim2: encontrado.horaFim2 ?? 18 };
           return { ...d };
         });
         setDisponibilidade(dispCarregada);
@@ -264,7 +267,7 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
       senha: criarLogin && campos.senha ? campos.senha : null,
       permissoes: criarLogin ? permissoes : null,
       disponibilidades: disponibilidade
-        .map((d, i) => d.ativo ? { diaSemana: i, horaInicio: d.horaInicio, horaFim: d.horaFim } : null)
+        .map((d, i) => d.ativo ? { diaSemana: i, horaInicio: d.horaInicio, horaFim: d.horaFim, horaInicio2: d.ativo2 ? d.horaInicio2 : null, horaFim2: d.ativo2 ? d.horaFim2 : null } : null)
         .filter(Boolean),
     };
 
@@ -519,30 +522,75 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
                 </div>
                 <div className="space-y-2">
                   {DISP_PADRAO.map((_, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setDisponibilidade((prev) => {
-                          const next = [...prev];
-                          next[i] = { ...next[i], ativo: !next[i].ativo };
-                          return next;
-                        })}
-                        className={cn(
-                          "w-10 text-xs font-semibold py-1 rounded border transition-colors flex-shrink-0",
-                          disponibilidade[i].ativo
-                            ? "bg-[#B89968] text-white border-[#B89968]"
-                            : "bg-white text-[#9a7d50] border-[#e8dcc4]"
+                    <div key={i} className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setDisponibilidade((prev) => {
+                            const next = [...prev];
+                            next[i] = { ...next[i], ativo: !next[i].ativo };
+                            return next;
+                          })}
+                          className={cn(
+                            "w-10 text-xs font-semibold py-1 rounded border transition-colors flex-shrink-0",
+                            disponibilidade[i].ativo
+                              ? "bg-[#B89968] text-white border-[#B89968]"
+                              : "bg-white text-[#9a7d50] border-[#e8dcc4]"
+                          )}
+                        >
+                          {NOMES_DIAS[i]}
+                        </button>
+                        {disponibilidade[i].ativo && (
+                          <>
+                            <select
+                              value={disponibilidade[i].horaInicio}
+                              onChange={(e) => setDisponibilidade((prev) => {
+                                const next = [...prev];
+                                next[i] = { ...next[i], horaInicio: Number(e.target.value) };
+                                return next;
+                              })}
+                              className="text-xs border border-[#e8dcc4] rounded px-1.5 py-1 text-[#5a4530] bg-white"
+                            >
+                              {Array.from({ length: 24 }, (_, h) => (
+                                <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                              ))}
+                            </select>
+                            <span className="text-xs text-[#9a7d50]">–</span>
+                            <select
+                              value={disponibilidade[i].horaFim}
+                              onChange={(e) => setDisponibilidade((prev) => {
+                                const next = [...prev];
+                                next[i] = { ...next[i], horaFim: Number(e.target.value) };
+                                return next;
+                              })}
+                              className="text-xs border border-[#e8dcc4] rounded px-1.5 py-1 text-[#5a4530] bg-white"
+                            >
+                              {Array.from({ length: 24 }, (_, h) => (
+                                <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                              ))}
+                            </select>
+                            {!disponibilidade[i].ativo2 && (
+                              <button
+                                type="button"
+                                onClick={() => setDisponibilidade((prev) => {
+                                  const next = [...prev];
+                                  next[i] = { ...next[i], ativo2: true };
+                                  return next;
+                                })}
+                                className="text-xs text-[#B89968] hover:text-[#9a7d50] font-bold px-1 leading-none"
+                                title="Adicionar 2º período"
+                              >+</button>
+                            )}
+                          </>
                         )}
-                      >
-                        {NOMES_DIAS[i]}
-                      </button>
-                      {disponibilidade[i].ativo && (
-                        <>
+                      </div>
+                      {disponibilidade[i].ativo && disponibilidade[i].ativo2 && (
+                        <div className="flex items-center gap-2 pl-12">
                           <select
-                            value={disponibilidade[i].horaInicio}
+                            value={disponibilidade[i].horaInicio2}
                             onChange={(e) => setDisponibilidade((prev) => {
                               const next = [...prev];
-                              next[i] = { ...next[i], horaInicio: Number(e.target.value) };
+                              next[i] = { ...next[i], horaInicio2: Number(e.target.value) };
                               return next;
                             })}
                             className="text-xs border border-[#e8dcc4] rounded px-1.5 py-1 text-[#5a4530] bg-white"
@@ -551,12 +599,12 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
                               <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
                             ))}
                           </select>
-                          <span className="text-xs text-[#9a7d50]">até</span>
+                          <span className="text-xs text-[#9a7d50]">–</span>
                           <select
-                            value={disponibilidade[i].horaFim}
+                            value={disponibilidade[i].horaFim2}
                             onChange={(e) => setDisponibilidade((prev) => {
                               const next = [...prev];
-                              next[i] = { ...next[i], horaFim: Number(e.target.value) };
+                              next[i] = { ...next[i], horaFim2: Number(e.target.value) };
                               return next;
                             })}
                             className="text-xs border border-[#e8dcc4] rounded px-1.5 py-1 text-[#5a4530] bg-white"
@@ -565,7 +613,17 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
                               <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
                             ))}
                           </select>
-                        </>
+                          <button
+                            type="button"
+                            onClick={() => setDisponibilidade((prev) => {
+                              const next = [...prev];
+                              next[i] = { ...next[i], ativo2: false };
+                              return next;
+                            })}
+                            className="text-xs text-[#9a7d50] hover:text-red-400 px-1 leading-none"
+                            title="Remover 2º período"
+                          >×</button>
+                        </div>
                       )}
                     </div>
                   ))}

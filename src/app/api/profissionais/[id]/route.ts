@@ -65,7 +65,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         },
       },
       disponibilidades: {
-        select: { diaSemana: true, horaInicio: true, horaFim: true },
+        select: { diaSemana: true, horaInicio: true, horaFim: true, horaInicio2: true, horaFim2: true },
         orderBy: { diaSemana: "asc" },
       },
     },
@@ -191,7 +191,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       // Sincronizar disponibilidades
       if (Array.isArray(body.disponibilidades)) {
         await tx.disponibilidadeProfissional.deleteMany({ where: { profissionalId: id } });
-        const dias = body.disponibilidades as { diaSemana: number; horaInicio: number; horaFim: number }[];
+        const dias = body.disponibilidades as { diaSemana: number; horaInicio: number; horaFim: number; horaInicio2?: number | null; horaFim2?: number | null }[];
         if (dias.length > 0) {
           await tx.disponibilidadeProfissional.createMany({
             data: dias.map((d) => ({
@@ -200,6 +200,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
               diaSemana: d.diaSemana,
               horaInicio: d.horaInicio,
               horaFim: d.horaFim,
+              horaInicio2: d.horaInicio2 ?? null,
+              horaFim2: d.horaFim2 ?? null,
             })),
           });
         }

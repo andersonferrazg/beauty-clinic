@@ -20,7 +20,7 @@ export async function GET() {
       agendamentoOnlineAtivo: true,
       emailNotificacoes: true,
       disponibilidades: {
-        select: { diaSemana: true, horaInicio: true, horaFim: true },
+        select: { diaSemana: true, horaInicio: true, horaFim: true, horaInicio2: true, horaFim2: true },
         orderBy: { diaSemana: "asc" },
       },
     },
