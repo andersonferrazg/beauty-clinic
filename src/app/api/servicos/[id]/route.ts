@@ -27,6 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       duracaoMin: body.duracaoMin ? Number(body.duracaoMin) : 60,
       preco: body.preco != null ? Number(body.preco) : 0,
       precoVariavel: body.precoVariavel ?? false,
+      disponivelOnline: body.disponivelOnline ?? false,
       cor: body.cor ?? "#B89968",
       descricao: body.descricao ?? null,
     },
