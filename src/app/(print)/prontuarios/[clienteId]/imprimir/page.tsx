@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import { Printer, Loader2 } from "lucide-react";
 import { TERMOS } from "@/lib/termos";
 import { CARTILHAS } from "@/lib/cartilhas";
+import { PrintHeader } from "@/components/print-header";
 
 type Cliente = {
   nome: string;
@@ -241,8 +242,6 @@ export default function ImprimirProntuarioPage({
   const [historico, setHistorico] = useState<AgendamentoHist[]>([]);
   const [orcamentos, setOrcamentos] = useState<OrcamentoHist[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [nomeClinica, setNomeClinica] = useState("Beauty Clinic");
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const [inclHistorico, setInclHistorico] = useState(true);
   const [inclOrcamentos, setInclOrcamentos] = useState(true);
@@ -260,10 +259,6 @@ export default function ImprimirProntuarioPage({
       setOrcamentos(Array.isArray(orcRes) ? orcRes : []);
       setCarregando(false);
     });
-    fetch("/api/tenant-publico")
-      .then((r) => r.json())
-      .then((d) => { setNomeClinica(d.nome); setLogoUrl(d.logoUrl ?? null); })
-      .catch(() => {});
   }, [clienteId]);
 
   if (carregando) {
@@ -286,8 +281,6 @@ export default function ImprimirProntuarioPage({
         }
         .prontuario-impressao { font-family: Geist, system-ui, sans-serif; color: #1f2937; line-height: 1.5; }
       `}</style>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');`}</style>
-
       <div className="min-h-screen bg-gray-100 prontuario-impressao">
         <div className="no-print bg-white border-b px-6 py-3 sticky top-0 z-10">
           <div className="flex items-center justify-between">
@@ -324,20 +317,15 @@ export default function ImprimirProntuarioPage({
 
         <div className="max-w-3xl mx-auto bg-white p-10 my-6 shadow-sm print:shadow-none print:my-0 print:p-0">
           {/* Cabeçalho */}
-          <div className="flex items-center gap-5 border-b-2 border-[#B89968] pb-4 mb-5">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover flex-shrink-0" />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#B89968] to-[#9a7d50] flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-xl">LB</span>
-              </div>
-            )}
-            <div>
-              <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{nomeClinica}</p>
-              <p className="text-sm text-gray-600 mt-1">Prontuário do(a) Paciente</p>
-              <p className="text-xs text-gray-500 mt-0.5">Emitido em: {new Date().toLocaleDateString("pt-BR")}</p>
-            </div>
+          <div className="border-b-2 border-[#B89968] pb-4 mb-5">
+            <PrintHeader
+              subtitulo={
+                <>
+                  <p className="text-sm text-gray-600">Prontuário do(a) Paciente</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Emitido em: {new Date().toLocaleDateString("pt-BR")}</p>
+                </>
+              }
+            />
           </div>
 
           {/* Dados pessoais */}

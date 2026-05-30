@@ -5,6 +5,7 @@ import { Printer, Loader2 } from "lucide-react";
 import { TERMOS } from "@/lib/termos";
 import { CARTILHAS } from "@/lib/cartilhas";
 import { CanvasFacePlanner, type Marcacao } from "@/components/canvas-face-planner";
+import { PrintHeader } from "@/components/print-header";
 
 type Cliente = {
   nome: string;
@@ -59,8 +60,6 @@ export default function ImprimirFichaPage({
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [proc, setProc] = useState<Procedimento | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [nomeClinica, setNomeClinica] = useState("Beauty Clinic");
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -71,10 +70,6 @@ export default function ImprimirFichaPage({
       setProc(dadosProc);
       setCarregando(false);
     });
-    fetch("/api/tenant-publico")
-      .then((r) => r.json())
-      .then((d) => { setNomeClinica(d.nome); setLogoUrl(d.logoUrl ?? null); })
-      .catch(() => {});
   }, [clienteId, fichaId]);
 
   if (carregando) {
@@ -97,7 +92,6 @@ export default function ImprimirFichaPage({
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
         @media print {
           @page { size: A4; margin: 1.5cm 1.5cm; }
           .no-print { display: none !important; }
@@ -129,20 +123,15 @@ export default function ImprimirFichaPage({
         <div className="max-w-3xl mx-auto bg-white p-10 my-6 shadow-sm print:shadow-none print:my-0 print:p-0">
 
           {/* Cabeçalho */}
-          <div className="flex items-center gap-5 border-b-2 border-[#B89968] pb-4 mb-5">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover flex-shrink-0" />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#B89968] to-[#9a7d50] flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-xl">LB</span>
-              </div>
-            )}
-            <div>
-              <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{nomeClinica}</p>
-              <p className="text-sm text-gray-600 mt-1">{tituloTipo(proc.tipo)}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Data: {formatarData(proc.data)}</p>
-            </div>
+          <div className="border-b-2 border-[#B89968] pb-4 mb-5">
+            <PrintHeader
+              subtitulo={
+                <>
+                  <p className="text-sm text-gray-600">{tituloTipo(proc.tipo)}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Data: {formatarData(proc.data)}</p>
+                </>
+              }
+            />
           </div>
 
           {/* Dados da paciente */}

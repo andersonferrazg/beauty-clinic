@@ -105,6 +105,7 @@ lunnaagenda/
 │   │       ├── auth/login/
 │   │       ├── auth/logout/
 │   │       ├── agendamentos/[id]/
+│   │       ├── agendamentos/busca/      # busca por nome de cliente (GET ?nome=)
 │   │       ├── clientes/[id]/
 │   │       ├── servicos/[id]/
 │   │       ├── profissionais/[id]/
@@ -114,6 +115,8 @@ lunnaagenda/
 │   │       ├── comissoes/[id]/
 │   │       ├── comissoes/pagar/
 │   │       ├── movimentacoes-estoque/
+│   │       ├── msgs-predefinidas/       # CRUD de templates WhatsApp
+│   │       ├── msgs-predefinidas/[id]/
 │   │       ├── prontuarios/[clienteId]/procedimentos/
 │   │       ├── prontuarios/[clienteId]/fotos/
 │   │       ├── status-agenda/
@@ -123,6 +126,9 @@ lunnaagenda/
 │   │       └── configuracoes/
 │   ├── components/
 │   │   ├── ui/                  # button, input, label, card, badge (shadcn)
+│   │   ├── agenda/
+│   │   │   ├── BuscaCliente.tsx         # busca de agendamentos por nome, agrupada por data
+│   │   │   └── PickerMensagens.tsx      # seletor de templates WhatsApp com preview e substituição de vars
 │   │   ├── sidebar.tsx
 │   │   ├── modal-agendamento.tsx
 │   │   ├── modal-cliente.tsx
@@ -141,6 +147,7 @@ lunnaagenda/
 │       ├── prisma.ts            # singleton do Prisma Client
 │       ├── session.ts           # getSessao() / exigirSessao() / criarCookieSessao()
 │       ├── finalizar-agendamento.ts  # lógica de receita + comissão + estoque
+│       ├── templateVars.ts      # substituição de variáveis em templates WhatsApp
 │       ├── termos.ts            # textos dos 12 termos de consentimento
 │       ├── cartilhas.ts         # textos das 11 cartilhas pós-procedimento
 │       └── utils.ts             # cn() helper (clsx + tailwind-merge)
@@ -346,7 +353,7 @@ useEffect(() => {
 
 ### `/agenda`
 - Grade visual por profissional (colunas) e slots de **30 minutos** (linhas)
-- **Faixa de semana começa na SEGUNDA-FEIRA** (não domingo) — fórmula: `(data.getDay() + 6) % 7`
+- **Faixa de semana começa no DOMINGO** — fórmula: `seg.setDate(data.getDate() - data.getDay())`
 - **Nomes das profissionais** exibidos numa segunda linha dentro da barra semanal fixa (sticky), fora do container de scroll — solução para o bug de iOS Safari que não renderiza `position: sticky` dentro de `overflow: auto`
 - **Colunas com `min-w-[100px]`** (antes 180px) para que 2–4 profissionais caibam na tela do celular sem scroll horizontal, alinhando os nomes com as colunas
 - Linhas cheias nas horas, linhas tracejadas nas meias horas — **ambas com label de horário** (horas em texto normal, meias horas em texto menor e mais claro)
@@ -358,6 +365,9 @@ useEffect(() => {
 - Botão "Hoje" restaura para a data atual
 - Link WhatsApp usa `https://web.whatsapp.com/send?phone=...&text=...` — garante emojis corretos no WhatsApp Desktop Windows
 - Template da mensagem WhatsApp carregado das configurações do tenant
+- **Header mobile** (`lg:hidden`) — barra fixa no topo com ícone lupa (abre `BuscaCliente`), ícone calendário (abre `CalendarioPopup`) e botão "Hoje". Posicionado em `z-20`; hamburger do sidebar flutua sobre ele em `z-50`
+- **`BuscaCliente`** — overlay de busca de agendamentos por nome de cliente. Mobile: tela cheia. Desktop: painel flutuante 420px no canto superior direito. Resultados agrupados por data (mais recente no topo), datas futuras em vermelho. Clique na data navega a agenda; clique no agendamento navega e abre o modal. Rota: `/api/agendamentos/busca?nome=`
+- **Botões de dia**: `min-w-[38px] sm:min-w-[42px]`, `px-1 sm:px-2` — garante que todos os 7 dias cabem em iPhone 12 (390px)
 
 ### `/clientes`
 - **Carrega TODOS os clientes** ao abrir (sem limite) via `?todos=true`; busca em tempo real usa `?q=` com debounce 300ms
@@ -415,9 +425,18 @@ useEffect(() => {
 ### `/configuracoes`
 - **4 abas:**
   - **Dados da Clínica** — nome, CNPJ, telefone, endereço, link NFSe
-  - **Agenda & WhatsApp** — **horário de funcionamento da agenda (Início/Fim, configurável por tenant — default 06:00 às 21:00)**, intervalo de horários (15/30/60 min), horário de envio, template da mensagem de confirmação (editável com variáveis `{primeiro_nome}`, `{dia_semana}`, `{data_curta}`, `{hora}`)
+  - **Agenda & WhatsApp** — horário de funcionamento (Início/Fim, default 06:00–21:00), intervalo de horários (15/30/60 min), horário de envio, template de confirmação WhatsApp (variáveis `{primeiro_nome}`, `{dia_semana}`, `{data_curta}`, `{hora}`), **template de mensagem de aniversário** (variáveis `{primeiro_nome}`, `{tenant_nome}`) — salvo em `TenantConfig.mensagemAniversarioWpp`
   - **Status de Agenda** — visualização dos status cadastrados (customização avançada futura)
   - **Backup** — exporta todos os dados do sistema em JSON via `/api/backup`
+
+### `/mensagens`
+- CRUD completo de templates WhatsApp pré-definidos, salvos no banco por tenant
+- Tela vazia oferece botão "Carregar templates padrão" (popula 4 templates de uma vez via POST)
+- Editar: clique no template → botão Editar → editar nome + texto → Salvar
+- Preview com bolha do WhatsApp mostrando `{nome_clinica}` substituído
+- Excluir com confirmação
+- Variáveis disponíveis: `{nome_cliente}`, `{nome_clinica}`, `{data}`, `{hora}`, `{hora_fim}`, `{servico}`, `{profissional}`, `{valor_total}`
+- Templates são isolados por tenant (multi-tenant)
 
 ### `/relatorios/performance`
 - Abas **EMPRESA** | **PROFISSIONAIS**
@@ -471,6 +490,9 @@ Todas exigem `exigirSessao()` — sem sessão retorna 401.
 | `/api/orcamentos/[id]` | GET, PATCH, DELETE | Busca / edita / remove orçamento |
 | `/api/orcamentos/from-planejamento` | POST | Converte planejamento visual em orçamento pré-preenchido |
 | `/api/tenant-publico` | GET | Nome da clínica sem auth (usado em páginas de impressão) |
+| `/api/agendamentos/busca` | GET | Busca agendamentos por nome de cliente (`?nome=`, `?limite=`, máx 100). Case-insensitive no PostgreSQL |
+| `/api/msgs-predefinidas` | GET, POST | Lista e cria templates WhatsApp por tenant |
+| `/api/msgs-predefinidas/[id]` | PATCH, DELETE | Edita nome/texto/ordem ou remove template |
 
 ---
 
@@ -489,6 +511,7 @@ Todos os modais usam **overlay fixo** (não Radix Dialog) — `fixed inset-0 z-5
 - "Mais campos" colapsável (pagamento, observação)
 - Botão de exclusão com confirmação inline (só em edição)
 - **Painel "Emitir Nota Fiscal"** — aparece somente em agendamentos finalizados (com `lancamentoId`). Exibe 7 campos prontos para copiar (Tomador, CPF, Prestador, CNPJ, Serviços, Valor, Data) + botão "Abrir sistema de NF" se `urlNFSe` estiver configurado nas Configurações.
+- **Botão WhatsApp** (ícone verde `MessageSquare`) — aparece no rodapé apenas quando há cliente com telefone cadastrado e tipo = "agendamento". Abre `PickerMensagens` com as variáveis do agendamento já preenchidas (`clienteTelefone` armazenado no state ao selecionar o cliente).
 
 ### `ModalCliente`
 - Abas: Dados | Histórico de Atendimentos
@@ -621,6 +644,50 @@ npx prisma db push
 
 ---
 
+## Fase 7 — UX Mobile + Busca na Agenda + Mensagens WhatsApp (CONCLUÍDA ✅)
+
+Commits `4210b3f` e `a26eacd` — melhorias de usabilidade no dia a dia, inspiradas no fluxo do minhaagendaapp.
+
+### O que foi construído
+
+**Agenda — melhorias mobile:**
+- **Semana começa no domingo** (antes: segunda-feira) — corrige alinhamento com a semana natural
+- **Header mobile unificado** — barra fixa no topo (`lg:hidden`) com lupa, calendário e botão "Hoje". Substitui botões flutuantes avulsos. Hamburger do sidebar fica em `z-50` por cima.
+- **Mês acima dos dias** — linha discreta acima dos botões de dia (ex: "Maio · Junho") sem repetir por dia
+- **Sábado sempre visível no iPhone 12** — largura dos botões reduzida de `min-w-[42px]` para `min-w-[38px] sm:min-w-[42px]` com `px-1 sm:px-2`
+
+**`BuscaCliente` (`src/components/agenda/BuscaCliente.tsx`):**
+- Abre pela lupa no header mobile ou ícone de busca no desktop
+- Busca agendamentos por nome via `/api/agendamentos/busca`
+- Resultados agrupados por data, ordenados do mais recente ao mais antigo
+- Datas futuras/hoje em vermelho; passadas em escuro
+- Clique na data → navega a agenda para aquele dia
+- Clique no agendamento → navega + abre modal de edição
+
+**Mensagem de aniversário editável (`TenantConfig.mensagemAniversarioWpp`):**
+- Campo novo em `TenantConfig` com template personalizável
+- UI em Configurações → aba Agenda & WhatsApp
+- `/aniversariantes` consome o template via `/api/configuracoes` com fallback para mensagem padrão
+- Variáveis: `{primeiro_nome}`, `{tenant_nome}`
+
+**Mensagens pré-definidas WhatsApp:**
+- Nova tabela `MensagemPredefinida` no banco — templates por tenant
+- CRUD completo em `/mensagens` (criar, editar, excluir, preview com bolha WA)
+- Tela vazia oferece "Carregar templates padrão" (4 templates)
+- `src/lib/templateVars.ts` — substitui `{nome_cliente}`, `{data}`, `{hora}`, `{hora_fim}`, `{servico}`, `{profissional}`, `{nome_clinica}`, `{valor_total}` com dados reais do agendamento
+- `PickerMensagens` (`src/components/agenda/PickerMensagens.tsx`) — modal com busca de templates, preview substituído e botão "Abrir WhatsApp"
+- `ModalAgendamento` ganha ícone WhatsApp verde no rodapé quando há cliente com telefone
+
+### Schema implementado (Fase 7)
+- `TenantConfig`: + `mensagemAniversarioWpp String?`
+- `MensagemPredefinida`: nova tabela com `id`, `tenantId`, `nome`, `texto`, `ordem`, `criadaEm`
+- `Tenant`: + relação `mensagensPredefinidas MensagemPredefinida[]`
+
+### Migration em produção
+Aplicada via `npx prisma db push` apontando para o pooler Supabase (2026-05-29).
+
+---
+
 ## O que ainda NÃO foi construído
 
 ### Pendente para SaaS multi-tenant
@@ -631,8 +698,10 @@ npx prisma db push
 - **Subdomínios por clínica** — `clinica-x.beautyclinic.com.br` em vez de URL única
 
 ### Infraestrutura/features pendentes
-- **WhatsApp real** — `whatsapp-web.js` com QR code e job diário 08:00h (envio atual é manual via link)
-- **Repetir Agendamento** — UI pronta no modal, lógica de recorrência não implementada
+- **WhatsApp real** — envio automático via Cloud API (Meta) ou Baileys; hoje é 100% manual via link. Toggle `TenantConfig.whatsappAtivo` já existe no schema, pronto para ligar quando a integração for implementada.
+- **Agendamento online público** — página `/agendar/[slug]` para cliente marcar horário sem login. Toggle `TenantConfig.agendamentoOnlineAtivo` já existe. Planejado com wizard 4 passos + notificação in-app (sino).
+- **Impressão do prontuário** — logo maior + fonte mais elegante (Playfair Display ou similar) nas páginas `(print)/`
+- **Repetir Agendamento** — lógica de recorrência não implementada
 
 ---
 

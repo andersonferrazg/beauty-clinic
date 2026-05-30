@@ -14,7 +14,16 @@ export async function GET() {
   const tenant = await prisma.tenant.findFirst({
     where: { ativo: true },
     orderBy: { criadoEm: "asc" },
-    select: { id: true, nome: true, logoUrl: true, corPrimaria: true, corSecundaria: true },
+    select: {
+      id: true,
+      nome: true,
+      logoUrl: true,
+      corPrimaria: true,
+      corSecundaria: true,
+      cnpj: true,
+      telefone: true,
+      endereco: true,
+    },
   });
 
   if (!tenant) {
@@ -24,6 +33,9 @@ export async function GET() {
       logoUrl: null,
       corPrimaria: "#B89968",
       corSecundaria: "#E8DCC4",
+      cnpj: null,
+      telefone: null,
+      endereco: null,
     });
   }
 
@@ -33,5 +45,8 @@ export async function GET() {
     logoUrl: tenant.logoUrl,
     corPrimaria: tenant.corPrimaria,
     corSecundaria: tenant.corSecundaria,
+    cnpj: tenant.cnpj,
+    telefone: tenant.telefone,
+    endereco: tenant.endereco,
   });
 }

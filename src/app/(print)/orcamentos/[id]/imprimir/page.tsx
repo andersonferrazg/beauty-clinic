@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { Printer, Loader2 } from "lucide-react";
+import { PrintHeader } from "@/components/print-header";
 
 type Cliente = {
   nome: string;
@@ -33,14 +34,6 @@ type Orcamento = {
   cliente: Cliente;
   profissional: Profissional | null;
   itens: Item[];
-};
-
-type Tenant = {
-  nome: string;
-  cnpj?: string | null;
-  telefone?: string | null;
-  endereco?: string | null;
-  logoUrl?: string | null;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -82,25 +75,22 @@ export default function ImprimirOrcamentoPage({
 }) {
   const { id } = use(params);
   const [orcamento, setOrcamento] = useState<Orcamento | null>(null);
-  const [tenant, setTenant] = useState<Tenant>({ nome: "Beauty Clinic" });
   const [carregando, setCarregando] = useState(true);
+  const [tenantNome, setTenantNome] = useState("Responsável");
 
   useEffect(() => {
     fetch(`/api/orcamentos/${id}`)
       .then((r) => r.json())
       .then((d) => { setOrcamento(d); setCarregando(false); })
       .catch(() => setCarregando(false));
+  }, [id]);
+
+  useEffect(() => {
     fetch("/api/tenant-publico")
       .then((r) => r.json())
-      .then((d) => setTenant({
-        nome: d.nome,
-        cnpj: d.cnpj,
-        telefone: d.telefone,
-        endereco: d.endereco,
-        logoUrl: d.logoUrl,
-      }))
+      .then((d) => { if (d.nome) setTenantNome(d.nome); })
       .catch(() => {});
-  }, [id]);
+  }, []);
 
   // Auto-print depois que carregar (delay pra renderizar imagens)
   useEffect(() => {
@@ -127,7 +117,6 @@ export default function ImprimirOrcamentoPage({
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
         @media print {
           @page { size: A4; margin: 1.5cm 1.5cm; }
           .no-print { display: none !important; }
@@ -152,20 +141,11 @@ export default function ImprimirOrcamentoPage({
 
         <div className="max-w-3xl mx-auto bg-white p-10 my-6 shadow-sm print:shadow-none print:my-0 print:p-0">
           {/* Cabeçalho */}
-          <div className="flex items-start justify-between border-b-2 border-[#B89968] pb-4 mb-6">
-            <div className="flex items-center gap-3">
-              {tenant.logoUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={tenant.logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover" />
-              )}
-              <div>
-                <p className="text-3xl font-bold text-[#B89968] tracking-wide" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{tenant.nome}</p>
-                {tenant.cnpj && <p className="text-xs text-gray-600">CNPJ {tenant.cnpj}</p>}
-                {tenant.telefone && <p className="text-xs text-gray-600">{tenant.telefone}</p>}
-                {tenant.endereco && <p className="text-xs text-gray-600">{tenant.endereco}</p>}
-              </div>
+          <div className="flex items-start justify-between gap-4 border-b-2 border-[#B89968] pb-4 mb-6">
+            <div className="flex-1 min-w-0">
+              <PrintHeader mostrarDadosClinica />
             </div>
-            <div className="text-right">
+            <div className="text-right flex-shrink-0">
               <p className="text-xs text-gray-500 uppercase tracking-wider">Orçamento</p>
               <p className="text-lg font-bold text-[#5a4530]">Nº {numeroOrc}</p>
               <p className="text-xs text-gray-500 mt-1">
@@ -277,7 +257,7 @@ export default function ImprimirOrcamentoPage({
             <div className="text-center">
               <div className="border-t border-gray-400 pt-1.5">
                 <p className="text-xs text-gray-700 font-medium">
-                  {orcamento.profissional?.nome || tenant.nome}
+                  {orcamento.profissional?.nome || tenantNome}
                 </p>
                 {orcamento.profissional?.registro && (
                   <p className="text-[10px] text-gray-500">{orcamento.profissional.registro}</p>
