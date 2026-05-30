@@ -142,6 +142,19 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      if (Array.isArray(body.disponibilidades) && body.disponibilidades.length > 0) {
+        const dias = body.disponibilidades as { diaSemana: number; horaInicio: number; horaFim: number }[];
+        await tx.disponibilidadeProfissional.createMany({
+          data: dias.map((d) => ({
+            tenantId: sessao.tenantId,
+            profissionalId: prof.id,
+            diaSemana: d.diaSemana,
+            horaInicio: d.horaInicio,
+            horaFim: d.horaFim,
+          })),
+        });
+      }
+
       return prof;
     });
 

@@ -64,6 +64,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           permissoes: true,
         },
       },
+      disponibilidades: {
+        select: { diaSemana: true, horaInicio: true, horaFim: true },
+        orderBy: { diaSemana: "asc" },
+      },
     },
   });
 
@@ -180,6 +184,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           where: { id: usuarioAtual.id },
           data: { ativo: false },
         });
+      }
+
+      // Sincronizar disponibilidades
+      if (Array.isArray(body.disponibilidades)) {
+        await tx.disponibilidadeProfissional.deleteMany({ where: { profissionalId: id } });
+        const dias = body.disponibilidades as { diaSemana: number; horaInicio: number; horaFim: number }[];
+        if (dias.length > 0) {
+          await tx.disponibilidadeProfissional.createMany({
+            data: dias.map((d) => ({
+              tenantId: sessao.tenantId,
+              profissionalId: id,
+              diaSemana: d.diaSemana,
+              horaInicio: d.horaInicio,
+              horaFim: d.horaFim,
+            })),
+          });
+        }
       }
 
       // Recalcula comissões pendentes (não pagas) deste profissional

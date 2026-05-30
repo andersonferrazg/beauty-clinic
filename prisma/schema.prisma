@@ -39,6 +39,7 @@ model Tenant {
   orcamentos           Orcamento[]
   leads                Lead[]
   mensagensPredefinidas MensagemPredefinida[]
+  notificacoes         NotificacaoSistema[]
 
   @@map("tenants")
 }
@@ -56,6 +57,8 @@ model TenantConfig {
   mensagemConfirmacaoWpp String?
   mensagemAniversarioWpp String?
   urlNFSe                String?
+  emailNotificacoes      String?
+  notificarPorEmail      Boolean @default(true)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -145,14 +148,15 @@ model Profissional {
   ativo              Boolean @default(true)
   criadoEm        DateTime         @default(now())
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  usuario       Usuario?
-  agendamentos  Agendamento[]
-  bloqueios     Bloqueio[]
-  procedimentos Procedimento[]
-  comissoes     ComissaoLancamento[]
-  orcamentos    Orcamento[]
-  leads         Lead[]
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  usuario          Usuario?
+  agendamentos     Agendamento[]
+  bloqueios        Bloqueio[]
+  procedimentos    Procedimento[]
+  comissoes        ComissaoLancamento[]
+  orcamentos       Orcamento[]
+  leads            Lead[]
+  disponibilidades DisponibilidadeProfissional[]
 
   @@unique([tenantId, email])
   @@map("profissionais")
@@ -199,6 +203,7 @@ model Servico {
   custoMaterial Float?
   descricao    String?
   precoVariavel Boolean @default(false)
+  disponivelOnline Boolean @default(false)
   produtoConsumidoId String?
   qtdConsumida       Int?    @default(1)
   ativo        Boolean  @default(true)
@@ -246,6 +251,7 @@ model Agendamento {
   formaPagamento        String?
   dataRealizado         DateTime?
   lancamentoId          String?   @unique
+  origem                String?   // "manual" | "online"
   criadoEm             DateTime  @default(now())
   atualizadoEm         DateTime  @updatedAt
 
@@ -582,4 +588,39 @@ model MensagemPredefinida {
 
   @@index([tenantId])
   @@map("mensagens_predefinidas")
+}
+
+// ─── Disponibilidade dos Profissionais (Agendamento Online) ───────────────────
+
+model DisponibilidadeProfissional {
+  id             String @id @default(cuid())
+  tenantId       String
+  profissionalId String
+  diaSemana      Int    // 0=domingo, 1=segunda, 2=terça, 3=quarta, 4=quinta, 5=sexta, 6=sábado
+  horaInicio     Int    // ex: 9 representa 09:00
+  horaFim        Int    // ex: 18 representa 18:00
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+
+  @@unique([profissionalId, diaSemana])
+  @@index([tenantId])
+  @@map("disponibilidades_profissional")
+}
+
+// ─── Notificações do Sistema (Agendamento Online) ─────────────────────────────
+
+model NotificacaoSistema {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tipo         String   // "AGENDAMENTO_ONLINE"
+  titulo       String
+  descricao    String?
+  linkRelativo String?  // ex: "/agenda?data=2026-05-30&abrir=cxyz"
+  lida         Boolean  @default(false)
+  criadaEm     DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, lida])
+  @@map("notificacoes_sistema")
 }

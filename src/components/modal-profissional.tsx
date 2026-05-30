@@ -14,6 +14,14 @@ type Props = {
   profissionalId?: string;
 };
 
+type DisponibilidadeDia = { ativo: boolean; horaInicio: number; horaFim: number };
+const NOMES_DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const DISP_PADRAO: DisponibilidadeDia[] = Array.from({ length: 7 }, () => ({
+  ativo: false,
+  horaInicio: 9,
+  horaFim: 18,
+}));
+
 const CORES = [
   "#B89968", "#9a7d50", "#c084fc", "#34d399", "#60a5fa",
   "#f87171", "#fb923c", "#facc15", "#a3e635", "#22d3ee",
@@ -114,6 +122,7 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
   const ehEdicao = !!profissionalId;
   const [campos, setCampos] = useState(CAMPOS_VAZIOS);
   const [permissoes, setPermissoes] = useState<Permissoes>(PERMISSOES_PADRAO);
+  const [disponibilidade, setDisponibilidade] = useState<DisponibilidadeDia[]>(DISP_PADRAO);
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
@@ -124,6 +133,7 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
     if (!aberto) {
       setCampos(CAMPOS_VAZIOS);
       setPermissoes(PERMISSOES_PADRAO);
+      setDisponibilidade(DISP_PADRAO);
       setErro("");
       setConfirmarExclusao(false);
       setMostrarAvancado(false);
@@ -178,6 +188,14 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
           });
         }
         if (p.profissionalTerceiro) setMostrarAvancado(true);
+        const dispCarregada = DISP_PADRAO.map((d, i) => {
+          const encontrado = (p.disponibilidades ?? []).find(
+            (x: { diaSemana: number; horaInicio: number; horaFim: number }) => x.diaSemana === i
+          );
+          if (encontrado) return { ativo: true, horaInicio: encontrado.horaInicio, horaFim: encontrado.horaFim };
+          return { ...d };
+        });
+        setDisponibilidade(dispCarregada);
       })
       .finally(() => setCarregando(false));
   }, [aberto, profissionalId]);
@@ -239,6 +257,9 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
       loginEmail: criarLogin ? campos.loginEmail.trim() : null,
       senha: criarLogin && campos.senha ? campos.senha : null,
       permissoes: criarLogin ? permissoes : null,
+      disponibilidades: disponibilidade
+        .map((d, i) => d.ativo ? { diaSemana: i, horaInicio: d.horaInicio, horaFim: d.horaFim } : null)
+        .filter(Boolean),
     };
 
     const url = ehEdicao ? `/api/profissionais/${profissionalId}` : "/api/profissionais";
@@ -478,6 +499,71 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
                     className="border-[#B89968]/30"
                   />
                 )}
+              </div>
+
+              {/* ─── Disponibilidade para Agendamento Online ─── */}
+              <div className="border-t border-[#e8dcc4] pt-4 space-y-2">
+                <div>
+                  <p className="text-xs font-semibold text-[#9a7d50] uppercase tracking-wide mb-0.5">
+                    Dias disponíveis para agendamento online
+                  </p>
+                  <p className="text-[11px] text-[#9a7d50] mb-3">
+                    Marque os dias que ela atende. Pode alterar quando quiser (ex: no fim do ano adicionar sábado e domingo).
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {DISP_PADRAO.map((_, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDisponibilidade((prev) => {
+                          const next = [...prev];
+                          next[i] = { ...next[i], ativo: !next[i].ativo };
+                          return next;
+                        })}
+                        className={cn(
+                          "w-10 text-xs font-semibold py-1 rounded border transition-colors flex-shrink-0",
+                          disponibilidade[i].ativo
+                            ? "bg-[#B89968] text-white border-[#B89968]"
+                            : "bg-white text-[#9a7d50] border-[#e8dcc4]"
+                        )}
+                      >
+                        {NOMES_DIAS[i]}
+                      </button>
+                      {disponibilidade[i].ativo && (
+                        <>
+                          <select
+                            value={disponibilidade[i].horaInicio}
+                            onChange={(e) => setDisponibilidade((prev) => {
+                              const next = [...prev];
+                              next[i] = { ...next[i], horaInicio: Number(e.target.value) };
+                              return next;
+                            })}
+                            className="text-xs border border-[#e8dcc4] rounded px-1.5 py-1 text-[#5a4530] bg-white"
+                          >
+                            {Array.from({ length: 24 }, (_, h) => (
+                              <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                            ))}
+                          </select>
+                          <span className="text-xs text-[#9a7d50]">até</span>
+                          <select
+                            value={disponibilidade[i].horaFim}
+                            onChange={(e) => setDisponibilidade((prev) => {
+                              const next = [...prev];
+                              next[i] = { ...next[i], horaFim: Number(e.target.value) };
+                              return next;
+                            })}
+                            className="text-xs border border-[#e8dcc4] rounded px-1.5 py-1 text-[#5a4530] bg-white"
+                          >
+                            {Array.from({ length: 24 }, (_, h) => (
+                              <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                            ))}
+                          </select>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* ─── Não Possui Agenda ─── */}
