@@ -21,8 +21,8 @@ Agradeço a compreensão 🥰`;
 const TEMPLATE_ANIVERSARIO_PADRAO = `Olá, {primeiro_nome}! 🎂 Feliz Aniversário! Toda a equipe da {tenant_nome} deseja um dia maravilhoso para você! ✨`;
 
 type Config = {
-  tenant: { id: string; nome: string; cnpj: string | null; telefone: string | null; endereco: string | null; corPrimaria: string } | null;
-  config: { intervaloAgendaMin: number; horarioEnvioWpp: string; mensagemConfirmacaoWpp: string | null; mensagemAniversarioWpp: string | null; urlNFSe: string | null; horaInicioAgenda: number; horaFimAgenda: number } | null;
+  tenant: { id: string; nome: string; slug: string; cnpj: string | null; telefone: string | null; endereco: string | null; corPrimaria: string } | null;
+  config: { intervaloAgendaMin: number; horarioEnvioWpp: string; mensagemConfirmacaoWpp: string | null; mensagemAniversarioWpp: string | null; urlNFSe: string | null; horaInicioAgenda: number; horaFimAgenda: number; agendamentoOnlineAtivo: boolean; emailNotificacoes: string | null } | null;
   status: StatusAgenda[];
 };
 
@@ -52,6 +52,9 @@ export default function ConfiguracoesPage() {
   const [mensagemAniv, setMensagemAniv] = useState(TEMPLATE_ANIVERSARIO_PADRAO);
   const [horaInicio, setHoraInicio] = useState(6);
   const [horaFim, setHoraFim] = useState(21);
+  const [agendOnlineAtivo, setAgendOnlineAtivo] = useState(false);
+  const [emailNotif, setEmailNotif] = useState("");
+  const [slugTenant, setSlugTenant] = useState("");
 
   useEffect(() => {
     fetch("/api/configuracoes")
@@ -59,6 +62,7 @@ export default function ConfiguracoesPage() {
       .then((d: Config) => {
         setDados(d);
         if (d.tenant) {
+          setSlugTenant(d.tenant.slug ?? "");
           setNomeCli(d.tenant.nome);
           setCnpj(d.tenant.cnpj ?? "");
           setTelefone(d.tenant.telefone ?? "");
@@ -72,6 +76,8 @@ export default function ConfiguracoesPage() {
           setUrlNFSe(d.config.urlNFSe ?? "");
           setHoraInicio(d.config.horaInicioAgenda ?? 6);
           setHoraFim(d.config.horaFimAgenda ?? 21);
+          setAgendOnlineAtivo(d.config.agendamentoOnlineAtivo ?? false);
+          setEmailNotif(d.config.emailNotificacoes ?? "");
         }
       })
       .finally(() => setCarregando(false));
@@ -84,7 +90,7 @@ export default function ConfiguracoesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tenant: { nome: nomeCli, cnpj, telefone, endereco },
-        config: { intervaloAgendaMin: intervalo, horarioEnvioWpp: horarioWpp, mensagemConfirmacaoWpp: mensagemWpp, mensagemAniversarioWpp: mensagemAniv, urlNFSe, horaInicioAgenda: horaInicio, horaFimAgenda: horaFim },
+        config: { intervaloAgendaMin: intervalo, horarioEnvioWpp: horarioWpp, mensagemConfirmacaoWpp: mensagemWpp, mensagemAniversarioWpp: mensagemAniv, urlNFSe, horaInicioAgenda: horaInicio, horaFimAgenda: horaFim, agendamentoOnlineAtivo: agendOnlineAtivo, emailNotificacoes: emailNotif || null },
       }),
     });
     setSalvando(false);
@@ -163,6 +169,57 @@ export default function ConfiguracoesPage() {
       {/* Seção: Agenda & WhatsApp */}
       {secao === "agenda" && (
         <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 space-y-5 shadow-sm">
+
+          {/* Agendamento Online */}
+          <div className="border border-[#e8dcc4] rounded-xl p-4 space-y-3 bg-[#faf5ee]/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#5a4530]">Agendamento Online</p>
+                <p className="text-xs text-[#9a7d50]">Permite que clientes marquem horário pelo link público</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAgendOnlineAtivo((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${agendOnlineAtivo ? "bg-[#B89968]" : "bg-gray-300"}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${agendOnlineAtivo ? "translate-x-6" : "translate-x-1"}`} />
+              </button>
+            </div>
+
+            {agendOnlineAtivo && slugTenant && (
+              <>
+                <div>
+                  <Label className="text-xs text-[#9a7d50] mb-1 block">Link público para as clientes</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      readOnly
+                      value={`${typeof window !== "undefined" ? window.location.origin : ""}/agendar/${slugTenant}`}
+                      className="flex-1 border border-[#e8dcc4] rounded-lg px-3 py-1.5 text-xs text-[#5a4530] bg-white select-all"
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(`${window.location.origin}/agendar/${slugTenant}`)}
+                      className="text-xs border border-[#e8dcc4] rounded-lg px-3 py-1.5 text-[#9a7d50] hover:bg-[#faf5ee] whitespace-nowrap"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-[#9a7d50] mb-1 block">E-mail para receber notificações de novos agendamentos (opcional)</Label>
+                  <input
+                    type="email"
+                    value={emailNotif}
+                    onChange={(e) => setEmailNotif(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="w-full border border-[#e8dcc4] rounded-lg px-3 py-1.5 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
           <div>
             <Label className="text-xs text-[#9a7d50] mb-2 block">Horário de funcionamento da agenda</Label>
             <div className="grid grid-cols-2 gap-3">

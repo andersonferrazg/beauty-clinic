@@ -8,7 +8,7 @@ export async function GET() {
   const [tenant, config, status] = await Promise.all([
     prisma.tenant.findUnique({
       where: { id: sessao.tenantId },
-      select: { id: true, nome: true, cnpj: true, telefone: true, endereco: true, corPrimaria: true },
+      select: { id: true, nome: true, cnpj: true, telefone: true, endereco: true, corPrimaria: true, slug: true },
     }),
     prisma.tenantConfig.findUnique({ where: { tenantId: sessao.tenantId } }),
     prisma.statusAgenda.findMany({
@@ -45,6 +45,9 @@ export async function PATCH(req: NextRequest) {
         horarioEnvioWpp: body.config.horarioEnvioWpp ?? "08:00",
         horaInicioAgenda: body.config.horaInicioAgenda ?? 6,
         horaFimAgenda: body.config.horaFimAgenda ?? 21,
+        agendamentoOnlineAtivo: body.config.agendamentoOnlineAtivo ?? false,
+        emailNotificacoes: body.config.emailNotificacoes || null,
+        notificarPorEmail: body.config.notificarPorEmail ?? true,
       },
       update: {
         intervaloAgendaMin: body.config.intervaloAgendaMin ?? 30,
@@ -54,6 +57,9 @@ export async function PATCH(req: NextRequest) {
         urlNFSe: body.config.urlNFSe || null,
         horaInicioAgenda: body.config.horaInicioAgenda ?? 6,
         horaFimAgenda: body.config.horaFimAgenda ?? 21,
+        agendamentoOnlineAtivo: body.config.agendamentoOnlineAtivo ?? false,
+        emailNotificacoes: body.config.emailNotificacoes || null,
+        notificarPorEmail: body.config.notificarPorEmail ?? true,
       },
     });
   }

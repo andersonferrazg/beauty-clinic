@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const ROTAS_PUBLICAS = ["/login"];
+const ROTAS_PUBLICAS = ["/login", "/agendar"];
 
 type Permissoes = Record<string, boolean>;
 

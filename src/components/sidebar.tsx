@@ -26,6 +26,7 @@ import {
   Send,
   Gift,
   Kanban,
+  Bell,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Permissoes } from "@/lib/session";
@@ -61,6 +62,7 @@ const navegacao: NavItem[] = [
   { href: "/orcamentos", label: "Orçamentos", icon: FileText, visivel: (p) => p.isAdmin || p.acessarFinanceiro },
   { href: "/confirmacoes", label: "Confirmações WA", icon: Send, visivel: (p) => p.isAdmin || p.verAgenda },
   { href: "/mensagens", label: "Msgs Pré-definidas", icon: MessageSquare, visivel: (p) => p.isAdmin || p.acessarServicos },
+  { href: "/notificacoes", label: "Notificações", icon: Bell, visivel: admin },
   { href: "/profissionais", label: "Profissionais", icon: Users, visivel: admin },
   { divisor: true, label: "Relatórios" },
   { href: "/relatorios/performance", label: "Performance", icon: BarChart2, visivel: (p) => p.isAdmin || p.acessarRelatorios },
@@ -77,6 +79,7 @@ export function Sidebar() {
   const [saindo, setSaindo] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [permissoes, setPermissoes] = useState<Permissoes | null>(null);
+  const [notifNaoLidas, setNotifNaoLidas] = useState(0);
 
   useEffect(() => {
     fetch("/api/tenant-publico")
@@ -90,6 +93,20 @@ export function Sidebar() {
       .then((r) => r.json())
       .then((s) => { if (s?.permissoes) setPermissoes(s.permissoes); })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    function buscarNotif() {
+      fetch("/api/notificacoes")
+        .then((r) => r.json())
+        .then((d: { lida: boolean }[]) => {
+          if (Array.isArray(d)) setNotifNaoLidas(d.filter((n) => !n.lida).length);
+        })
+        .catch(() => {});
+    }
+    buscarNotif();
+    const t = setInterval(buscarNotif, 30_000);
+    return () => clearInterval(t);
   }, []);
 
   async function sair() {
@@ -177,6 +194,7 @@ export function Sidebar() {
             const ativo = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
 
+            const ehNotif = item.href === "/notificacoes";
             return (
               <Link
                 key={item.href}
@@ -190,7 +208,12 @@ export function Sidebar() {
                 )}
               >
                 <Icon size={17} />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {ehNotif && notifNaoLidas > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {notifNaoLidas > 9 ? "9+" : notifNaoLidas}
+                  </span>
+                )}
               </Link>
             );
           })}

@@ -46,6 +46,7 @@ const CAMPOS_VAZIOS = {
   duracaoMin: 60,
   preco: "",
   precoVariavel: false,
+  disponivelOnline: false,
   cor: "#B89968",
   descricao: "",
 };
@@ -78,6 +79,7 @@ export function ModalServico({ aberto, onFechar, onSalvo, servicoId }: Props) {
           duracaoMin: s.duracaoMin ?? 60,
           preco: s.preco?.toString() ?? "",
           precoVariavel: s.precoVariavel ?? false,
+          disponivelOnline: s.disponivelOnline ?? false,
           cor: s.cor ?? "#B89968",
           descricao: s.descricao ?? "",
         });
@@ -100,6 +102,7 @@ export function ModalServico({ aberto, onFechar, onSalvo, servicoId }: Props) {
       duracaoMin: campos.duracaoMin,
       preco: campos.precoVariavel ? 0 : parseFloat(campos.preco) || 0,
       precoVariavel: campos.precoVariavel,
+      disponivelOnline: campos.disponivelOnline,
       cor: campos.cor,
       descricao: campos.descricao || null,
     };
@@ -231,6 +234,21 @@ export function ModalServico({ aberto, onFechar, onSalvo, servicoId }: Props) {
                     Variável
                   </label>
                 </div>
+              </div>
+
+              {/* Disponível para agendamento online */}
+              <div className="flex items-start gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="disponivelOnline"
+                  checked={campos.disponivelOnline}
+                  onChange={(e) => set("disponivelOnline", e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-[#B89968]"
+                />
+                <label htmlFor="disponivelOnline" className="text-xs text-[#5a4530] select-none cursor-pointer">
+                  <span className="font-medium">Disponível para agendamento online</span>
+                  <p className="text-[11px] text-[#9a7d50] mt-0.5">Aparece na página pública para as clientes marcarem horário</p>
+                </label>
               </div>
 
               {/* Cor */}
