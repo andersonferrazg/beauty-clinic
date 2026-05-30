@@ -143,8 +143,10 @@ model Profissional {
   cnpj               String?
   direcaoComissao    String  @default("CLINICA_PAGA")
   frequenciaComissao String  @default("MENSAL") // DIARIA | SEMANAL | QUINZENAL | MENSAL
-  possuiAgenda       Boolean @default(true)
-  profissionalTerceiro Boolean @default(false)
+  possuiAgenda              Boolean @default(true)
+  profissionalTerceiro      Boolean @default(false)
+  agendamentoOnlineAtivo    Boolean @default(false)
+  emailNotificacoes         String?
   ativo              Boolean @default(true)
   criadoEm        DateTime         @default(now())
 

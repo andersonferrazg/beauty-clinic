@@ -20,6 +20,13 @@ function mascaraTelefone(v: string) {
   return n.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3").replace(/-$/, "");
 }
 
+function mascaraCpf(v: string) {
+  return v.replace(/\D/g, "").slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
 function CalendarioSimples({
   diasAtivos,
   selecionado,
@@ -117,6 +124,8 @@ export default function AgendarPage({ params }: { params: Promise<{ slug: string
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -179,6 +188,8 @@ export default function AgendarPage({ params }: { params: Promise<{ slug: string
           nome: nome.trim(),
           telefone: telefone.replace(/\D/g, ""),
           email: email.trim() || undefined,
+          cpf: cpf.trim() || undefined,
+          dataNascimento: dataNascimento || undefined,
           website: "", // honeypot
         }),
       });
@@ -436,6 +447,26 @@ export default function AgendarPage({ params }: { params: Promise<{ slug: string
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
                   className="w-full border border-[#e8dcc4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#B89968]"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-[#9a7d50] block mb-1">CPF (opcional — para nota fiscal)</label>
+                <input
+                  type="text"
+                  value={cpf}
+                  onChange={(e) => setCpf(mascaraCpf(e.target.value))}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                  className="w-full border border-[#e8dcc4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#B89968]"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-[#9a7d50] block mb-1">Data de nascimento (opcional)</label>
+                <input
+                  type="date"
+                  value={dataNascimento}
+                  onChange={(e) => setDataNascimento(e.target.value)}
+                  className="w-full border border-[#e8dcc4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#B89968] text-[#5a4530]"
                 />
               </div>
               {/* Honeypot — invisível */}

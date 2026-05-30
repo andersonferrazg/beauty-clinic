@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
   }
 
   const profissionais = await prisma.profissional.findMany({
-    where: { tenantId: tenant.id, ativo: true, possuiAgenda: true },
+    where: { tenantId: tenant.id, ativo: true, possuiAgenda: true, agendamentoOnlineAtivo: true },
     select: {
       id: true,
       nome: true,

@@ -116,6 +116,8 @@ const CAMPOS_VAZIOS = {
   // Toggles
   naoPossuiAgenda: false,
   profissionalTerceiro: false,
+  agendamentoOnlineAtivo: false,
+  emailNotificacoes: "",
 };
 
 export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }: Props) {
@@ -167,6 +169,8 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
           cnpj: p.cnpj ? mascaraCnpj(p.cnpj) : "",
           naoPossuiAgenda: p.possuiAgenda === false,
           profissionalTerceiro: !!p.profissionalTerceiro,
+          agendamentoOnlineAtivo: !!p.agendamentoOnlineAtivo,
+          emailNotificacoes: p.emailNotificacoes ?? "",
         });
         if (p.usuario?.permissoes) {
           const perm = p.usuario.permissoes;
@@ -253,6 +257,8 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
       cnpj: campos.tipoDocumento === "CNPJ" && cnpjNumeros ? cnpjNumeros : null,
       possuiAgenda: !campos.naoPossuiAgenda,
       profissionalTerceiro: campos.profissionalTerceiro,
+      agendamentoOnlineAtivo: campos.agendamentoOnlineAtivo,
+      emailNotificacoes: campos.emailNotificacoes || null,
       criarLogin,
       loginEmail: criarLogin ? campos.loginEmail.trim() : null,
       senha: criarLogin && campos.senha ? campos.senha : null,
@@ -564,6 +570,36 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* ─── Agendamento Online (toggle + e-mail) ─── */}
+              <div className="border-t border-[#e8dcc4] pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-[#9a7d50] uppercase tracking-wide">Agendamento Online</p>
+                    <p className="text-[11px] text-[#9a7d50] mt-0.5">Permite que clientes marquem horário com esta profissional</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => set("agendamentoOnlineAtivo", !campos.agendamentoOnlineAtivo)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none flex-shrink-0 ${campos.agendamentoOnlineAtivo ? "bg-[#B89968]" : "bg-gray-300"}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${campos.agendamentoOnlineAtivo ? "translate-x-6" : "translate-x-1"}`} />
+                  </button>
+                </div>
+                {campos.agendamentoOnlineAtivo && (
+                  <div>
+                    <Label className="text-xs text-[#9a7d50] mb-1 block">E-mail para notificações (opcional)</Label>
+                    <Input
+                      type="email"
+                      value={campos.emailNotificacoes}
+                      onChange={(e) => set("emailNotificacoes", e.target.value)}
+                      placeholder="email@exemplo.com"
+                      className="border-[#B89968]/30"
+                    />
+                    <p className="text-[11px] text-[#9a7d50] mt-0.5">Recebe aviso quando uma cliente marcar horário com ela</p>
+                  </div>
+                )}
               </div>
 
               {/* ─── Não Possui Agenda ─── */}

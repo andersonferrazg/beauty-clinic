@@ -132,6 +132,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           frequenciaComissao: body.frequenciaComissao ?? "MENSAL",
           possuiAgenda: body.possuiAgenda !== false,
           profissionalTerceiro: !!body.profissionalTerceiro,
+          agendamentoOnlineAtivo: !!body.agendamentoOnlineAtivo,
+          emailNotificacoes: body.emailNotificacoes || null,
         },
       });
 

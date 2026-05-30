@@ -27,6 +27,7 @@ import {
   Gift,
   Kanban,
   Bell,
+  UserCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Permissoes } from "@/lib/session";
@@ -62,6 +63,7 @@ const navegacao: NavItem[] = [
   { href: "/orcamentos", label: "Orçamentos", icon: FileText, visivel: (p) => p.isAdmin || p.acessarFinanceiro },
   { href: "/confirmacoes", label: "Confirmações WA", icon: Send, visivel: (p) => p.isAdmin || p.verAgenda },
   { href: "/mensagens", label: "Msgs Pré-definidas", icon: MessageSquare, visivel: (p) => p.isAdmin || p.acessarServicos },
+  { href: "/minha-conta", label: "Minha Conta", icon: UserCircle, visivel: sempre },
   { href: "/notificacoes", label: "Notificações", icon: Bell, visivel: admin },
   { href: "/profissionais", label: "Profissionais", icon: Users, visivel: admin },
   { divisor: true, label: "Relatórios" },

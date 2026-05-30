@@ -18,13 +18,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     return NextResponse.json({ erro: "Inválido." }, { status: 400 });
   }
 
-  const { servicoId, profissionalId, inicio, nome, telefone, email } = body as {
+  const { servicoId, profissionalId, inicio, nome, telefone, email, cpf, dataNascimento } = body as {
     servicoId: string;
     profissionalId: string;
     inicio: string;
     nome: string;
     telefone: string;
     email?: string;
+    cpf?: string;
+    dataNascimento?: string;
   };
 
   if (!servicoId || !profissionalId || !inicio || !nome || !telefone) {
@@ -45,6 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
         select: {
           agendamentoOnlineAtivo: true,
           intervaloAgendaMin: true,
+          emailNotificacoes: true,
         },
       },
     },
@@ -54,11 +57,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     return NextResponse.json({ erro: "Agendamento online indisponível." }, { status: 403 });
   }
 
-  const servico = await prisma.servico.findFirst({
-    where: { id: servicoId, tenantId: tenant.id, ativo: true, disponivelOnline: true },
-    select: { id: true, nome: true, duracaoMin: true },
-  });
+  const [servico, profissional] = await Promise.all([
+    prisma.servico.findFirst({
+      where: { id: servicoId, tenantId: tenant.id, ativo: true, disponivelOnline: true },
+      select: { id: true, nome: true, duracaoMin: true },
+    }),
+    prisma.profissional.findFirst({
+      where: { id: profissionalId, tenantId: tenant.id, ativo: true, agendamentoOnlineAtivo: true },
+      select: { id: true, nome: true, emailNotificacoes: true },
+    }),
+  ]);
   if (!servico) return NextResponse.json({ erro: "Serviço não encontrado." }, { status: 404 });
+  if (!profissional) return NextResponse.json({ erro: "Profissional não disponível." }, { status: 404 });
 
   const inicioDate = new Date(inicio);
   const fimDate = new Date(inicioDate.getTime() + servico.duracaoMin * 60_000);
@@ -78,6 +88,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
 
   // Buscar ou criar cliente pelo telefone
   const telBusca = telNumeros.slice(-11);
+  const cpfNumeros = cpf ? cpf.replace(/\D/g, "") : null;
+  const nascimento = dataNascimento ? new Date(dataNascimento + "T12:00:00") : null;
+
   let cliente = await prisma.cliente.findFirst({
     where: {
       tenantId: tenant.id,
@@ -93,6 +106,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
         nome: nome.trim(),
         telefone1: telefone,
         email: email?.trim() || null,
+        cpf: cpfNumeros || null,
+        dataNascimento: nascimento,
+      },
+    });
+  } else {
+    // Atualizar campos vazios da cliente existente
+    await prisma.cliente.update({
+      where: { id: cliente.id },
+      data: {
+        ...(cpfNumeros && !cliente.cpf ? { cpf: cpfNumeros } : {}),
+        ...(nascimento && !cliente.dataNascimento ? { dataNascimento: nascimento } : {}),
+        ...(email?.trim() && !cliente.email ? { email: email.trim() } : {}),
       },
     });
   }
@@ -127,10 +152,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       tenantId: tenant.id,
       tipo: "AGENDAMENTO_ONLINE",
       titulo: `Nova solicitação: ${nome.trim()}`,
-      descricao: `${servico.nome} em ${dataFormatada} às ${horaFormatada}`,
+      descricao: `${servico.nome} com ${profissional.nome} em ${dataFormatada} às ${horaFormatada}`,
       linkRelativo: `/agenda?data=${inicioDate.toISOString().slice(0, 10)}&abrir=${agendamento.id}`,
     },
   });
+
+  // Enviar e-mail de notificação (profissional tem prioridade sobre e-mail da clínica)
+  const emailDestino = profissional.emailNotificacoes || tenant.configuracoes?.emailNotificacoes;
+  if (emailDestino) {
+    try {
+      const { enviarEmail } = await import("@/lib/email");
+      await enviarEmail({
+        para: emailDestino,
+        assunto: `Nova solicitação de agendamento: ${nome.trim()}`,
+        html: `
+          <p>Olá!</p>
+          <p>Uma nova solicitação de agendamento foi recebida:</p>
+          <ul>
+            <li><strong>Cliente:</strong> ${nome.trim()}</li>
+            <li><strong>Telefone:</strong> ${telefone}</li>
+            ${email ? `<li><strong>E-mail:</strong> ${email}</li>` : ""}
+            <li><strong>Serviço:</strong> ${servico.nome}</li>
+            <li><strong>Profissional:</strong> ${profissional.nome}</li>
+            <li><strong>Data/hora:</strong> ${dataFormatada} às ${horaFormatada}</li>
+          </ul>
+          <p>Acesse o sistema para confirmar o agendamento.</p>
+        `,
+      });
+    } catch {
+      // Falha no e-mail não bloqueia o agendamento
+    }
+  }
 
   return NextResponse.json({ ok: true, agendamentoId: agendamento.id }, { status: 201 });
 }
