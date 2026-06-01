@@ -40,6 +40,7 @@ model Tenant {
   leads                Lead[]
   mensagensPredefinidas MensagemPredefinida[]
   notificacoes         NotificacaoSistema[]
+  formasPagamento      FormaPagamento[]
 
   @@map("tenants")
 }
@@ -143,6 +144,7 @@ model Profissional {
   cnpj               String?
   direcaoComissao    String  @default("CLINICA_PAGA")
   frequenciaComissao String  @default("MENSAL") // DIARIA | SEMANAL | QUINZENAL | MENSAL
+  comissaoSobre      String  @default("BRUTO") // BRUTO | LIQUIDO
   possuiAgenda              Boolean @default(true)
   profissionalTerceiro      Boolean @default(false)
   agendamentoOnlineAtivo    Boolean @default(false)
@@ -223,12 +225,13 @@ model Servico {
 // ─── Agendamentos ─────────────────────────────────────────────────────────────
 
 model StatusAgenda {
-  id          String  @id @default(cuid())
-  tenantId    String
-  nome        String
-  cor         String  @default("#cccccc")
+  id              String  @id @default(cuid())
+  tenantId        String
+  nome            String
+  cor             String  @default("#cccccc")
   contaConfirmado Boolean @default(false)
-  ordem       Int     @default(0)
+  ordem           Int     @default(0)
+  sistemico       Boolean @default(false)
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   agendamentos Agendamento[]
@@ -351,19 +354,22 @@ model Produto {
 // ─── Financeiro ───────────────────────────────────────────────────────────────
 
 model Lancamento {
-  id           String    @id @default(cuid())
-  tenantId     String
-  tipo         String    // RECEITA | DESPESA
-  categoria    String?
-  descricao    String
-  valor        Float
-  vencimento   DateTime?
-  pagoEm      DateTime?
-  pago         Boolean   @default(false)
-  recorrencia  String?   // MENSAL | SEMANAL | ANUAL
-  formaPagamento String?
-  origem       String?   // AUTO_ATENDIMENTO | AUTO_RECORRENCIA | AUTO_COMISSAO | MANUAL
-  criadoEm    DateTime  @default(now())
+  id              String    @id @default(cuid())
+  tenantId        String
+  tipo            String    // RECEITA | DESPESA
+  categoria       String?
+  descricao       String
+  valor           Float     // líquido (após taxa, se houver); igual ao bruto quando sem taxa
+  valorBruto      Float?    // valor original antes da taxa (null = sem taxa)
+  taxa            Float?    // R$ absoluto de taxa descontada
+  percentualTaxa  Float?    // % aplicado
+  vencimento      DateTime?
+  pagoEm          DateTime?
+  pago            Boolean   @default(false)
+  recorrencia     String?   // MENSAL | SEMANAL | ANUAL
+  formaPagamento  String?
+  origem          String?   // AUTO_ATENDIMENTO | AUTO_RECORRENCIA | AUTO_COMISSAO | MANUAL
+  criadoEm        DateTime  @default(now())
 
   tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   agendamento         Agendamento?         @relation("AgendamentoReceita")
@@ -629,6 +635,23 @@ model DisponibilidadeData {
   @@unique([profissionalId, data])
   @@index([tenantId])
   @@map("disponibilidades_data")
+}
+
+// ─── Formas de Pagamento ──────────────────────────────────────────────────────
+
+model FormaPagamento {
+  id             String  @id @default(cuid())
+  tenantId       String
+  nome           String
+  percentualTaxa Float   @default(0)
+  ativa          Boolean @default(true)
+  ordem          Int     @default(0)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, nome])
+  @@index([tenantId])
+  @@map("formas_pagamento")
 }
 
 // ─── Notificações do Sistema (Agendamento Online) ─────────────────────────────

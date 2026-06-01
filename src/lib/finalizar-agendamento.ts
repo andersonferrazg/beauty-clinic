@@ -60,6 +60,7 @@ type AgendamentoComItens = Awaited<ReturnType<typeof prisma.agendamento.findFirs
     salarioFixo: number | null;
     direcaoComissao: string;
     profissionalTerceiro: boolean;
+    comissaoSobre: string;
   };
   cliente: { id: string; nome: string } | null;
   lancamentoId: string | null;
@@ -67,7 +68,6 @@ type AgendamentoComItens = Awaited<ReturnType<typeof prisma.agendamento.findFirs
 
 async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
   // Profissional terceiro: atendimento não entra no financeiro da clínica.
-  // Só marca o agendamento como realizado, sem criar receita, comissão ou movimentar estoque.
   if (agendamento.profissional.profissionalTerceiro) {
     await prisma.agendamento.update({
       where: { id: agendamento.id },
@@ -76,15 +76,32 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
     return;
   }
 
-  const valorTotal = agendamento.itens.reduce(
+  const valorBruto = agendamento.itens.reduce(
     (sum, item) => sum + item.preco * item.quantidade,
     0,
   );
 
+  // Buscar taxa da forma de pagamento (se houver)
+  let taxaPercentual = 0;
+  let taxaValor = 0;
+  let valorLiquido = valorBruto;
+
+  if (agendamento.formaPagamento) {
+    const formaPgto = await prisma.formaPagamento.findFirst({
+      where: { tenantId, nome: agendamento.formaPagamento, ativa: true },
+      select: { percentualTaxa: true },
+    });
+    if (formaPgto && formaPgto.percentualTaxa > 0) {
+      taxaPercentual = formaPgto.percentualTaxa;
+      taxaValor = Math.round(valorBruto * (taxaPercentual / 100) * 100) / 100;
+      valorLiquido = Math.round((valorBruto - taxaValor) * 100) / 100;
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     let lancamentoId: string | null = null;
 
-    if (valorTotal > 0) {
+    if (valorBruto > 0) {
       const profNome = agendamento.profissional.nome;
       const cliNome = agendamento.cliente?.nome ?? "Atendimento avulso";
       const descricao = `${cliNome} — ${profNome}`;
@@ -95,7 +112,10 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
           tipo: "RECEITA",
           categoria: "Atendimento",
           descricao,
-          valor: valorTotal,
+          valor: valorLiquido,
+          valorBruto: taxaValor > 0 ? valorBruto : null,
+          taxa: taxaValor > 0 ? taxaValor : null,
+          percentualTaxa: taxaValor > 0 ? taxaPercentual : null,
           pago: true,
           pagoEm: new Date(),
           formaPagamento: agendamento.formaPagamento ?? null,
@@ -104,19 +124,21 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
       });
       lancamentoId = lancamento.id;
 
-      // Calcular comissão
+      // Base para comissão: bruto ou líquido conforme configuração da profissional
       const prof = agendamento.profissional;
+      const baseComissao = prof.comissaoSobre === "LIQUIDO" ? valorLiquido : valorBruto;
+
       let valorComissao = 0;
       let percentualUsado: number | null = null;
 
       if (prof.tipoComissao === "INTEGRAL") {
-        valorComissao = valorTotal;
+        valorComissao = baseComissao;
         percentualUsado = 100;
       } else if (
         (prof.tipoComissao === "PERCENTUAL" || prof.tipoComissao === "MISTO") &&
         prof.percentualComissao
       ) {
-        valorComissao = valorTotal * (prof.percentualComissao / 100);
+        valorComissao = baseComissao * (prof.percentualComissao / 100);
         percentualUsado = prof.percentualComissao;
       }
       // SALARIO_FIXO não gera comissão por atendimento
@@ -127,7 +149,7 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
             tenantId,
             lancamentoId: lancamento.id,
             profissionalId: prof.id,
-            valorBase: valorTotal,
+            valorBase: baseComissao,
             percentual: percentualUsado,
             direcaoComissao: prof.direcaoComissao ?? "CLINICA_PAGA",
             valorComissao,
@@ -141,7 +163,7 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
       where: { id: agendamento.id },
       data: {
         dataRealizado: new Date(),
-        valorTotal: valorTotal || agendamento.valorTotal,
+        valorTotal: valorBruto || agendamento.valorTotal,
         ...(lancamentoId ? { lancamentoId } : {}),
       },
     });

@@ -132,7 +132,7 @@ function ModalLancamento({
           <button onClick={onFechar} className="text-[#9a7d50] hover:text-[#5a4530]"><X size={20} /></button>
         </div>
 
-        <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
+        <div className="p-5 space-y-4 max-h-[65dvh] overflow-y-auto">
           {!ehEdicao && (
             <div className="flex gap-2">
               {(["RECEITA", "DESPESA"] as const).map((t) => (

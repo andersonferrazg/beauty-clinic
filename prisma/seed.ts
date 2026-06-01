@@ -35,23 +35,46 @@ async function main() {
     },
   });
 
-  // Status padrão da agenda (igual ao minhaagendaapp) — limpar e recriar
-  await prisma.statusAgenda.deleteMany({ where: { tenantId: tenant.id } });
+  // Status padrão da agenda — atualizar sistemico se já existem, ou criar
   const statusPadrao = [
-    { nome: "Agendado", cor: "#94a3b8", contaConfirmado: false, ordem: 0 },
-    { nome: "Confirmado", cor: "#1e40af", contaConfirmado: true, ordem: 1 },
-    { nome: "À confirmar", cor: "#3b82f6", contaConfirmado: false, ordem: 2 },
-    { nome: "Finalizado", cor: "#16a34a", contaConfirmado: true, ordem: 3 },
-    { nome: "Atrasou", cor: "#ca8a04", contaConfirmado: false, ordem: 4 },
-    { nome: "Cancelado", cor: "#dc2626", contaConfirmado: false, ordem: 5 },
-    { nome: "Não compareceu", cor: "#ea580c", contaConfirmado: false, ordem: 6 },
+    { nome: "Agendado",         cor: "#94a3b8", contaConfirmado: false, ordem: 0, sistemico: false },
+    { nome: "Confirmado",       cor: "#1e40af", contaConfirmado: true,  ordem: 1, sistemico: false },
+    { nome: "À confirmar",      cor: "#3b82f6", contaConfirmado: false, ordem: 2, sistemico: true  },
+    { nome: "Finalizado",       cor: "#16a34a", contaConfirmado: true,  ordem: 3, sistemico: true  },
+    { nome: "Atrasou",          cor: "#ca8a04", contaConfirmado: false, ordem: 4, sistemico: false },
+    { nome: "Cancelado",        cor: "#dc2626", contaConfirmado: false, ordem: 5, sistemico: false },
+    { nome: "Não compareceu",   cor: "#ea580c", contaConfirmado: false, ordem: 6, sistemico: false },
   ];
 
   for (const s of statusPadrao) {
-    await prisma.statusAgenda.create({ data: { tenantId: tenant.id, ...s } });
+    const existente = await prisma.statusAgenda.findFirst({ where: { tenantId: tenant.id, nome: s.nome } });
+    if (existente) {
+      await prisma.statusAgenda.update({ where: { id: existente.id }, data: { sistemico: s.sistemico } });
+    } else {
+      await prisma.statusAgenda.create({ data: { tenantId: tenant.id, ...s } });
+    }
   }
 
-  console.log("✅ Status da agenda criados");
+  console.log("✅ Status da agenda criados/atualizados");
+
+  // Formas de pagamento padrão
+  const formasPadrao = [
+    { nome: "Dinheiro",           percentualTaxa: 0, ordem: 0 },
+    { nome: "PIX",                percentualTaxa: 0, ordem: 1 },
+    { nome: "Cartão de Crédito",  percentualTaxa: 0, ordem: 2 },
+    { nome: "Cartão de Débito",   percentualTaxa: 0, ordem: 3 },
+    { nome: "Link de Pagamento",  percentualTaxa: 0, ordem: 4 },
+  ];
+
+  for (const f of formasPadrao) {
+    await prisma.formaPagamento.upsert({
+      where: { tenantId_nome: { tenantId: tenant.id, nome: f.nome } },
+      update: {},
+      create: { tenantId: tenant.id, ...f },
+    });
+  }
+
+  console.log("✅ Formas de pagamento criadas");
 
   // Profissionais
   const lunna = await prisma.profissional.upsert({

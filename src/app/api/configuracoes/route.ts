@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { exigirSessao, exigirPermissao } from "@/lib/session";
+import { exigirSessao } from "@/lib/session";
 
 export async function GET() {
   const sessao = await exigirSessao();
@@ -21,8 +21,13 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const sessao = await exigirPermissao("isAdmin");
+  const sessao = await exigirSessao();
   const body = await req.json();
+
+  // Dados da clínica e urlNFSe são restritos a admin
+  if ((body.tenant || body.config?.urlNFSe !== undefined) && !sessao.permissoes.isAdmin) {
+    return NextResponse.json({ erro: "Acesso negado." }, { status: 403 });
+  }
 
   if (body.tenant) {
     await prisma.tenant.update({
@@ -54,7 +59,7 @@ export async function PATCH(req: NextRequest) {
         horarioEnvioWpp: body.config.horarioEnvioWpp ?? "08:00",
         mensagemConfirmacaoWpp: body.config.mensagemConfirmacaoWpp || null,
         mensagemAniversarioWpp: body.config.mensagemAniversarioWpp || null,
-        urlNFSe: body.config.urlNFSe || null,
+        ...(sessao.permissoes.isAdmin && body.config.urlNFSe !== undefined ? { urlNFSe: body.config.urlNFSe || null } : {}),
         horaInicioAgenda: body.config.horaInicioAgenda ?? 6,
         horaFimAgenda: body.config.horaFimAgenda ?? 21,
         agendamentoOnlineAtivo: body.config.agendamentoOnlineAtivo ?? false,

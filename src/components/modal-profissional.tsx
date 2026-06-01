@@ -121,6 +121,7 @@ const CAMPOS_VAZIOS = {
   profissionalTerceiro: false,
   agendamentoOnlineAtivo: false,
   emailNotificacoes: "",
+  comissaoSobre: "BRUTO" as "BRUTO" | "LIQUIDO",
 };
 
 export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }: Props) {
@@ -174,6 +175,7 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
           profissionalTerceiro: !!p.profissionalTerceiro,
           agendamentoOnlineAtivo: !!p.agendamentoOnlineAtivo,
           emailNotificacoes: p.emailNotificacoes ?? "",
+          comissaoSobre: (p.comissaoSobre as "BRUTO" | "LIQUIDO") ?? "BRUTO",
         });
         if (p.usuario?.permissoes) {
           const perm = p.usuario.permissoes;
@@ -262,6 +264,7 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
       profissionalTerceiro: campos.profissionalTerceiro,
       agendamentoOnlineAtivo: campos.agendamentoOnlineAtivo,
       emailNotificacoes: campos.emailNotificacoes || null,
+      comissaoSobre: campos.comissaoSobre,
       criarLogin,
       loginEmail: criarLogin ? campos.loginEmail.trim() : null,
       senha: criarLogin && campos.senha ? campos.senha : null,
@@ -309,7 +312,7 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onFechar} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8dcc4]">
           <h2 className="text-lg font-serif font-semibold text-[#5a4530]">
@@ -805,6 +808,33 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
                         )}
                       >
                         {op.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Comissão sobre bruto ou líquido */}
+              {campos.tipoComissao !== "SEM_COMISSAO" && (
+                <div>
+                  <Label className="text-xs text-[#9a7d50] mb-1.5 block">Comissão calculada sobre</Label>
+                  <div className="flex gap-2">
+                    {([
+                      { value: "BRUTO",   label: "Valor bruto",   desc: "antes das taxas" },
+                      { value: "LIQUIDO", label: "Valor líquido",  desc: "após descontar taxas" },
+                    ] as const).map((op) => (
+                      <button
+                        key={op.value}
+                        onClick={() => set("comissaoSobre", op.value)}
+                        className={cn(
+                          "flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-colors text-center",
+                          campos.comissaoSobre === op.value
+                            ? "bg-[#B89968] text-white border-[#B89968]"
+                            : "bg-white text-[#9a7d50] border-[#e8dcc4] hover:border-[#B89968]/50"
+                        )}
+                      >
+                        <div>{op.label}</div>
+                        <div className={cn("text-[10px] mt-0.5", campos.comissaoSobre === op.value ? "text-white/70" : "text-[#9a7d50]/70")}>{op.desc}</div>
                       </button>
                     ))}
                   </div>

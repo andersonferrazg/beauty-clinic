@@ -134,6 +134,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           profissionalTerceiro: !!body.profissionalTerceiro,
           agendamentoOnlineAtivo: !!body.agendamentoOnlineAtivo,
           emailNotificacoes: body.emailNotificacoes || null,
+          comissaoSobre: body.comissaoSobre ?? "BRUTO",
         },
       });
 

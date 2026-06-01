@@ -96,7 +96,7 @@ export function ModalFichaControleSessoes({ clienteId, aberto, onFechar, onSalvo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onFechar} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[94vh] flex flex-col">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[94dvh] flex flex-col">
 
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8dcc4] flex-shrink-0">
           <div>

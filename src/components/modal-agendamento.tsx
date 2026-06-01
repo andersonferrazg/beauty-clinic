@@ -15,6 +15,7 @@ type Cliente = { id: string; nome: string; telefone1: string | null };
 type Servico = { id: string; nome: string; preco: number; duracaoMin: number; precoVariavel: boolean; cor: string };
 type Produto = { id: string; nome: string; precoVenda: number; qtdEstoque: number };
 type Status = { id: string; nome: string; cor: string };
+type FormaPgto = { id: string; nome: string; percentualTaxa: number };
 
 type ItemServico = {
   tipo: "servico" | "produto";
@@ -35,7 +36,6 @@ type Props = {
 };
 
 const MOTIVOS_BLOQUEIO = ["Almoço", "Médico", "Curso", "Folga", "Reunião"];
-const FORMAS_PAGAMENTO = ["Dinheiro", "Pix/Transferência", "Crédito", "Débito", "Cheque", "Cortesia"];
 const DURACOES = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240, 270, 300, 360, 420, 480, 540, 600, 660, 720];
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
@@ -140,6 +140,8 @@ export function ModalAgendamento({
   const [statusOpcoes, setStatusOpcoes] = useState<Status[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [formasPgto, setFormasPgto] = useState<FormaPgto[]>([]);
+  const [erroPagamento, setErroPagamento] = useState(false);
   const [buscaCliente, setBuscaCliente] = useState("");
   const [clientesSugeridos, setClientesSugeridos] = useState<Cliente[]>([]);
   const [buscaItem, setBuscaItem] = useState<string[]>([]);
@@ -209,6 +211,9 @@ export function ModalAgendamento({
     fetch("/api/servicos").then((r) => r.json()).then(setServicos);
     fetch("/api/produtos").then((r) => r.json()).then((data) => {
       setProdutos(Array.isArray(data) ? data : []);
+    });
+    fetch("/api/formas-pagamento").then((r) => r.json()).then((data) => {
+      setFormasPgto(Array.isArray(data) ? data : []);
     });
   }, [aberto]);
 
@@ -361,6 +366,14 @@ export function ModalAgendamento({
     if (!profissionalId) { setErro("Selecione a profissional."); return; }
     if (tipo === "agendamento" && !clienteId) { setErro("Selecione a cliente."); return; }
     if (tipo === "agendamento" && itens.length === 0) { setErro("Adicione pelo menos um serviço."); return; }
+    // Forma de pagamento obrigatória ao finalizar
+    const statusFinalizado = statusOpcoes.find((s) => s.nome === "Finalizado");
+    if (tipo === "agendamento" && statusId && statusFinalizado && statusId === statusFinalizado.id && !formaPagamento) {
+      setErroPagamento(true);
+      setErro("Selecione a forma de pagamento para finalizar o atendimento.");
+      return;
+    }
+    setErroPagamento(false);
     setErro("");
     setSalvando(true);
 
@@ -424,7 +437,7 @@ export function ModalAgendamento({
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onFechar} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92dvh] overflow-y-auto">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8dcc4] sticky top-0 bg-white rounded-t-2xl z-10">
@@ -675,6 +688,7 @@ export function ModalAgendamento({
                         type="number"
                         value={item.preco}
                         onChange={(e) => atualizarPrecoItem(idx, Number(e.target.value))}
+                        onFocus={(e) => e.currentTarget.select()}
                         className="pl-7 border-[#B89968]/30 text-sm"
                         step="0.01"
                         min="0"
@@ -871,25 +885,46 @@ export function ModalAgendamento({
 
               {maisOpcoes && (
                 <div className="mt-3 space-y-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-[#5a4530]">Forma de Pagamento</Label>
+                  <div className={cn("space-y-1.5", erroPagamento && "rounded-lg border border-red-300 bg-red-50/50 p-2")}>
+                    <Label className={cn("text-[#5a4530]", erroPagamento && "text-red-600")}>
+                      Forma de Pagamento
+                      {erroPagamento && <span className="ml-1 text-xs font-normal text-red-500">— obrigatória para finalizar</span>}
+                    </Label>
                     <div className="flex flex-wrap gap-1.5">
-                      {FORMAS_PAGAMENTO.map((f) => (
-                        <button
-                          key={f}
-                          type="button"
-                          onClick={() => setFormaPagamento(formaPagamento === f ? "" : f)}
-                          className={cn(
-                            "px-3 py-1 rounded-full text-xs border transition-colors",
-                            formaPagamento === f
-                              ? "bg-[#B89968] text-white border-[#B89968]"
-                              : "border-[#e8dcc4] text-[#9a7d50] hover:border-[#B89968]/50"
-                          )}
-                        >
-                          {f}
-                        </button>
-                      ))}
+                      {formasPgto.map((f) => {
+                        const taxa = formaPagamento === f.nome && f.percentualTaxa > 0
+                          ? totalServicos * (f.percentualTaxa / 100)
+                          : 0;
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => { setFormaPagamento(formaPagamento === f.nome ? "" : f.nome); setErroPagamento(false); }}
+                            className={cn(
+                              "px-3 py-1 rounded-full text-xs border transition-colors",
+                              formaPagamento === f.nome
+                                ? "bg-[#B89968] text-white border-[#B89968]"
+                                : "border-[#e8dcc4] text-[#9a7d50] hover:border-[#B89968]/50"
+                            )}
+                          >
+                            {f.nome}
+                            {f.percentualTaxa > 0 && <span className="ml-1 opacity-70">{f.percentualTaxa}%</span>}
+                          </button>
+                        );
+                      })}
                     </div>
+                    {(() => {
+                      const forma = formasPgto.find((f) => f.nome === formaPagamento);
+                      if (!forma || forma.percentualTaxa === 0 || totalServicos === 0) return null;
+                      const taxa = totalServicos * (forma.percentualTaxa / 100);
+                      const liquido = totalServicos - taxa;
+                      return (
+                        <p className="text-xs text-[#9a7d50]">
+                          Taxa {forma.percentualTaxa}%: <span className="text-red-400">−R$ {taxa.toFixed(2).replace(".", ",")}</span> →
+                          Líquido: <span className="font-semibold text-[#5a4530]">R$ {liquido.toFixed(2).replace(".", ",")}</span>
+                        </p>
+                      );
+                    })()}
                   </div>
 
                   <div className="space-y-1.5">

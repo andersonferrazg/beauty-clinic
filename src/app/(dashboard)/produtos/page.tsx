@@ -199,7 +199,7 @@ function ModalProduto({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onFechar} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden max-h-[90vh]">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden max-h-[90dvh]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8dcc4]">
           <h2 className="text-lg font-serif font-semibold text-[#5a4530]">

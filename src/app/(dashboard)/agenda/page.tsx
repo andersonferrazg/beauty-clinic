@@ -315,7 +315,12 @@ export default function AgendaPage() {
   useEffect(() => {
     try {
       const salvo = localStorage.getItem("agendaData");
-      if (salvo) { const d = new Date(salvo + "T12:00"); if (!isNaN(d.getTime())) setDataAtual(d); }
+      const hojeStr = formatarDataISO(new Date());
+      // Só restaura se for o mesmo dia — garante que ao abrir o sistema, a agenda exibe sempre o dia atual
+      if (salvo && salvo === hojeStr) {
+        const d = new Date(salvo + "T12:00");
+        if (!isNaN(d.getTime())) setDataAtual(d);
+      }
       const m = localStorage.getItem('beauty-view-mode');
       if (m === 'semanal' || m === 'diario') setModoVista(m);
     } catch {}
@@ -583,7 +588,18 @@ export default function AgendaPage() {
       <div className="flex-shrink-0 lg:hidden" style={{ height: `${navAlt}px` }} />
 
       {/* ── Grade de horários ────────────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-auto" ref={gridRef}>
+      <div
+        className="flex-1 min-h-0 overflow-auto"
+        ref={gridRef}
+        onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; swipeStartY.current = e.touches[0].clientY; }}
+        onTouchEnd={(e) => {
+          if (swipeStartX.current === null || swipeStartY.current === null) return;
+          const dx = e.changedTouches[0].clientX - swipeStartX.current;
+          const dy = e.changedTouches[0].clientY - swipeStartY.current;
+          swipeStartX.current = null; swipeStartY.current = null;
+          if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) navegar(dx < 0 ? 1 : -1);
+        }}
+      >
         <div>
 
         {/* Coluna de horas compartilhada + colunas condicionais */}

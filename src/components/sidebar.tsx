@@ -71,7 +71,7 @@ const navegacao: NavItem[] = [
   { href: "/relatorios/financeiro", label: "Resumo Financeiro", icon: DollarSign, visivel: (p) => p.isAdmin || p.acessarRelatorios },
   { href: "/relatorios/clientes", label: "Melhores Clientes", icon: Users, visivel: (p) => p.isAdmin || p.acessarRelatorios },
   { divisor: true, label: "" },
-  { href: "/configuracoes", label: "Configurações", icon: Settings, visivel: admin },
+  { href: "/configuracoes", label: "Configurações", icon: Settings, visivel: sempre },
 ];
 
 export function Sidebar() {
