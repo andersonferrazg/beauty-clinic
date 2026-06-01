@@ -17,7 +17,9 @@ export async function GET() {
     }),
   ]);
 
-  return NextResponse.json({ tenant, config, status });
+  return NextResponse.json({ tenant, config, status }, {
+    headers: { "Cache-Control": "private, stale-while-revalidate=120" },
+  });
 }
 
 export async function PATCH(req: NextRequest) {

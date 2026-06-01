@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Permissoes } from "@/lib/session";
+import { getSessaoCliente } from "@/lib/sessao-cliente";
 
 type ItemNav = {
   href: string;
@@ -91,9 +92,11 @@ export function Sidebar() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/me/sessao")
-      .then((r) => r.json())
-      .then((s) => { if (s?.permissoes) setPermissoes(s.permissoes); })
+    getSessaoCliente()
+      .then((s: unknown) => {
+        const sessao = s as { permissoes?: Permissoes } | null;
+        if (sessao?.permissoes) setPermissoes(sessao.permissoes);
+      })
       .catch(() => {});
   }, []);
 
@@ -201,6 +204,7 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 onClick={() => setAberto(false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors mb-0.5",

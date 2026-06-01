@@ -6,6 +6,7 @@ import { ModalAgendamento } from "@/components/modal-agendamento";
 import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays, Search } from "lucide-react";
 import { BuscaCliente } from "@/components/agenda/BuscaCliente";
 import { cn } from "@/lib/utils";
+import { getSessaoCliente } from "@/lib/sessao-cliente";
 
 // ── Mini calendário popup ─────────────────────────────────────────────────────
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -325,10 +326,10 @@ export default function AgendaPage() {
       if (m === 'semanal' || m === 'diario') setModoVista(m);
     } catch {}
     Promise.all([
-      fetch("/api/profissionais").then((r) => r.json()),
-      fetch("/api/me/sessao").then((r) => r.json()),
+      fetch("/api/profissionais").then((r) => r.json()) as Promise<Profissional[]>,
+      getSessaoCliente() as Promise<{ permissoes?: { isAdmin?: boolean }; profissionalId?: string | null }>,
     ])
-      .then(([profs, sessao]: [Profissional[], { permissoes?: { isAdmin?: boolean }; profissionalId?: string | null }]) => {
+      .then(([profs, sessao]) => {
         const comAgenda = (profs as Profissional[]).filter((p) => p.possuiAgenda !== false);
         if (!sessao?.permissoes?.isAdmin && sessao?.profissionalId) {
           const propria = comAgenda.filter((p) => p.id === sessao.profissionalId);

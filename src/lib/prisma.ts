@@ -8,4 +8,5 @@ export const prisma =
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Sempre armazena no global para reaproveitar a conexão no mesmo container serverless
+globalForPrisma.prisma = prisma;

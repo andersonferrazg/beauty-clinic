@@ -78,7 +78,9 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json(profissionais);
+  return NextResponse.json(profissionais, {
+    headers: { "Cache-Control": "private, stale-while-revalidate=120" },
+  });
 }
 
 export async function POST(req: NextRequest) {

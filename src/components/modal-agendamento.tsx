@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PickerMensagens } from "@/components/agenda/PickerMensagens";
+import { getSessaoCliente } from "@/lib/sessao-cliente";
 
 type Profissional = { id: string; nome: string; cor: string; configJsonCartao?: string | null };
 type Cliente = { id: string; nome: string; telefone1: string | null };
@@ -155,7 +156,7 @@ export function ModalAgendamento({
   const [minhaSessao, setMinhaSessao] = useState<SessaoSimples | null>(null);
 
   useEffect(() => {
-    fetch("/api/me/sessao").then((r) => r.json()).then(setMinhaSessao).catch(() => {});
+    getSessaoCliente().then((s) => setMinhaSessao(s as SessaoSimples)).catch(() => {});
   }, []);
 
   // ── Estado ─────────────────────────────────────────────────────────────────
