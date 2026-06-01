@@ -429,6 +429,10 @@ export function ModalAgendamento({
     onFechar();
   }
 
+  const statusFinalizadoObj = statusOpcoes.find((s) => s.nome === "Finalizado");
+  const exigePagamento = tipo === "agendamento" && !!statusFinalizadoObj && statusId === statusFinalizadoObj.id;
+  const pagamentoFaltando = exigePagamento && !formaPagamento;
+
   if (!aberto) return null;
 
   return (
@@ -871,7 +875,47 @@ export function ModalAgendamento({
             </div>
           )}
 
-          {/* Mais campos */}
+          {/* Forma de Pagamento — sempre visível */}
+          {tipo === "agendamento" && formasPgto.length > 0 && (
+            <div className={cn("space-y-1.5", pagamentoFaltando && "rounded-lg border border-red-300 bg-red-50/50 p-2")}>
+              <Label className={cn("text-[#5a4530]", pagamentoFaltando && "text-red-600")}>
+                Forma de Pagamento
+                {pagamentoFaltando && <span className="ml-1 text-xs font-normal text-red-500">— obrigatória para finalizar</span>}
+              </Label>
+              <div className="flex flex-wrap gap-1.5">
+                {formasPgto.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => { setFormaPagamento(formaPagamento === f.nome ? "" : f.nome); setErroPagamento(false); }}
+                    className={cn(
+                      "px-3 py-1 rounded-full text-xs border transition-colors",
+                      formaPagamento === f.nome
+                        ? "bg-[#B89968] text-white border-[#B89968]"
+                        : "border-[#e8dcc4] text-[#9a7d50] hover:border-[#B89968]/50"
+                    )}
+                  >
+                    {f.nome}
+                    {f.percentualTaxa > 0 && <span className="ml-1 opacity-70">{f.percentualTaxa}%</span>}
+                  </button>
+                ))}
+              </div>
+              {(() => {
+                const forma = formasPgto.find((f) => f.nome === formaPagamento);
+                if (!forma || forma.percentualTaxa === 0 || totalServicos === 0) return null;
+                const taxa = totalServicos * (forma.percentualTaxa / 100);
+                const liquido = totalServicos - taxa;
+                return (
+                  <p className="text-xs text-[#9a7d50]">
+                    Taxa {forma.percentualTaxa}%: <span className="text-red-400">−R$ {taxa.toFixed(2).replace(".", ",")}</span> →
+                    Líquido: <span className="font-semibold text-[#5a4530]">R$ {liquido.toFixed(2).replace(".", ",")}</span>
+                  </p>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Mais campos — Observação */}
           {tipo === "agendamento" && (
             <div>
               <button
@@ -884,49 +928,7 @@ export function ModalAgendamento({
               </button>
 
               {maisOpcoes && (
-                <div className="mt-3 space-y-3">
-                  <div className={cn("space-y-1.5", erroPagamento && "rounded-lg border border-red-300 bg-red-50/50 p-2")}>
-                    <Label className={cn("text-[#5a4530]", erroPagamento && "text-red-600")}>
-                      Forma de Pagamento
-                      {erroPagamento && <span className="ml-1 text-xs font-normal text-red-500">— obrigatória para finalizar</span>}
-                    </Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {formasPgto.map((f) => {
-                        const taxa = formaPagamento === f.nome && f.percentualTaxa > 0
-                          ? totalServicos * (f.percentualTaxa / 100)
-                          : 0;
-                        return (
-                          <button
-                            key={f.id}
-                            type="button"
-                            onClick={() => { setFormaPagamento(formaPagamento === f.nome ? "" : f.nome); setErroPagamento(false); }}
-                            className={cn(
-                              "px-3 py-1 rounded-full text-xs border transition-colors",
-                              formaPagamento === f.nome
-                                ? "bg-[#B89968] text-white border-[#B89968]"
-                                : "border-[#e8dcc4] text-[#9a7d50] hover:border-[#B89968]/50"
-                            )}
-                          >
-                            {f.nome}
-                            {f.percentualTaxa > 0 && <span className="ml-1 opacity-70">{f.percentualTaxa}%</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {(() => {
-                      const forma = formasPgto.find((f) => f.nome === formaPagamento);
-                      if (!forma || forma.percentualTaxa === 0 || totalServicos === 0) return null;
-                      const taxa = totalServicos * (forma.percentualTaxa / 100);
-                      const liquido = totalServicos - taxa;
-                      return (
-                        <p className="text-xs text-[#9a7d50]">
-                          Taxa {forma.percentualTaxa}%: <span className="text-red-400">−R$ {taxa.toFixed(2).replace(".", ",")}</span> →
-                          Líquido: <span className="font-semibold text-[#5a4530]">R$ {liquido.toFixed(2).replace(".", ",")}</span>
-                        </p>
-                      );
-                    })()}
-                  </div>
-
+                <div className="mt-3">
                   <div className="space-y-1.5">
                     <Label className="text-[#5a4530]">Observação</Label>
                     <textarea
@@ -1045,8 +1047,8 @@ export function ModalAgendamento({
             <Button
               type="button"
               onClick={salvar}
-              disabled={salvando}
-              className="flex-1 bg-[#B89968] hover:bg-[#9a7d50] text-white"
+              disabled={salvando || pagamentoFaltando}
+              className="flex-1 bg-[#B89968] hover:bg-[#9a7d50] text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {salvando ? <><Loader2 size={14} className="animate-spin" /> Salvando...</> : "SALVAR"}
             </Button>

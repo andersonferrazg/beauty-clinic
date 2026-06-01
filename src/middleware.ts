@@ -27,7 +27,7 @@ const PERMISSAO_POR_ROTA: Array<[string, (p: Permissoes) => boolean]> = [
   ["/mensagens", (p) => p.isAdmin || p.acessarServicos],
   ["/clientes", (p) => p.isAdmin || p.acessarClientes],
   ["/profissionais", (p) => p.isAdmin],
-  ["/configuracoes", (p) => p.isAdmin],
+  ["/configuracoes", () => true],
   ["/relatorios", (p) => p.isAdmin || p.acessarRelatorios],
   ["/agenda", (p) => p.isAdmin || p.verAgenda],
   ["/confirmacoes", (p) => p.isAdmin || p.verAgenda],
