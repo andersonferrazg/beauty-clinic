@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     include: {
       cliente: { select: { id: true, nome: true, telefone1: true } },
       profissional: { select: { id: true, nome: true, cor: true } },
-      status: true,
+      status: { select: { id: true, nome: true, cor: true, contaConfirmado: true } },
       itens: {
         include: {
           servico: { select: { id: true, nome: true, cor: true, duracaoMin: true } },
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
     include: {
       cliente: { select: { id: true, nome: true } },
       profissional: { select: { id: true, nome: true, cor: true } },
-      status: true,
+      status: { select: { id: true, nome: true, cor: true, contaConfirmado: true } },
       itens: { include: { servico: true } },
     },
   });

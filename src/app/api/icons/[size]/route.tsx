@@ -15,7 +15,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ size
     if (tenantRes.ok) {
       const tenant = await tenantRes.json();
       if (tenant.logoUrl) {
-        return NextResponse.redirect(new URL(tenant.logoUrl, req.url), 307);
+        const res = NextResponse.redirect(new URL(tenant.logoUrl, req.url), 307);
+        res.headers.set("Cache-Control", "public, max-age=3600");
+        return res;
       }
     }
   } catch {
@@ -50,6 +52,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ size
         </span>
       </div>
     ),
-    { width: px, height: px }
+    { width: px, height: px, headers: { "Cache-Control": "public, max-age=86400, immutable" } }
   );
 }
