@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
     observacao,
     formaPagamento,
     valorTotal,
+    parcelas,
     itens, // [{ servicoId, preco }]
     tipo,  // "agendamento" | "bloqueio"
     motivoBloqueio,
@@ -90,6 +91,7 @@ export async function POST(req: NextRequest) {
       observacao: observacao || motivoBloqueio || null,
       formaPagamento: formaPagamento || null,
       valorTotal: valorTotal || null,
+      parcelas: parcelas ? Number(parcelas) : 1,
       itens: itens?.length
         ? {
             create: itens.map((item: { servicoId: string; preco: number }) => ({

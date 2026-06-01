@@ -12,7 +12,8 @@ import {
 import { cn } from "@/lib/utils";
 
 type StatusLocal = { id: string | null; nome: string; cor: string; ordem: number; contaConfirmado: boolean; sistemico: boolean; _novo?: boolean; _excluir?: boolean };
-type FormaPagamento = { id: string; nome: string; percentualTaxa: number; ativa: boolean; ordem: number };
+type FormaPagamento = { id: string; nome: string; percentualTaxa: number; ativa: boolean; ordem: number; configJson?: string | null };
+type TaxaParcela = { parcelas: number; taxaPct: number; recebimento: string };
 
 const TEMPLATE_PADRAO = `Oii {primeiro_nome} 💖
 
@@ -65,6 +66,9 @@ export default function ConfiguracoesPage() {
   const [salvandoFormas, setSalvandoFormas] = useState(false);
   const [salvoFormasOk, setSalvoFormasOk] = useState(false);
   const [erroFormas, setErroFormas] = useState("");
+  const [parcelamentoAberto, setParcelamentoAberto] = useState(false);
+  const [maxParcelasCredito, setMaxParcelasCredito] = useState(12);
+  const [taxasParcelamento, setTaxasParcelamento] = useState<TaxaParcela[]>([]);
 
   useEffect(() => {
     async function carregar() {
@@ -111,7 +115,17 @@ export default function ConfiguracoesPage() {
     if (isAdmin && secao === "pagamento") {
       fetch("/api/formas-pagamento?incluirInativas=true")
         .then((r) => r.json())
-        .then((data) => setFormas(data))
+        .then((data: FormaPagamento[]) => {
+          setFormas(data);
+          const cc = data.find((f) => f.nome === "Cartão de Crédito");
+          if (cc?.configJson) {
+            try {
+              const config = JSON.parse(cc.configJson);
+              setMaxParcelasCredito(config.maxParcelas ?? 12);
+              setTaxasParcelamento(config.taxas ?? []);
+            } catch {}
+          }
+        })
         .catch(() => {});
     }
   }, [isAdmin, secao]);
@@ -228,11 +242,15 @@ export default function ConfiguracoesPage() {
     setErroFormas("");
     try {
       for (const f of formas) {
+        const configJson = f.nome === "Cartão de Crédito"
+          ? JSON.stringify({ maxParcelas: maxParcelasCredito, taxas: taxasParcelamento })
+          : (f.configJson ?? null);
+
         if (!f.id.startsWith("_novo_")) {
           await fetch(`/api/formas-pagamento/${f.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ nome: f.nome, percentualTaxa: f.percentualTaxa, ativa: f.ativa }),
+            body: JSON.stringify({ nome: f.nome, percentualTaxa: f.percentualTaxa, ativa: f.ativa, configJson }),
           });
         } else {
           await fetch("/api/formas-pagamento", {
@@ -251,6 +269,15 @@ export default function ConfiguracoesPage() {
     } finally {
       setSalvandoFormas(false);
     }
+  }
+
+  function atualizarTaxaParcela(parcelas: number, campo: string, valor: string | number) {
+    setTaxasParcelamento((prev) => {
+      const idx = prev.findIndex((t) => t.parcelas === parcelas);
+      const base: TaxaParcela = { parcelas, taxaPct: 0, recebimento: "CONFORME_PARCELAS" };
+      if (idx === -1) return [...prev, { ...base, [campo]: valor }];
+      return prev.map((t, i) => (i === idx ? { ...t, [campo]: valor } : t));
+    });
   }
 
   function adicionarForma() {
@@ -577,6 +604,88 @@ export default function ConfiguracoesPage() {
               </div>
             ))}
           </div>
+
+          {/* Configuração de parcelamento — Cartão de Crédito */}
+          {formas.some((f) => f.nome === "Cartão de Crédito" && f.ativa) && (
+            <div className="border border-[#e8dcc4] rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setParcelamentoAberto((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#faf5ee] text-sm font-medium text-[#5a4530] hover:bg-[#f0e8d5] transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <CreditCard size={14} className="text-[#B89968]" />
+                  Configurar parcelamento do Cartão de Crédito
+                </span>
+                <ChevronDown size={14} className={cn("transition-transform text-[#9a7d50]", parcelamentoAberto && "rotate-180")} />
+              </button>
+
+              {parcelamentoAberto && (
+                <div className="bg-white p-4 space-y-3 border-t border-[#e8dcc4]">
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs text-[#9a7d50] whitespace-nowrap">Máximo de parcelas:</Label>
+                    <select
+                      value={maxParcelasCredito}
+                      onChange={(e) => setMaxParcelasCredito(Number(e.target.value))}
+                      className="border border-[#e8dcc4] rounded-lg px-2 py-1 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                    >
+                      {[6, 9, 12, 15, 18].map((n) => (
+                        <option key={n} value={n}>{n}x</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="rounded-xl border border-[#e8dcc4] overflow-hidden">
+                    <div className="grid grid-cols-[80px_1fr_110px] gap-2 px-3 py-2 bg-[#faf5ee] text-xs font-semibold text-[#5a4530] border-b border-[#e8dcc4]">
+                      <span>Parcelas</span>
+                      <span>Você recebe em</span>
+                      <span className="text-right">Taxa (%)</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-[#e8dcc4]">
+                      {Array.from({ length: maxParcelasCredito }, (_, i) => i + 1).map((n) => {
+                        const taxa = taxasParcelamento.find((t) => t.parcelas === n) ?? { parcelas: n, taxaPct: 0, recebimento: "CONFORME_PARCELAS" };
+                        return (
+                          <div key={n} className="grid grid-cols-[80px_1fr_110px] gap-2 items-center px-3 py-2">
+                            <span className="text-sm font-medium text-[#3d2c1e]">
+                              {n === 1 ? "À Vista" : `${n}x`}
+                            </span>
+                            <select
+                              value={taxa.recebimento}
+                              onChange={(e) => atualizarTaxaParcela(n, "recebimento", e.target.value)}
+                              className="text-xs rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none bg-white"
+                            >
+                              <option value="CONFORME_PARCELAS">Conforme parcelas</option>
+                              <option value="HOJE">Hoje</option>
+                              <option value="1D">Amanhã (1 dia)</option>
+                              <option value="2D">2 dias</option>
+                              <option value="3D">3 dias</option>
+                              <option value="14D">14 dias</option>
+                              <option value="30D">30 dias</option>
+                              <option value="90D">90 dias</option>
+                            </select>
+                            <div className="flex items-center justify-end gap-1">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={taxa.taxaPct}
+                                onChange={(e) => atualizarTaxaParcela(n, "taxaPct", parseFloat(e.target.value) || 0)}
+                                className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
+                              />
+                              <span className="text-xs text-[#9a7d50]">%</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#9a7d50]">
+                    &quot;Conforme parcelas&quot; = 1ª em 30 dias, 2ª em 60 dias, 3ª em 90 dias...
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           <button onClick={adicionarForma} className="flex items-center gap-2 text-sm text-[#B89968] hover:text-[#9a7d50] font-medium transition-colors">
             <Plus size={15} />

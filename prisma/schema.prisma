@@ -148,6 +148,7 @@ model Profissional {
   possuiAgenda              Boolean @default(true)
   profissionalTerceiro      Boolean @default(false)
   agendamentoOnlineAtivo    Boolean @default(false)
+  configJsonCartao          String? // JSON config de parcelamento próprio (sobrepõe o global da clínica)
   emailNotificacoes         String?
   ativo              Boolean @default(true)
   criadoEm        DateTime         @default(now())
@@ -258,6 +259,7 @@ model Agendamento {
   confirmacaoManualPendente Boolean @default(false)
   valorTotal            Float?
   formaPagamento        String?
+  parcelas              Int       @default(1)
   dataRealizado         DateTime?
   lancamentoId          String?   @unique
   origem                String?   // "manual" | "online"
@@ -655,6 +657,7 @@ model FormaPagamento {
   percentualTaxa Float   @default(0)
   ativa          Boolean @default(true)
   ordem          Int     @default(0)
+  configJson     String? // JSON config de parcelamento (só Cartão de Crédito)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

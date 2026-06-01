@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X, Loader2, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RECEBIMENTO_OPCOES } from "@/lib/pagamentoCredito";
+
+type TaxaParcelaProf = { parcelas: number; taxaPct: number; recebimento: string };
 
 type Props = {
   aberto: boolean;
@@ -134,6 +137,9 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [erro, setErro] = useState("");
   const [mostrarAvancado, setMostrarAvancado] = useState(false);
+  const [usarTaxasProprias, setUsarTaxasProprias] = useState(false);
+  const [maxParcelasProf, setMaxParcelasProf] = useState(12);
+  const [taxasParcelamentoProf, setTaxasParcelamentoProf] = useState<TaxaParcelaProf[]>([]);
 
   useEffect(() => {
     if (!aberto) {
@@ -143,6 +149,9 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
       setErro("");
       setConfirmarExclusao(false);
       setMostrarAvancado(false);
+      setUsarTaxasProprias(false);
+      setMaxParcelasProf(12);
+      setTaxasParcelamentoProf([]);
       return;
     }
     if (!profissionalId) return;
@@ -197,6 +206,15 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
           });
         }
         if (p.profissionalTerceiro) setMostrarAvancado(true);
+        if (p.configJsonCartao) {
+          try {
+            const cfg = JSON.parse(p.configJsonCartao);
+            setUsarTaxasProprias(true);
+            setMostrarAvancado(true);
+            setMaxParcelasProf(cfg.maxParcelas ?? 12);
+            setTaxasParcelamentoProf(cfg.taxas ?? []);
+          } catch {}
+        }
         const dispCarregada = DISP_PADRAO.map((d, i) => {
           const encontrado = (p.disponibilidades ?? []).find(
             (x: { diaSemana: number; horaInicio: number; horaFim: number; horaInicio2?: number | null; horaFim2?: number | null }) => x.diaSemana === i
@@ -228,6 +246,22 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
   }
 
   const qtdPermissoes = (Object.values(permissoes) as boolean[]).filter(Boolean).length;
+
+  function atualizarTaxaParcelaProf(parcelas: number, campo: "taxaPct" | "recebimento", valor: string) {
+    setTaxasParcelamentoProf((prev) =>
+      prev.map((t) => t.parcelas === parcelas ? { ...t, [campo]: campo === "taxaPct" ? Number(valor) : valor } : t)
+    );
+  }
+
+  function ajustarMaxParcelasProf(n: number) {
+    setMaxParcelasProf(n);
+    setTaxasParcelamentoProf(
+      Array.from({ length: n }, (_, i) => {
+        const existing = taxasParcelamentoProf.find((t) => t.parcelas === i + 1);
+        return existing ?? { parcelas: i + 1, taxaPct: 0, recebimento: "CONFORME_PARCELAS" };
+      })
+    );
+  }
 
   async function salvar() {
     if (!campos.nome.trim()) { setErro("Nome é obrigatório."); return; }
@@ -272,6 +306,9 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
       disponibilidades: disponibilidade
         .map((d, i) => d.ativo ? { diaSemana: i, horaInicio: d.horaInicio, horaFim: d.horaFim, horaInicio2: d.ativo2 ? d.horaInicio2 : null, horaFim2: d.ativo2 ? d.horaFim2 : null } : null)
         .filter(Boolean),
+      configJsonCartao: usarTaxasProprias
+        ? JSON.stringify({ maxParcelas: maxParcelasProf, taxas: taxasParcelamentoProf })
+        : null,
     };
 
     const url = ehEdicao ? `/api/profissionais/${profissionalId}` : "/api/profissionais";
@@ -871,7 +908,8 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
                 </button>
 
                 {mostrarAvancado && (
-                  <div className="mt-3">
+                  <div className="mt-3 space-y-4">
+                    {/* Profissional terceiro */}
                     <div className="flex items-start gap-2">
                       <input
                         type="checkbox"
@@ -886,6 +924,87 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
                           As atividades do Profissional terceiro não são incluídas no financeiro da empresa. Perfeito para profissionais que apenas pagam aluguel do espaço.
                         </p>
                       </label>
+                    </div>
+
+                    {/* Taxa de cartão própria */}
+                    <div className="border-t border-[#e8dcc4] pt-3">
+                      <div className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          id="usarTaxasProprias"
+                          checked={usarTaxasProprias}
+                          onChange={(e) => {
+                            setUsarTaxasProprias(e.target.checked);
+                            if (e.target.checked && taxasParcelamentoProf.length === 0) {
+                              ajustarMaxParcelasProf(maxParcelasProf);
+                            }
+                          }}
+                          className="mt-0.5 w-4 h-4 accent-[#B89968]"
+                        />
+                        <label htmlFor="usarTaxasProprias" className="text-xs text-[#5a4530] select-none cursor-pointer">
+                          <span className="font-medium">Taxa de cartão de crédito própria</span>
+                          <p className="text-[11px] text-[#9a7d50] mt-0.5">
+                            Quando marcado, as taxas abaixo substituem a configuração global da clínica para esta profissional.
+                          </p>
+                        </label>
+                      </div>
+
+                      {usarTaxasProprias && (
+                        <div className="mt-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-[#9a7d50]">Máximo de parcelas:</span>
+                            <select
+                              value={maxParcelasProf}
+                              onChange={(e) => ajustarMaxParcelasProf(Number(e.target.value))}
+                              className="text-xs border border-[#e8dcc4] rounded px-2 py-1 text-[#5a4530] bg-white"
+                            >
+                              {[6, 9, 12, 15, 18].map((n) => (
+                                <option key={n} value={n}>{n}x</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto border border-[#e8dcc4] rounded-lg">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="bg-[#faf5ee] border-b border-[#e8dcc4]">
+                                  <th className="text-left px-2 py-1.5 text-[#9a7d50] font-medium">Parcelas</th>
+                                  <th className="text-left px-2 py-1.5 text-[#9a7d50] font-medium">Você recebe em</th>
+                                  <th className="text-right px-2 py-1.5 text-[#9a7d50] font-medium">Taxa %</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {taxasParcelamentoProf.map((t) => (
+                                  <tr key={t.parcelas} className="border-b border-[#e8dcc4] last:border-0">
+                                    <td className="px-2 py-1.5 text-[#5a4530] font-medium">
+                                      {t.parcelas === 1 ? "À Vista" : `${t.parcelas}x`}
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      <select
+                                        value={t.recebimento}
+                                        onChange={(e) => atualizarTaxaParcelaProf(t.parcelas, "recebimento", e.target.value)}
+                                        className="w-full text-xs border border-[#e8dcc4] rounded px-1 py-0.5 text-[#5a4530] bg-white"
+                                      >
+                                        {RECEBIMENTO_OPCOES.map((op) => (
+                                          <option key={op.value} value={op.value}>{op.label}</option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                    <td className="px-2 py-1 text-right">
+                                      <input
+                                        type="number"
+                                        value={t.taxaPct}
+                                        onChange={(e) => atualizarTaxaParcelaProf(t.parcelas, "taxaPct", e.target.value)}
+                                        className="w-16 text-xs border border-[#e8dcc4] rounded px-1 py-0.5 text-right text-[#5a4530]"
+                                        min="0" max="100" step="0.01"
+                                      />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

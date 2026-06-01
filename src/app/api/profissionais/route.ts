@@ -74,6 +74,7 @@ export async function GET() {
       direcaoComissao: true,
       possuiAgenda: true,
       profissionalTerceiro: true,
+      configJsonCartao: true,
     },
   });
 

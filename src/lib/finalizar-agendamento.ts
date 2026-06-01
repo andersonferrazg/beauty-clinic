@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { parsearConfigCartao, taxaParaParcelas } from "@/lib/pagamentoCredito";
 
 /**
  * Processa mudança de status de um agendamento.
@@ -18,7 +19,19 @@ export async function processarStatusAgendamento(
     where: { id: agendamentoId, tenantId },
     include: {
       itens: { include: { servico: true, produto: true } },
-      profissional: true,
+      profissional: {
+      select: {
+        id: true,
+        nome: true,
+        tipoComissao: true,
+        percentualComissao: true,
+        salarioFixo: true,
+        direcaoComissao: true,
+        profissionalTerceiro: true,
+        comissaoSobre: true,
+        configJsonCartao: true,
+      },
+    },
       cliente: { select: { id: true, nome: true } },
     },
   });
@@ -61,6 +74,7 @@ type AgendamentoComItens = Awaited<ReturnType<typeof prisma.agendamento.findFirs
     direcaoComissao: string;
     profissionalTerceiro: boolean;
     comissaoSobre: string;
+    configJsonCartao: string | null;
   };
   cliente: { id: string; nome: string } | null;
   lancamentoId: string | null;
@@ -89,12 +103,23 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
   if (agendamento.formaPagamento) {
     const formaPgto = await prisma.formaPagamento.findFirst({
       where: { tenantId, nome: agendamento.formaPagamento, ativa: true },
-      select: { percentualTaxa: true },
+      select: { percentualTaxa: true, configJson: true },
     });
-    if (formaPgto && formaPgto.percentualTaxa > 0) {
-      taxaPercentual = formaPgto.percentualTaxa;
-      taxaValor = Math.round(valorBruto * (taxaPercentual / 100) * 100) / 100;
-      valorLiquido = Math.round((valorBruto - taxaValor) * 100) / 100;
+    if (formaPgto) {
+      // Cartão de Crédito: config própria da profissional tem prioridade sobre a global
+      if (agendamento.formaPagamento === "Cartão de Crédito") {
+        const configJson = agendamento.profissional.configJsonCartao ?? formaPgto.configJson;
+        if (configJson) {
+          const config = parsearConfigCartao(configJson);
+          taxaPercentual = taxaParaParcelas(config, agendamento.parcelas ?? 1);
+        }
+      } else if (formaPgto.percentualTaxa > 0) {
+        taxaPercentual = formaPgto.percentualTaxa;
+      }
+      if (taxaPercentual > 0) {
+        taxaValor = Math.round(valorBruto * (taxaPercentual / 100) * 100) / 100;
+        valorLiquido = Math.round((valorBruto - taxaValor) * 100) / 100;
+      }
     }
   }
 

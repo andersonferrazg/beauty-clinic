@@ -39,6 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     observacao,
     formaPagamento,
     valorTotal,
+    parcelas,
     confirmacaoManualPendente,
   } = body;
 
@@ -60,6 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         : {}),
       ...(formaPagamento !== undefined ? { formaPagamento: formaPagamento || null } : {}),
       ...(valorTotal !== undefined ? { valorTotal: valorTotal || null } : {}),
+      ...(parcelas !== undefined ? { parcelas: Number(parcelas) || 1 } : {}),
       ...(confirmacaoManualPendente !== undefined ? { confirmacaoManualPendente } : {}),
       ...(itens !== undefined
         ? {

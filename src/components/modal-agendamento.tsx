@@ -10,12 +10,12 @@ import {
 import { cn } from "@/lib/utils";
 import { PickerMensagens } from "@/components/agenda/PickerMensagens";
 
-type Profissional = { id: string; nome: string; cor: string };
+type Profissional = { id: string; nome: string; cor: string; configJsonCartao?: string | null };
 type Cliente = { id: string; nome: string; telefone1: string | null };
 type Servico = { id: string; nome: string; preco: number; duracaoMin: number; precoVariavel: boolean; cor: string };
 type Produto = { id: string; nome: string; precoVenda: number; qtdEstoque: number };
 type Status = { id: string; nome: string; cor: string };
-type FormaPgto = { id: string; nome: string; percentualTaxa: number };
+type FormaPgto = { id: string; nome: string; percentualTaxa: number; configJson?: string | null };
 
 type ItemServico = {
   tipo: "servico" | "produto";
@@ -133,6 +133,7 @@ export function ModalAgendamento({
   const [diaInteiro, setDiaInteiro] = useState(false);
   const [horaFimBloqueio, setHoraFimBloqueio] = useState("10:00");
   const [formaPagamento, setFormaPagamento] = useState("");
+  const [parcelas, setParcelas] = useState(1);
   const [itens, setItens] = useState<ItemServico[]>([]);
 
   // ── Listas ─────────────────────────────────────────────────────────────────
@@ -245,6 +246,7 @@ export function ModalAgendamento({
         setHoraStr(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
         setObservacao(ag.observacao ?? "");
         setFormaPagamento(ag.formaPagamento ?? "");
+        setParcelas(ag.parcelas ?? 1);
         setMotivoBloqueio(ag.motivoBloqueio ?? "");
         setItens(
           ag.itens.map((i: { servicoId: string; servico: { nome: string; duracaoMin: number }; preco: number }) => ({
@@ -278,6 +280,7 @@ export function ModalAgendamento({
       setDiaInteiro(false);
       setHoraFimBloqueio("10:00");
       setFormaPagamento("");
+      setParcelas(1);
       setCorCustom("");
       setErro("");
       setMaisOpcoes(false);
@@ -400,6 +403,7 @@ export function ModalAgendamento({
           observacao: tipo === "agendamento" ? observacao : null,
           motivoBloqueio: tipo === "bloqueio" ? motivoBloqueio : null,
           formaPagamento: formaPagamento || null,
+          parcelas: formaPagamento === "Cartão de Crédito" ? parcelas : 1,
           valorTotal: totalServicos || null,
           itens: tipo === "agendamento"
             ? itens.filter((i) => i.tipo === "servico").map(({ servicoId, preco }) => ({ servicoId, preco }))
@@ -877,7 +881,7 @@ export function ModalAgendamento({
 
           {/* Forma de Pagamento — sempre visível */}
           {tipo === "agendamento" && formasPgto.length > 0 && (
-            <div className={cn("space-y-1.5", pagamentoFaltando && "rounded-lg border border-red-300 bg-red-50/50 p-2")}>
+            <div className={cn("space-y-2", pagamentoFaltando && "rounded-lg border border-red-300 bg-red-50/50 p-2")}>
               <Label className={cn("text-[#5a4530]", pagamentoFaltando && "text-red-600")}>
                 Forma de Pagamento
                 {pagamentoFaltando && <span className="ml-1 text-xs font-normal text-red-500">— obrigatória para finalizar</span>}
@@ -887,7 +891,12 @@ export function ModalAgendamento({
                   <button
                     key={f.id}
                     type="button"
-                    onClick={() => { setFormaPagamento(formaPagamento === f.nome ? "" : f.nome); setErroPagamento(false); }}
+                    onClick={() => {
+                      const novaForma = formaPagamento === f.nome ? "" : f.nome;
+                      setFormaPagamento(novaForma);
+                      setParcelas(1);
+                      setErroPagamento(false);
+                    }}
                     className={cn(
                       "px-3 py-1 rounded-full text-xs border transition-colors",
                       formaPagamento === f.nome
@@ -896,11 +905,85 @@ export function ModalAgendamento({
                     )}
                   >
                     {f.nome}
-                    {f.percentualTaxa > 0 && <span className="ml-1 opacity-70">{f.percentualTaxa}%</span>}
                   </button>
                 ))}
               </div>
-              {(() => {
+
+              {/* Parcelamento — só quando Cartão de Crédito selecionado */}
+              {formaPagamento === "Cartão de Crédito" && (() => {
+                const forma = formasPgto.find((f) => f.nome === "Cartão de Crédito");
+                const profSelecionada = profissionais.find((p) => p.id === profissionalId);
+                // Config da profissional tem prioridade sobre a global da clínica
+                const configJsonAtivo = profSelecionada?.configJsonCartao ?? forma?.configJson ?? null;
+                let config: { maxParcelas: number; taxas: Array<{ parcelas: number; taxaPct: number }> } | null = null;
+                if (configJsonAtivo) {
+                  try { config = JSON.parse(configJsonAtivo); } catch {}
+                }
+                if (!config) return null;
+                return (
+                  <div className="space-y-2 pl-1">
+                    {/* Toggle À Vista / Parcelado */}
+                    <div className="inline-flex rounded-lg border border-[#e8dcc4] overflow-hidden text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setParcelas(1)}
+                        className={cn("px-3 py-1.5 transition-colors", parcelas === 1 ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#faf5ee]")}
+                      >
+                        À Vista
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { if (parcelas === 1) setParcelas(2); }}
+                        className={cn("px-3 py-1.5 transition-colors border-l border-[#e8dcc4]", parcelas > 1 ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#faf5ee]")}
+                      >
+                        Parcelado
+                      </button>
+                    </div>
+
+                    {/* Dropdown de parcelas */}
+                    {parcelas > 1 && (
+                      <select
+                        value={parcelas}
+                        onChange={(e) => setParcelas(Number(e.target.value))}
+                        className="w-full border border-[#e8dcc4] rounded-lg px-3 py-2 text-sm text-[#3d2c1e] bg-white focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                      >
+                        {Array.from({ length: config.maxParcelas - 1 }, (_, i) => i + 2).map((n) => {
+                          const valorParcela = totalServicos > 0
+                            ? `R$ ${(totalServicos / n).toFixed(2).replace(".", ",")}`
+                            : "—";
+                          return (
+                            <option key={n} value={n}>{n}x de {valorParcela}</option>
+                          );
+                        })}
+                      </select>
+                    )}
+
+                    {/* Resumo */}
+                    {totalServicos > 0 && (() => {
+                      const taxaConf = config.taxas.find((t) => t.parcelas === parcelas);
+                      const taxaPct = taxaConf?.taxaPct ?? 0;
+                      if (taxaPct === 0) return (
+                        <p className="text-xs text-[#9a7d50]">
+                          Líquido: <span className="font-semibold text-[#5a4530]">R$ {totalServicos.toFixed(2).replace(".", ",")}</span>
+                          {parcelas > 1 && <span> · {parcelas}x de R$ {(totalServicos / parcelas).toFixed(2).replace(".", ",")}</span>}
+                        </p>
+                      );
+                      const taxaVal = totalServicos * (taxaPct / 100);
+                      const liquido = totalServicos - taxaVal;
+                      return (
+                        <p className="text-xs text-[#9a7d50]">
+                          Taxa {taxaPct}%: <span className="text-red-400">−R$ {taxaVal.toFixed(2).replace(".", ",")}</span> →
+                          Líquido: <span className="font-semibold text-[#5a4530]">R$ {liquido.toFixed(2).replace(".", ",")}</span>
+                          {parcelas > 1 && <span> · {parcelas}x de R$ {(liquido / parcelas).toFixed(2).replace(".", ",")}</span>}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                );
+              })()}
+
+              {/* Taxa para outras formas de pagamento (não cartão de crédito) */}
+              {formaPagamento !== "Cartão de Crédito" && (() => {
                 const forma = formasPgto.find((f) => f.nome === formaPagamento);
                 if (!forma || forma.percentualTaxa === 0 || totalServicos === 0) return null;
                 const taxa = totalServicos * (forma.percentualTaxa / 100);

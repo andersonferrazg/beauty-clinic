@@ -15,6 +15,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       percentualTaxa: body.percentualTaxa !== undefined ? Number(body.percentualTaxa) : undefined,
       ativa: body.ativa !== undefined ? Boolean(body.ativa) : undefined,
       ordem: body.ordem !== undefined ? Number(body.ordem) : undefined,
+      ...(body.configJson !== undefined ? { configJson: body.configJson } : {}),
     },
   });
 
