@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +56,7 @@ export default function ConfiguracoesPage() {
   const [agendOnlineAtivo, setAgendOnlineAtivo] = useState(false);
   const [emailNotif, setEmailNotif] = useState("");
   const [slugTenant, setSlugTenant] = useState("");
+  const [qrDataUrl, setQrDataUrl] = useState("");
 
   useEffect(() => {
     fetch("/api/configuracoes")
@@ -82,6 +84,14 @@ export default function ConfiguracoesPage() {
       })
       .finally(() => setCarregando(false));
   }, []);
+
+  useEffect(() => {
+    if (!agendOnlineAtivo || !slugTenant) { setQrDataUrl(""); return; }
+    const url = `${window.location.origin}/agendar/${slugTenant}`;
+    QRCode.toDataURL(url, { width: 180, margin: 1, color: { dark: "#5a4530", light: "#ffffff" } })
+      .then(setQrDataUrl)
+      .catch(() => {});
+  }, [agendOnlineAtivo, slugTenant]);
 
   async function salvar() {
     setSalvando(true);
@@ -206,6 +216,21 @@ export default function ConfiguracoesPage() {
                     </button>
                   </div>
                 </div>
+
+                {qrDataUrl && (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    <img src={qrDataUrl} alt="QR Code para agendamento" className="w-40 h-40 rounded-lg border border-[#e8dcc4] shadow-sm" />
+                    <p className="text-[11px] text-[#9a7d50] text-center">QR Code — imprima e cole na recepção para as clientes escanearem</p>
+                    <a
+                      href={qrDataUrl}
+                      download="qrcode-agendamento.png"
+                      className="text-xs text-[#B89968] hover:text-[#9a7d50] hover:underline transition-colors"
+                    >
+                      Baixar QR Code (PNG)
+                    </a>
+                  </div>
+                )}
+
                 <div>
                   <Label className="text-xs text-[#9a7d50] mb-1 block">E-mail para receber notificações de novos agendamentos (opcional)</Label>
                   <input
