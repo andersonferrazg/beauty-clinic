@@ -12,9 +12,12 @@ type Msg = {
 };
 
 const VARS = [
-  { var: "{nome_cliente}", desc: "Nome da cliente" },
+  { var: "{primeiro_nome}", desc: "Primeiro nome da cliente" },
+  { var: "{nome_cliente}", desc: "Nome completo da cliente" },
   { var: "{nome_clinica}", desc: "Nome da clínica" },
-  { var: "{data}", desc: "Data do agendamento" },
+  { var: "{data}", desc: "Data por extenso (ex: segunda-feira, 02 de junho)" },
+  { var: "{dia_semana}", desc: "Dia da semana (ex: Segunda-feira)" },
+  { var: "{data_curta}", desc: "Data curta (ex: 02/06)" },
   { var: "{hora}", desc: "Horário de início" },
   { var: "{hora_fim}", desc: "Horário de fim" },
   { var: "{servico}", desc: "Nome do serviço" },
@@ -25,20 +28,14 @@ const VARS = [
 const TEMPLATES_INICIAIS: Omit<Msg, "id" | "ordem">[] = [
   {
     nome: "Confirmação de Agendamento",
-    texto: `Olá, *{nome_cliente}*! 😊
+    texto: `Oii {primeiro_nome} 💖
 
-Passando para confirmar seu agendamento:
+Passando para confirmar nosso horário amanhã ({dia_semana}) {data_curta} ás {hora}h
 
-📅 *{data}* às *{hora}*
-💆 Serviço: *{servico}*
-👩 Profissional: *{profissional}*
-📍 {nome_clinica}
+Por gentileza, confirme o recebimento desta mensagem. Caso não haja resposta, o seu horário será automaticamente cancelado.
+Tolerância de atraso é de 10 minutos.
 
-Confirme sua presença respondendo:
-✅ *SIM* - Confirmado
-❌ *NÃO* - Cancelar
-
-Qualquer dúvida, estou à disposição! 💛`,
+Agradeço a compreensão 🥰`,
   },
   {
     nome: "Lembrete no Dia",

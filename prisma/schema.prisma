@@ -192,6 +192,9 @@ model Cliente {
   orcamentos   Orcamento[]
   leads        Lead[]
 
+  @@index([tenantId, telefone1])
+  @@index([tenantId, cpf])
+  @@index([tenantId, dataNascimento])
   @@map("clientes")
 }
 
@@ -271,6 +274,8 @@ model Agendamento {
   movimentacoes MovimentacaoEstoque[]
   orcamento     Orcamento?        @relation("OrcamentoAgendamento")
 
+  @@index([tenantId, inicio])
+  @@index([tenantId, profissionalId, inicio])
   @@map("agendamentos")
 }
 
@@ -376,6 +381,8 @@ model Lancamento {
   comissoesOrigem     ComissaoLancamento[] @relation("ReceitaOrigem")
   comissoesLiquidadas ComissaoLancamento[] @relation("DespesaPagamento")
 
+  @@index([tenantId, criadoEm])
+  @@index([tenantId, vencimento])
   @@map("lancamentos")
 }
 
@@ -469,6 +476,8 @@ model ComissaoLancamento {
   profissional        Profissional @relation(fields: [profissionalId], references: [id])
   tenant              Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, criadoEm])
+  @@index([tenantId, profissionalId, criadoEm])
   @@map("comissoes_lancamento")
 }
 

@@ -41,63 +41,79 @@ export async function GET() {
   let faturamentoPorProfissional: object[] = [];
 
   if (isAdmin) {
-    const lancamentos = await prisma.lancamento.findMany({
-      where: { tenantId, criadoEm: { gte: inicioMes, lt: fimMes } },
-      select: { tipo: true, valor: true, pago: true, origem: true },
-    });
+    const mesHoje = hoje.getMonth();
+    const isPostgres = process.env.DATABASE_PROVIDER === "postgresql";
+
+    // Aniversariantes — usa SQL nativo em Postgres (rápido); cai pra JS em SQLite local
+    const aniversariantesPromise: Promise<{ id: string; nome: string; dataNascimento: Date | null; telefone1: string | null }[]> = isPostgres
+      ? prisma.$queryRaw`
+          SELECT id, nome, "dataNascimento", telefone1
+          FROM clientes
+          WHERE "tenantId" = ${tenantId}
+            AND ativo = true
+            AND "dataNascimento" IS NOT NULL
+            AND EXTRACT(MONTH FROM "dataNascimento") = ${mesHoje + 1}
+          ORDER BY EXTRACT(DAY FROM "dataNascimento") ASC
+          LIMIT 10
+        `
+      : prisma.cliente
+          .findMany({
+            where: { tenantId, ativo: true, dataNascimento: { not: null } },
+            select: { id: true, nome: true, dataNascimento: true, telefone1: true },
+          })
+          .then((clientes) =>
+            clientes
+              .filter((c) => c.dataNascimento && new Date(c.dataNascimento).getMonth() === mesHoje)
+              .sort((a, b) => new Date(a.dataNascimento!).getDate() - new Date(b.dataNascimento!).getDate())
+              .slice(0, 10),
+          );
+
+    // Todas as 6 queries em paralelo — tempos se sobrepõem em vez de somar
+    const [
+      lancamentos,
+      pendentes,
+      contasVencendoRes,
+      aniversariantesRes,
+      profissionais,
+      comissoesMes,
+    ] = await Promise.all([
+      prisma.lancamento.findMany({
+        where: { tenantId, criadoEm: { gte: inicioMes, lt: fimMes } },
+        select: { tipo: true, valor: true, pago: true, origem: true },
+      }),
+      prisma.comissaoLancamento.aggregate({
+        where: { tenantId, pago: false, criadoEm: { gte: inicioMes, lt: fimMes } },
+        _sum: { valorComissao: true },
+        _count: true,
+      }),
+      prisma.lancamento.findMany({
+        where: { tenantId, pago: false, vencimento: { gte: hoje, lt: em7dias } },
+        select: { id: true, descricao: true, valor: true, vencimento: true, categoria: true, tipo: true },
+        orderBy: { vencimento: "asc" },
+        take: 10,
+      }),
+      aniversariantesPromise,
+      prisma.profissional.findMany({
+        where: { tenantId, ativo: true },
+        select: { id: true, nome: true, cor: true },
+      }),
+      prisma.comissaoLancamento.findMany({
+        where: { tenantId, criadoEm: { gte: inicioMes, lt: fimMes } },
+        select: { profissionalId: true, valorBase: true },
+      }),
+    ]);
 
     const receita = lancamentos.filter((l) => l.tipo === "RECEITA").reduce((s, l) => s + l.valor, 0);
     const despesa = lancamentos.filter((l) => l.tipo === "DESPESA").reduce((s, l) => s + l.valor, 0);
     resumoMes = { receita, despesa, lucro: receita - despesa };
 
-    // Comissões pendentes (a pagar/receber) no mês
-    const pendentes = await prisma.comissaoLancamento.aggregate({
-      where: { tenantId, pago: false, criadoEm: { gte: inicioMes, lt: fimMes } },
-      _sum: { valorComissao: true },
-      _count: true,
-    });
     comissoesPendentes = {
       total: pendentes._sum.valorComissao ?? 0,
       count: pendentes._count,
     };
 
-    // Contas vencendo nos próximos 7 dias (não pagas)
-    contasVencendo = await prisma.lancamento.findMany({
-      where: {
-        tenantId,
-        pago: false,
-        vencimento: { gte: hoje, lt: em7dias },
-      },
-      select: { id: true, descricao: true, valor: true, vencimento: true, categoria: true, tipo: true },
-      orderBy: { vencimento: "asc" },
-      take: 10,
-    });
-
-    // Aniversariantes do mês (filtragem por mês em JS — SQLite não tem funções de data nativas)
-    const clientes = await prisma.cliente.findMany({
-      where: { tenantId, ativo: true, dataNascimento: { not: null } },
-      select: { id: true, nome: true, dataNascimento: true, telefone1: true },
-    });
-    const mesHoje = hoje.getMonth();
-    aniversariantesMes = clientes
-      .filter((c) => c.dataNascimento && new Date(c.dataNascimento).getMonth() === mesHoje)
-      .sort((a, b) => {
-        const dA = new Date(a.dataNascimento!).getDate();
-        const dB = new Date(b.dataNascimento!).getDate();
-        return dA - dB;
-      })
-      .slice(0, 10);
-
-    // Faturamento por profissional no mês (via ComissaoLancamento que registra o valorBase)
-    const profissionais = await prisma.profissional.findMany({
-      where: { tenantId, ativo: true },
-      select: { id: true, nome: true, cor: true },
-    });
-
-    const comissoesMes = await prisma.comissaoLancamento.findMany({
-      where: { tenantId, criadoEm: { gte: inicioMes, lt: fimMes } },
-      select: { profissionalId: true, valorBase: true },
-    });
+    contasVencendo = contasVencendoRes;
+    aniversariantesMes = aniversariantesRes;
 
     // Soma valorBase por profissional (valorBase = receita do atendimento)
     const receitaMap: Record<string, number> = {};

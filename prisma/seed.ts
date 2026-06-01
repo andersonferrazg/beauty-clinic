@@ -76,6 +76,74 @@ async function main() {
 
   console.log("✅ Formas de pagamento criadas");
 
+  // Templates de mensagens WhatsApp (só cria se o tenant ainda não tem nenhum)
+  const templatesExistentes = await prisma.mensagemPredefinida.count({
+    where: { tenantId: tenant.id },
+  });
+
+  if (templatesExistentes === 0) {
+    const templatesPadrao = [
+      {
+        nome: "Confirmação de Agendamento",
+        texto: `Oii {primeiro_nome} 💖
+
+Passando para confirmar nosso horário amanhã ({dia_semana}) {data_curta} ás {hora}h
+
+Por gentileza, confirme o recebimento desta mensagem. Caso não haja resposta, o seu horário será automaticamente cancelado.
+Tolerância de atraso é de 10 minutos.
+
+Agradeço a compreensão 🥰`,
+        ordem: 0,
+      },
+      {
+        nome: "Lembrete no Dia",
+        texto: `Bom dia, *{nome_cliente}*! 🌟
+
+Lembrando do seu agendamento hoje:
+
+⏰ *{hora}*
+💆 {servico}
+👩 Com {profissional}
+
+Te esperamos! 🌸
+{nome_clinica}`,
+        ordem: 1,
+      },
+      {
+        nome: "Pós-Atendimento",
+        texto: `Olá, *{nome_cliente}*! 🌸
+
+Esperamos que tenha gostado do seu atendimento de *{servico}* conosco!
+
+Qualquer dúvida sobre os cuidados pós-procedimento, estamos à disposição. 💛
+
+Com carinho,
+{nome_clinica}`,
+        ordem: 2,
+      },
+      {
+        nome: "Cancelamento",
+        texto: `Olá, *{nome_cliente}*!
+
+Seu agendamento do dia *{data}* às *{hora}* foi cancelado conforme solicitado.
+
+Para reagendar, entre em contato conosco! 📲
+
+{nome_clinica} 💛`,
+        ordem: 3,
+      },
+    ];
+
+    for (const t of templatesPadrao) {
+      await prisma.mensagemPredefinida.create({
+        data: { tenantId: tenant.id, ...t },
+      });
+    }
+    console.log("✅ Templates de mensagens criados");
+  } else {
+    console.log(`✅ Templates de mensagens já existem (${templatesExistentes} encontrados)`);
+  }
+
   // Profissionais
   const lunna = await prisma.profissional.upsert({
     where: { tenantId_email: { tenantId: tenant.id, email: "lunna@lbbeautyclinic.com" } },

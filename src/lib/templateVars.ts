@@ -19,15 +19,36 @@ function formatarData(dataStr: string): string {
   return `${DIAS[d.getDay()]}, ${pad(d.getDate())} de ${MESES[d.getMonth()]}`;
 }
 
+function formatarDiaSemana(dataStr: string): string {
+  const d = new Date(dataStr + "T12:00");
+  const dia = DIAS[d.getDay()];
+  return dia.charAt(0).toUpperCase() + dia.slice(1);
+}
+
+function formatarDataCurta(dataStr: string): string {
+  const d = new Date(dataStr + "T12:00");
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+}
+
+function primeiroNome(nome: string): string {
+  return nome.trim().split(/\s+/)[0] ?? "";
+}
+
 export function substituirVariaveis(texto: string, dados: DadosAgendamento): string {
   const data = dados.dataStr ? formatarData(dados.dataStr) : "";
+  const diaSemana = dados.dataStr ? formatarDiaSemana(dados.dataStr) : "";
+  const dataCurta = dados.dataStr ? formatarDataCurta(dados.dataStr) : "";
   const servico = dados.servicos?.join(", ") ?? "";
   const valorFmt = dados.valorTotal !== undefined
     ? `R$ ${dados.valorTotal.toFixed(2).replace(".", ",")}`
     : "";
+  const primeiro = dados.clienteNome ? primeiroNome(dados.clienteNome) : "";
 
   return texto
+    .replace(/\{primeiro_nome\}/g, primeiro)
     .replace(/\{nome_cliente\}/g, dados.clienteNome ?? "")
+    .replace(/\{dia_semana\}/g, diaSemana)
+    .replace(/\{data_curta\}/g, dataCurta)
     .replace(/\{data\}/g, data)
     .replace(/\{hora\}/g, dados.horaInicio ?? "")
     .replace(/\{hora_fim\}/g, dados.horaFim ?? "")
