@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ModalAgendamento } from "@/components/modal-agendamento";
-import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays, Search, SlidersHorizontal } from "lucide-react";
 import { BuscaCliente } from "@/components/agenda/BuscaCliente";
 import { cn } from "@/lib/utils";
 import { getSessaoCliente } from "@/lib/sessao-cliente";
@@ -217,6 +217,135 @@ type Agendamento = {
   itens: { servico: { nome: string } }[];
 };
 
+// ── Filtro de profissionais ───────────────────────────────────────────────────
+function FiltroPopup({
+  profissionais,
+  profFiltroIds,
+  profissionalProprioId,
+  onAplicar,
+  onFechar,
+  modoFixed,
+}: {
+  profissionais: Profissional[];
+  profFiltroIds: string[] | null;
+  profissionalProprioId: string | null;
+  onAplicar: (ids: string[] | null) => void;
+  onFechar: () => void;
+  modoFixed?: boolean;
+}) {
+  const [selecionados, setSelecionados] = useState<string[]>(
+    profFiltroIds ?? profissionais.map((p) => p.id)
+  );
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent | TouchEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onFechar();
+    }
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [onFechar]);
+
+  function aplicar(ids: string[]) {
+    const todas = ids.length >= profissionais.length;
+    onAplicar(todas ? null : ids.length > 0 ? ids : null);
+  }
+
+  function toggle(id: string) {
+    setSelecionados((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  const temPropria = !!profissionalProprioId && profissionais.some((p) => p.id === profissionalProprioId);
+  const soEuAtivo = selecionados.length === 1 && selecionados[0] === profissionalProprioId;
+  const todasAtivo = selecionados.length >= profissionais.length;
+
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      ref={ref}
+      className="fixed right-3 z-[9999] bg-white rounded-2xl shadow-2xl border border-[#e8dcc4] w-60 overflow-hidden"
+      style={{
+        top: modoFixed
+          ? "calc(var(--header-offset) + var(--nav-bar-height, 80px) + 4px)"
+          : "calc(var(--nav-bar-height, 80px) + 4px)",
+      }}
+    >
+      <div className="bg-[#B89968] px-4 py-2.5">
+        <p className="text-white text-sm font-semibold">Profissionais visíveis</p>
+        <p className="text-white/60 text-[10px]">Selecione quem aparece na agenda</p>
+      </div>
+
+      {/* Atalhos rápidos */}
+      <div className="flex gap-1.5 p-2.5 border-b border-[#e8dcc4]">
+        <button
+          onClick={() => aplicar(profissionais.map((p) => p.id))}
+          className={cn(
+            "flex-1 text-xs px-2 py-1.5 rounded-lg border transition-colors",
+            todasAtivo
+              ? "bg-[#B89968] text-white border-[#B89968]"
+              : "border-[#e8dcc4] text-[#5a4530] hover:bg-[#faf5ee]"
+          )}
+        >
+          Todas
+        </button>
+        {temPropria && (
+          <button
+            onClick={() => aplicar([profissionalProprioId!])}
+            className={cn(
+              "flex-1 text-xs px-2 py-1.5 rounded-lg border transition-colors",
+              soEuAtivo
+                ? "bg-[#B89968] text-white border-[#B89968]"
+                : "border-[#e8dcc4] text-[#5a4530] hover:bg-[#faf5ee]"
+            )}
+          >
+            Só eu
+          </button>
+        )}
+      </div>
+
+      {/* Lista com checkboxes */}
+      <div className="p-3 space-y-2.5">
+        {profissionais.map((prof) => (
+          <label key={prof.id} className="flex items-center gap-2.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={selecionados.includes(prof.id)}
+              onChange={() => toggle(prof.id)}
+              className="w-4 h-4 rounded accent-[#B89968]"
+            />
+            <div
+              className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
+              style={{ backgroundColor: prof.cor }}
+            >
+              {iniciais(prof.nome)}
+            </div>
+            <span className="text-[12px] text-[#5a4530] truncate">
+              {prof.nome.replace("Dra. ", "")}
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {/* Aplicar */}
+      <div className="px-3 pb-3">
+        <button
+          onClick={() => aplicar(selecionados)}
+          className="w-full py-2 bg-[#B89968] hover:bg-[#9a7d50] text-white rounded-xl text-sm font-medium transition-colors"
+        >
+          Aplicar
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ── Componente ────────────────────────────────────────────────────────────────
 function salvarDataLocal(d: Date) {
   try { localStorage.setItem("agendaData", formatarDataISO(d)); } catch {}
@@ -246,6 +375,10 @@ export default function AgendaPage() {
   const [carregandoSemana, setCarregandoSemana] = useState(false);
   const [semanaRefreshKey, setSemanaRefreshKey] = useState(0);
   const [buscaAberta, setBuscaAberta] = useState(false);
+  const [sessaoInfo, setSessaoInfo] = useState<{ isAdmin: boolean; profissionalId: string | null }>({ isAdmin: false, profissionalId: null });
+  const [filtroAberto, setFiltroAberto] = useState(false);
+  const [filtroIsMobile, setFiltroIsMobile] = useState(false);
+  const [profFiltroIds, setProfFiltroIds] = useState<string[] | null>(null);
   const fecharCal = useCallback(() => setCalAberto(false), []);
   const selecionarData = useCallback((d: Date) => { setDataAtual(d); salvarDataLocal(d); }, []);
 
@@ -258,6 +391,20 @@ export default function AgendaPage() {
   const dataStr = formatarDataISO(dataAtual);
   const ehHoje = formatarDataISO(hoje) === dataStr;
   const diasSemana = semanaDosDias(dataAtual);
+
+  const mostrarFiltro = sessaoInfo.isAdmin && profissionais.length > 1;
+  const profissionaisVisiveis = profFiltroIds === null
+    ? profissionais
+    : profissionais.filter((p) => profFiltroIds.includes(p.id));
+
+  function aplicarFiltro(ids: string[] | null) {
+    setProfFiltroIds(ids);
+    try {
+      if (ids === null) localStorage.removeItem("beauty-agenda-filtro");
+      else localStorage.setItem("beauty-agenda-filtro", JSON.stringify(ids));
+    } catch {}
+    setFiltroAberto(false);
+  }
 
   // Persistir modo de visualização
   useEffect(() => {
@@ -324,6 +471,10 @@ export default function AgendaPage() {
       }
       const m = localStorage.getItem('beauty-view-mode');
       if (m === 'semanal' || m === 'diario') setModoVista(m);
+      const filtroSalvo = localStorage.getItem("beauty-agenda-filtro");
+      if (filtroSalvo) {
+        try { setProfFiltroIds(JSON.parse(filtroSalvo)); } catch {}
+      }
     } catch {}
     Promise.all([
       fetch("/api/profissionais").then((r) => r.json()) as Promise<Profissional[]>,
@@ -338,6 +489,7 @@ export default function AgendaPage() {
         } else {
           setProfissionais(comAgenda);
         }
+        setSessaoInfo({ isAdmin: sessao?.permissoes?.isAdmin ?? false, profissionalId: sessao?.profissionalId ?? null });
         setProfissionaisCarregadas(true);
       })
       .catch(() => setProfissionaisCarregadas(true));
@@ -514,8 +666,20 @@ export default function AgendaPage() {
             </>
           )}
 
-          {/* Calendário + Busca + Hoje — desktop */}
+          {/* Calendário + Busca + Filtro + Hoje — desktop */}
           <div className="relative flex-shrink-0 hidden lg:flex items-center gap-1">
+            {mostrarFiltro && (
+              <button
+                onClick={() => { setFiltroIsMobile(false); setFiltroAberto(!filtroAberto); setCalAberto(false); }}
+                className={cn("p-1.5 rounded-lg transition-colors",
+                  filtroAberto && !filtroIsMobile ? "bg-[#B89968] text-white" : "hover:bg-[#faf5ee] text-[#9a7d50]",
+                  profFiltroIds !== null && !(filtroAberto && !filtroIsMobile) && "text-[#B89968]"
+                )}
+                title="Filtrar profissionais"
+              >
+                <SlidersHorizontal size={16} />
+              </button>
+            )}
             <button
               onClick={() => setBuscaAberta(true)}
               className="p-1.5 rounded-lg transition-colors hover:bg-[#faf5ee] text-[#9a7d50]"
@@ -524,7 +688,7 @@ export default function AgendaPage() {
               <Search size={16} />
             </button>
             <button
-              onClick={() => { setCalIsMobile(false); setCalAberto(!calAberto); }}
+              onClick={() => { setCalIsMobile(false); setCalAberto(!calAberto); setFiltroAberto(false); }}
               className={cn("p-1.5 rounded-lg transition-colors", calAberto && !calIsMobile ? "bg-[#B89968] text-white" : "hover:bg-[#faf5ee] text-[#9a7d50]")}
             >
               <CalendarDays size={16} />
@@ -554,7 +718,7 @@ export default function AgendaPage() {
                 </div>
               ))
             ) : (
-              profissionais.map((prof) => (
+              profissionaisVisiveis.map((prof) => (
                 <div key={prof.id} className="flex-1 flex items-center justify-center gap-1.5 px-1 min-w-0">
                   <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0" style={{ backgroundColor: prof.cor }}>
                     {iniciais(prof.nome)}
@@ -688,12 +852,12 @@ export default function AgendaPage() {
 
           {/* ── MODO DIÁRIO: colunas por profissional ── */}
           {modoVista === 'diario' && (
-          profissionais.length === 0 ? (
+          profissionaisVisiveis.length === 0 ? (
             <div className="flex-1 flex items-center justify-center py-20 text-[#9a7d50] text-sm">
-              Nenhuma profissional cadastrada.
+              {profissionais.length === 0 ? "Nenhuma profissional cadastrada." : "Nenhuma profissional selecionada no filtro."}
             </div>
           ) : (
-            profissionais.map((prof) => {
+            profissionaisVisiveis.map((prof) => {
               const agsDaProf = agendamentos.filter((a) => a.profissionalId === prof.id);
 
               return (
@@ -850,6 +1014,18 @@ export default function AgendaPage() {
         className="fixed top-0 left-0 right-0 z-20 lg:hidden bg-[#faf8f4] border-b border-[#e8dcc4] flex items-center justify-end px-3 gap-1"
         style={{ paddingTop: "var(--sat)", height: "var(--header-offset)" }}
       >
+        {mostrarFiltro && (
+          <button
+            onClick={() => { setFiltroIsMobile(true); setFiltroAberto(!filtroAberto); setCalAberto(false); }}
+            className={cn("p-2 rounded-md transition-colors",
+              filtroAberto && filtroIsMobile ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#B89968]/10 active:bg-[#B89968]/20",
+              profFiltroIds !== null && !(filtroAberto && filtroIsMobile) && "text-[#B89968]"
+            )}
+            title="Filtrar profissionais"
+          >
+            <SlidersHorizontal size={18} />
+          </button>
+        )}
         <button
           onClick={() => setBuscaAberta(true)}
           className="p-2 rounded-md text-[#9a7d50] hover:bg-[#B89968]/10 active:bg-[#B89968]/20 transition-colors"
@@ -857,7 +1033,7 @@ export default function AgendaPage() {
           <Search size={18} />
         </button>
         <button
-          onClick={() => { setCalIsMobile(true); setCalAberto(!calAberto); }}
+          onClick={() => { setCalIsMobile(true); setCalAberto(!calAberto); setFiltroAberto(false); }}
           className={cn(
             "p-2 rounded-md transition-colors",
             calAberto && calIsMobile ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#B89968]/10 active:bg-[#B89968]/20"
@@ -892,6 +1068,18 @@ export default function AgendaPage() {
           onSelecionar={selecionarData}
           onFechar={fecharCal}
           modoFixed={calIsMobile}
+        />
+      )}
+
+      {/* ── Filtro de profissionais ── */}
+      {filtroAberto && mostrarFiltro && (
+        <FiltroPopup
+          profissionais={profissionais}
+          profFiltroIds={profFiltroIds}
+          profissionalProprioId={sessaoInfo.profissionalId}
+          onAplicar={aplicarFiltro}
+          onFechar={() => setFiltroAberto(false)}
+          modoFixed={filtroIsMobile}
         />
       )}
 
