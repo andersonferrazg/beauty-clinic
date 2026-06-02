@@ -386,6 +386,7 @@ export default function AgendaPage() {
   const navRef = useRef<HTMLDivElement>(null);
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
+  const pendingOpenIdRef = useRef<string | null>(null);
   const [navAlt, setNavAlt] = useState(82); // estimativa inicial; ResizeObserver corrige
 
   const dataStr = formatarDataISO(dataAtual);
@@ -475,6 +476,15 @@ export default function AgendaPage() {
       if (filtroSalvo) {
         try { setProfFiltroIds(JSON.parse(filtroSalvo)); } catch {}
       }
+      // Parâmetros de URL: ?data=YYYY-MM-DD&abrir=ID (link de notificação de agendamento online)
+      const params = new URLSearchParams(window.location.search);
+      const dataParam = params.get("data");
+      const abrirParam = params.get("abrir");
+      if (dataParam) {
+        const d = new Date(dataParam + "T12:00");
+        if (!isNaN(d.getTime())) { setDataAtual(d); salvarDataLocal(d); }
+      }
+      if (abrirParam) pendingOpenIdRef.current = abrirParam;
     } catch {}
     Promise.all([
       fetch("/api/profissionais").then((r) => r.json()) as Promise<Profissional[]>,
@@ -508,7 +518,16 @@ export default function AgendaPage() {
     try {
       const r = await fetch(`/api/agendamentos?data=${dataStr}`);
       const dados = await r.json();
-      setAgendamentos(Array.isArray(dados) ? dados : []);
+      const lista = Array.isArray(dados) ? dados : [];
+      setAgendamentos(lista);
+      if (pendingOpenIdRef.current) {
+        const id = pendingOpenIdRef.current;
+        if (lista.find((a: Agendamento) => a.id === id)) {
+          pendingOpenIdRef.current = null;
+          setModalAgendamentoId(id);
+          setModalAberto(true);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
