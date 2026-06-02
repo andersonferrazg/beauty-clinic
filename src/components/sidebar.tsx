@@ -65,7 +65,7 @@ const navegacao: NavItem[] = [
   { href: "/confirmacoes", label: "Confirmações WA", icon: Send, visivel: (p) => p.isAdmin || p.verAgenda },
   { href: "/mensagens", label: "Msgs Pré-definidas", icon: MessageSquare, visivel: (p) => p.isAdmin || p.acessarServicos },
   { href: "/minha-conta", label: "Minha Conta", icon: UserCircle, visivel: sempre },
-  { href: "/notificacoes", label: "Notificações", icon: Bell, visivel: admin },
+  { href: "/notificacoes", label: "Notificações", icon: Bell, visivel: sempre },
   { href: "/profissionais", label: "Profissionais", icon: Users, visivel: admin },
   { divisor: true, label: "Relatórios" },
   { href: "/relatorios/performance", label: "Performance", icon: BarChart2, visivel: (p) => p.isAdmin || p.acessarRelatorios },
