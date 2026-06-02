@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
     where: {
       tenantId: sessao.tenantId,
       ativo: true,
-      ...(busca ? { nome: { contains: busca } } : {}),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...(busca ? { nome: { contains: busca, mode: "insensitive" } as any } : {}),
       ...(injetavel ? { ehInjetavel: true } : {}),
     },
     orderBy: { nome: "asc" },

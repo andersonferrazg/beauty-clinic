@@ -69,6 +69,20 @@ export default function ConfiguracoesPage() {
   const [parcelamentoAberto, setParcelamentoAberto] = useState(false);
   const [maxParcelasCredito, setMaxParcelasCredito] = useState(12);
   const [taxasParcelamento, setTaxasParcelamento] = useState<TaxaParcela[]>([]);
+  const [parcelamentoLinkAberto, setParcelamentoLinkAberto] = useState(false);
+  const [maxParcelasLink, setMaxParcelasLink] = useState(12);
+  const [taxasLink, setTaxasLink] = useState<TaxaParcela[]>([]);
+
+  // Raw strings para os inputs de taxa das formas de pagamento (permite limpar o 0)
+  const [rawTaxas, setRawTaxas] = useState<Record<string, string>>({});
+
+  // Estado para profissional não-admin gerenciar suas próprias taxas de parcelamento
+  const [profissionalId, setProfissionalId] = useState<string | null>(null);
+  const [profParcelamentoAberto, setProfParcelamentoAberto] = useState(false);
+  const [profMaxParcelas, setProfMaxParcelas] = useState(12);
+  const [profTaxas, setProfTaxas] = useState<TaxaParcela[]>([]);
+  const [salvandoProfConfig, setSalvandoProfConfig] = useState(false);
+  const [salvoProfConfigOk, setSalvoProfConfigOk] = useState(false);
 
   useEffect(() => {
     async function carregar() {
@@ -77,6 +91,7 @@ export default function ConfiguracoesPage() {
         fetch("/api/configuracoes").then((r) => r.json()).catch(() => null),
       ]);
 
+      if (sessaoRes?.profissionalId) setProfissionalId(sessaoRes.profissionalId);
       if (sessaoRes?.permissoes?.isAdmin) {
         setIsAdmin(true);
         setSecao("clinica");
@@ -112,23 +127,51 @@ export default function ConfiguracoesPage() {
   }, []);
 
   useEffect(() => {
-    if (isAdmin && secao === "pagamento") {
-      fetch("/api/formas-pagamento?incluirInativas=true")
+    if ((isAdmin || profissionalId) && secao === "pagamento") {
+      fetch(`/api/formas-pagamento${isAdmin ? "?incluirInativas=true" : ""}`)
         .then((r) => r.json())
         .then((data: FormaPagamento[]) => {
           setFormas(data);
-          const cc = data.find((f) => f.nome === "Cartão de Crédito");
-          if (cc?.configJson) {
-            try {
-              const config = JSON.parse(cc.configJson);
-              setMaxParcelasCredito(config.maxParcelas ?? 12);
-              setTaxasParcelamento(config.taxas ?? []);
-            } catch {}
+          const raw: Record<string, string> = {};
+          data.forEach((f) => { raw[f.id] = String(f.percentualTaxa); });
+          setRawTaxas(raw);
+          if (isAdmin) {
+            const cc = data.find((f) => f.nome === "Cartão de Crédito");
+            if (cc?.configJson) {
+              try {
+                const config = JSON.parse(cc.configJson);
+                setMaxParcelasCredito(config.maxParcelas ?? 12);
+                setTaxasParcelamento(config.taxas ?? []);
+              } catch {}
+            }
+            const lp = data.find((f) => f.nome === "Link de Pagamento");
+            if (lp?.configJson) {
+              try {
+                const config = JSON.parse(lp.configJson);
+                setMaxParcelasLink(config.maxParcelas ?? 12);
+                setTaxasLink(config.taxas ?? []);
+              } catch {}
+            }
           }
         })
         .catch(() => {});
+
+      if (!isAdmin && profissionalId) {
+        fetch("/api/me/config-cartao")
+          .then((r) => r.json())
+          .then((data: { configJsonCartao: string | null }) => {
+            if (data?.configJsonCartao) {
+              try {
+                const config = JSON.parse(data.configJsonCartao);
+                setProfMaxParcelas(config.maxParcelas ?? 12);
+                setProfTaxas(config.taxas ?? []);
+              } catch {}
+            }
+          })
+          .catch(() => {});
+      }
     }
-  }, [isAdmin, secao]);
+  }, [isAdmin, profissionalId, secao]);
 
   useEffect(() => {
     if (!agendOnlineAtivo || !slugTenant) { setQrDataUrl(""); return; }
@@ -244,6 +287,8 @@ export default function ConfiguracoesPage() {
       for (const f of formas) {
         const configJson = f.nome === "Cartão de Crédito"
           ? JSON.stringify({ maxParcelas: maxParcelasCredito, taxas: taxasParcelamento })
+          : f.nome === "Link de Pagamento"
+          ? JSON.stringify({ maxParcelas: maxParcelasLink, taxas: taxasLink })
           : (f.configJson ?? null);
 
         if (!f.id.startsWith("_novo_")) {
@@ -280,16 +325,51 @@ export default function ConfiguracoesPage() {
     });
   }
 
+  function atualizarTaxaLink(parcelas: number, campo: string, valor: string | number) {
+    setTaxasLink((prev) => {
+      const idx = prev.findIndex((t) => t.parcelas === parcelas);
+      const base: TaxaParcela = { parcelas, taxaPct: 0, recebimento: "CONFORME_PARCELAS" };
+      if (idx === -1) return [...prev, { ...base, [campo]: valor }];
+      return prev.map((t, i) => (i === idx ? { ...t, [campo]: valor } : t));
+    });
+  }
+
+  function atualizarProfTaxaParcela(parcelas: number, campo: string, valor: string | number) {
+    setProfTaxas((prev) => {
+      const idx = prev.findIndex((t) => t.parcelas === parcelas);
+      const base: TaxaParcela = { parcelas, taxaPct: 0, recebimento: "CONFORME_PARCELAS" };
+      if (idx === -1) return [...prev, { ...base, [campo]: valor }];
+      return prev.map((t, i) => (i === idx ? { ...t, [campo]: valor } : t));
+    });
+  }
+
+  async function salvarProfConfig() {
+    setSalvandoProfConfig(true);
+    try {
+      const configJsonCartao = JSON.stringify({ maxParcelas: profMaxParcelas, taxas: profTaxas });
+      await fetch("/api/me/config-cartao", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ configJsonCartao }),
+      });
+      setSalvoProfConfigOk(true);
+      setTimeout(() => setSalvoProfConfigOk(false), 2500);
+    } finally {
+      setSalvandoProfConfig(false);
+    }
+  }
+
   function adicionarForma() {
     const novoId = `_novo_${Date.now()}`;
     setFormas((prev) => [...prev, { id: novoId, nome: "", percentualTaxa: 0, ativa: true, ordem: prev.length }]);
+    setRawTaxas((prev) => ({ ...prev, [novoId]: "" }));
   }
 
   const tabs = [
     ...(isAdmin ? [{ id: "clinica" as const, label: "Dados da Clínica", icon: Building2 }] : []),
     { id: "agenda" as const, label: "Agenda & WhatsApp", icon: Calendar },
     { id: "status" as const, label: "Status de Agenda", icon: Palette },
-    ...(isAdmin ? [{ id: "pagamento" as const, label: "Formas de Pagamento", icon: CreditCard }] : []),
+    ...(isAdmin || profissionalId ? [{ id: "pagamento" as const, label: "Formas de Pagamento", icon: CreditCard }] : []),
     ...(isAdmin ? [{ id: "backup" as const, label: "Backup", icon: Database }] : []),
   ];
 
@@ -586,12 +666,21 @@ export default function ConfiguracoesPage() {
                 />
                 <div className="flex items-center gap-1">
                   <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={f.percentualTaxa}
-                    onChange={(e) => setFormas((prev) => prev.map((x) => x.id === f.id ? { ...x, percentualTaxa: Number(e.target.value) } : x))}
+                    type="text"
+                    inputMode="decimal"
+                    value={rawTaxas[f.id] ?? String(f.percentualTaxa)}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setRawTaxas((prev) => ({ ...prev, [f.id]: raw }));
+                      const num = parseFloat(raw.replace(",", "."));
+                      if (!isNaN(num)) setFormas((prev) => prev.map((x) => x.id === f.id ? { ...x, percentualTaxa: num } : x));
+                    }}
+                    onBlur={(e) => {
+                      const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                      setRawTaxas((prev) => ({ ...prev, [f.id]: String(num) }));
+                      setFormas((prev) => prev.map((x) => x.id === f.id ? { ...x, percentualTaxa: num } : x));
+                    }}
                     className="w-full text-sm text-center text-[#5a4530] border border-[#e8dcc4] rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#B89968]"
                   />
                   <span className="text-xs text-[#9a7d50]">%</span>
@@ -670,11 +759,107 @@ export default function ConfiguracoesPage() {
                             </select>
                             <div className="flex items-center justify-end gap-1">
                               <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={taxa.taxaPct}
-                                onChange={(e) => atualizarTaxaParcela(n, "taxaPct", parseFloat(e.target.value) || 0)}
+                                type="text"
+                                inputMode="decimal"
+                                value={taxa.taxaPct === 0 ? "" : taxa.taxaPct}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const num = parseFloat(e.target.value.replace(",", "."));
+                                  atualizarTaxaParcela(n, "taxaPct", isNaN(num) ? 0 : num);
+                                }}
+                                onBlur={(e) => {
+                                  const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                                  atualizarTaxaParcela(n, "taxaPct", num);
+                                }}
+                                className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
+                              />
+                              <span className="text-xs text-[#9a7d50]">%</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#9a7d50]">
+                    &quot;Conforme parcelas&quot; = 1ª em 30 dias, 2ª em 60 dias, 3ª em 90 dias...
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Configuração de parcelamento — Link de Pagamento */}
+          {formas.some((f) => f.nome === "Link de Pagamento" && f.ativa) && (
+            <div className="border border-[#e8dcc4] rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setParcelamentoLinkAberto((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#faf5ee] text-sm font-medium text-[#5a4530] hover:bg-[#f0e8d5] transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <CreditCard size={14} className="text-[#B89968]" />
+                  Configurar parcelamento do Link de Pagamento
+                </span>
+                <ChevronDown size={14} className={cn("transition-transform text-[#9a7d50]", parcelamentoLinkAberto && "rotate-180")} />
+              </button>
+
+              {parcelamentoLinkAberto && (
+                <div className="bg-white p-4 space-y-3 border-t border-[#e8dcc4]">
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs text-[#9a7d50] whitespace-nowrap">Máximo de parcelas:</Label>
+                    <select
+                      value={maxParcelasLink}
+                      onChange={(e) => setMaxParcelasLink(Number(e.target.value))}
+                      className="border border-[#e8dcc4] rounded-lg px-2 py-1 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                    >
+                      {[6, 9, 12, 15, 18].map((n) => (
+                        <option key={n} value={n}>{n}x</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="rounded-xl border border-[#e8dcc4] overflow-hidden">
+                    <div className="grid grid-cols-[80px_1fr_110px] gap-2 px-3 py-2 bg-[#faf5ee] text-xs font-semibold text-[#5a4530] border-b border-[#e8dcc4]">
+                      <span>Parcelas</span>
+                      <span>Você recebe em</span>
+                      <span className="text-right">Taxa (%)</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-[#e8dcc4]">
+                      {Array.from({ length: maxParcelasLink }, (_, i) => i + 1).map((n) => {
+                        const taxa = taxasLink.find((t) => t.parcelas === n) ?? { parcelas: n, taxaPct: 0, recebimento: "CONFORME_PARCELAS" };
+                        return (
+                          <div key={n} className="grid grid-cols-[80px_1fr_110px] gap-2 items-center px-3 py-2">
+                            <span className="text-sm font-medium text-[#3d2c1e]">
+                              {n === 1 ? "À Vista" : `${n}x`}
+                            </span>
+                            <select
+                              value={taxa.recebimento}
+                              onChange={(e) => atualizarTaxaLink(n, "recebimento", e.target.value)}
+                              className="text-xs rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none bg-white"
+                            >
+                              <option value="CONFORME_PARCELAS">Conforme parcelas</option>
+                              <option value="HOJE">Hoje</option>
+                              <option value="1D">Amanhã (1 dia)</option>
+                              <option value="2D">2 dias</option>
+                              <option value="3D">3 dias</option>
+                              <option value="14D">14 dias</option>
+                              <option value="30D">30 dias</option>
+                              <option value="90D">90 dias</option>
+                            </select>
+                            <div className="flex items-center justify-end gap-1">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={taxa.taxaPct === 0 ? "" : taxa.taxaPct}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const num = parseFloat(e.target.value.replace(",", "."));
+                                  atualizarTaxaLink(n, "taxaPct", isNaN(num) ? 0 : num);
+                                }}
+                                onBlur={(e) => {
+                                  const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                                  atualizarTaxaLink(n, "taxaPct", num);
+                                }}
                                 className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
                               />
                               <span className="text-xs text-[#9a7d50]">%</span>
@@ -706,6 +891,124 @@ export default function ConfiguracoesPage() {
               Salvar Formas de Pagamento
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Formas de Pagamento — profissional não-admin */}
+      {secao === "pagamento" && !isAdmin && profissionalId && (
+        <div className="space-y-4">
+          <p className="text-xs text-[#9a7d50]">Formas de pagamento aceitas pela clínica:</p>
+          <div className="flex flex-wrap gap-2">
+            {formas.filter((f) => f.ativa).map((f) => (
+              <div key={f.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#e8dcc4] bg-white text-sm text-[#5a4530]">
+                <span>{f.nome}</span>
+                {f.percentualTaxa > 0 && (
+                  <span className="text-xs text-[#9a7d50]">({f.percentualTaxa}% taxa)</span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {formas.some((f) => f.nome === "Cartão de Crédito" && f.ativa) && (
+            <div className="border border-[#e8dcc4] rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setProfParcelamentoAberto((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#faf5ee] text-sm font-medium text-[#5a4530] hover:bg-[#f0e8d5] transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <CreditCard size={14} className="text-[#B89968]" />
+                  Minhas taxas de parcelamento (Cartão de Crédito)
+                </span>
+                <ChevronDown size={14} className={cn("transition-transform text-[#9a7d50]", profParcelamentoAberto && "rotate-180")} />
+              </button>
+
+              {profParcelamentoAberto && (
+                <div className="bg-white p-4 space-y-3 border-t border-[#e8dcc4]">
+                  <p className="text-xs text-[#9a7d50]">Configure taxas diferentes das da clínica para os seus atendimentos.</p>
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs text-[#9a7d50] whitespace-nowrap">Máximo de parcelas:</Label>
+                    <select
+                      value={profMaxParcelas}
+                      onChange={(e) => setProfMaxParcelas(Number(e.target.value))}
+                      className="border border-[#e8dcc4] rounded-lg px-2 py-1 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                    >
+                      {[6, 9, 12, 15, 18].map((n) => (
+                        <option key={n} value={n}>{n}x</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="rounded-xl border border-[#e8dcc4] overflow-hidden">
+                    <div className="grid grid-cols-[80px_1fr_110px] gap-2 px-3 py-2 bg-[#faf5ee] text-xs font-semibold text-[#5a4530] border-b border-[#e8dcc4]">
+                      <span>Parcelas</span>
+                      <span>Você recebe em</span>
+                      <span className="text-right">Taxa (%)</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-[#e8dcc4]">
+                      {Array.from({ length: profMaxParcelas }, (_, i) => i + 1).map((n) => {
+                        const taxa = profTaxas.find((t) => t.parcelas === n) ?? { parcelas: n, taxaPct: 0, recebimento: "CONFORME_PARCELAS" };
+                        return (
+                          <div key={n} className="grid grid-cols-[80px_1fr_110px] gap-2 items-center px-3 py-2">
+                            <span className="text-sm font-medium text-[#3d2c1e]">
+                              {n === 1 ? "À Vista" : `${n}x`}
+                            </span>
+                            <select
+                              value={taxa.recebimento}
+                              onChange={(e) => atualizarProfTaxaParcela(n, "recebimento", e.target.value)}
+                              className="text-xs rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none bg-white"
+                            >
+                              <option value="CONFORME_PARCELAS">Conforme parcelas</option>
+                              <option value="HOJE">Hoje</option>
+                              <option value="1D">Amanhã (1 dia)</option>
+                              <option value="2D">2 dias</option>
+                              <option value="3D">3 dias</option>
+                              <option value="14D">14 dias</option>
+                              <option value="30D">30 dias</option>
+                              <option value="90D">90 dias</option>
+                            </select>
+                            <div className="flex items-center justify-end gap-1">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={taxa.taxaPct === 0 ? "" : taxa.taxaPct}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const num = parseFloat(e.target.value.replace(",", "."));
+                                  atualizarProfTaxaParcela(n, "taxaPct", isNaN(num) ? 0 : num);
+                                }}
+                                onBlur={(e) => {
+                                  const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                                  atualizarProfTaxaParcela(n, "taxaPct", num);
+                                }}
+                                className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
+                              />
+                              <span className="text-xs text-[#9a7d50]">%</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#9a7d50]">
+                    &quot;Conforme parcelas&quot; = 1ª em 30 dias, 2ª em 60 dias, 3ª em 90 dias...
+                  </p>
+
+                  <div className="flex items-center justify-end gap-3 pt-1">
+                    {salvoProfConfigOk && (
+                      <span className="flex items-center gap-1 text-sm text-green-600">
+                        <Check size={14} />Salvo!
+                      </span>
+                    )}
+                    <Button onClick={salvarProfConfig} disabled={salvandoProfConfig} className="bg-[#B89968] hover:bg-[#9a7d50] text-white">
+                      {salvandoProfConfig ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+                      Salvar Minhas Taxas
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
