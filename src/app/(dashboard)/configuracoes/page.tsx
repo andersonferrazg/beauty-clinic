@@ -681,7 +681,8 @@ export default function ConfiguracoesPage() {
                     }}
                     onBlur={(e) => {
                       const num = parseFloat(e.target.value.replace(",", ".")) || 0;
-                      setRawTaxas((prev) => ({ ...prev, [f.id]: String(num) }));
+                      const fmt = Number.isInteger(num) ? String(num) : num.toFixed(2);
+                      setRawTaxas((prev) => ({ ...prev, [f.id]: fmt }));
                       setFormas((prev) => prev.map((x) => x.id === f.id ? { ...x, percentualTaxa: num } : x));
                     }}
                     className="w-full text-sm text-center text-[#5a4530] border border-[#e8dcc4] rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#B89968]"
@@ -774,7 +775,8 @@ export default function ConfiguracoesPage() {
                                 }}
                                 onBlur={(e) => {
                                   const num = parseFloat(e.target.value.replace(",", ".")) || 0;
-                                  setRawTaxasParcelamento((prev) => ({ ...prev, [n]: String(num) }));
+                                  const fmt = Number.isInteger(num) ? String(num) : num.toFixed(2);
+                                  setRawTaxasParcelamento((prev) => ({ ...prev, [n]: fmt }));
                                   atualizarTaxaParcela(n, "taxaPct", num);
                                 }}
                                 className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
@@ -866,7 +868,8 @@ export default function ConfiguracoesPage() {
                                 }}
                                 onBlur={(e) => {
                                   const num = parseFloat(e.target.value.replace(",", ".")) || 0;
-                                  setRawTaxasLink((prev) => ({ ...prev, [n]: String(num) }));
+                                  const fmt = Number.isInteger(num) ? String(num) : num.toFixed(2);
+                                  setRawTaxasLink((prev) => ({ ...prev, [n]: fmt }));
                                   atualizarTaxaLink(n, "taxaPct", num);
                                 }}
                                 className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
@@ -990,7 +993,8 @@ export default function ConfiguracoesPage() {
                                 }}
                                 onBlur={(e) => {
                                   const num = parseFloat(e.target.value.replace(",", ".")) || 0;
-                                  setRawTaxasProf((prev) => ({ ...prev, [n]: String(num) }));
+                                  const fmt = Number.isInteger(num) ? String(num) : num.toFixed(2);
+                                  setRawTaxasProf((prev) => ({ ...prev, [n]: fmt }));
                                   atualizarProfTaxaParcela(n, "taxaPct", num);
                                 }}
                                 className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
