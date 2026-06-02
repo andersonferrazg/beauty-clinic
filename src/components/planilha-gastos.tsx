@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Trash2, X, Check, Download } from "lucide-react";
+import { Loader2, Plus, Trash2, X, Check, Download, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Lancamento = {
@@ -179,6 +179,8 @@ export default function PlanilhaGastos({
   const [modalAberto, setModalAberto] = useState(false);
   const [lancamentoEditando, setLancamentoEditando] = useState<Lancamento | undefined>();
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [copiando, setCopiando] = useState(false);
+  const [copiadoMsg, setCopiadoMsg] = useState<string | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -225,6 +227,31 @@ export default function PlanilhaGastos({
   const nomeMes = new Date(parseInt(anoMes), parseInt(mesNum) - 1, 1)
     .toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
+  const proxMesNum = parseInt(mesNum) === 12 ? 1 : parseInt(mesNum) + 1;
+  const proxAnoNum = parseInt(mesNum) === 12 ? parseInt(anoMes) + 1 : parseInt(anoMes);
+  const nomeProxMes = new Date(proxAnoNum, proxMesNum - 1, 1)
+    .toLocaleDateString("pt-BR", { month: "long" });
+
+  async function copiarMes() {
+    setCopiando(true);
+    setCopiadoMsg(null);
+    try {
+      const r = await fetch("/api/lancamentos/copiar-mes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mes, categoria }),
+      });
+      const d = await r.json();
+      const msg = d.criados === 0
+        ? `Todos os itens já existem em ${nomeProxMes}.`
+        : `${d.criados} item(s) copiado(s) para ${nomeProxMes}${d.ignorados > 0 ? ` (${d.ignorados} já existiam)` : ""}.`;
+      setCopiadoMsg(msg);
+      setTimeout(() => setCopiadoMsg(null), 5000);
+    } finally {
+      setCopiando(false);
+    }
+  }
+
   function exportarCSV() {
     const linhas = [["Descrição", "Valor (R$)", "Vencimento", "Data Pagamento", "Status"]];
     for (const l of ordenados) {
@@ -265,12 +292,23 @@ export default function PlanilhaGastos({
             className="border border-[#B89968]/30 rounded-lg px-3 py-1.5 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
           />
           {!carregando && ordenados.length > 0 && (
-            <button
-              onClick={exportarCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#B89968]/30 text-sm text-[#5a4530] hover:bg-[#faf5ee] transition-colors"
-            >
-              <Download size={14} /> Exportar
-            </button>
+            <>
+              <button
+                onClick={exportarCSV}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#B89968]/30 text-sm text-[#5a4530] hover:bg-[#faf5ee] transition-colors"
+              >
+                <Download size={14} /> Exportar
+              </button>
+              <button
+                onClick={copiarMes}
+                disabled={copiando}
+                title={`Copiar todos os itens para ${nomeProxMes}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#B89968]/30 text-sm text-[#5a4530] hover:bg-[#faf5ee] transition-colors disabled:opacity-50"
+              >
+                {copiando ? <Loader2 size={14} className="animate-spin" /> : <Copy size={14} />}
+                Copiar para {nomeProxMes}
+              </button>
+            </>
           )}
           <button
             onClick={() => { setLancamentoEditando(undefined); setModalAberto(true); }}
@@ -280,6 +318,14 @@ export default function PlanilhaGastos({
           </button>
         </div>
       </div>
+
+      {/* Toast de feedback do copiar mês */}
+      {copiadoMsg && (
+        <div className="mb-4 flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg px-4 py-2.5">
+          <Check size={14} className="flex-shrink-0" />
+          {copiadoMsg}
+        </div>
+      )}
 
       {/* Cards resumo */}
       <div className="grid grid-cols-3 gap-3 mb-5">
