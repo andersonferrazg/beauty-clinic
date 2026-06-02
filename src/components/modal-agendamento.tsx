@@ -404,7 +404,7 @@ export function ModalAgendamento({
           observacao: tipo === "agendamento" ? observacao : null,
           motivoBloqueio: tipo === "bloqueio" ? motivoBloqueio : null,
           formaPagamento: formaPagamento || null,
-          parcelas: formaPagamento === "Cartão de Crédito" ? parcelas : 1,
+          parcelas: (formaPagamento === "Cartão de Crédito" || formaPagamento === "Link de Pagamento") ? parcelas : 1,
           valorTotal: totalServicos || null,
           itens: tipo === "agendamento"
             ? itens.filter((i) => i.tipo === "servico").map(({ servicoId, preco }) => ({ servicoId, preco }))
@@ -910,12 +910,14 @@ export function ModalAgendamento({
                 ))}
               </div>
 
-              {/* Parcelamento — só quando Cartão de Crédito selecionado */}
-              {formaPagamento === "Cartão de Crédito" && (() => {
-                const forma = formasPgto.find((f) => f.nome === "Cartão de Crédito");
+              {/* Parcelamento — Cartão de Crédito e Link de Pagamento */}
+              {(formaPagamento === "Cartão de Crédito" || formaPagamento === "Link de Pagamento") && (() => {
+                const forma = formasPgto.find((f) => f.nome === formaPagamento);
                 const profSelecionada = profissionais.find((p) => p.id === profissionalId);
-                // Config da profissional tem prioridade sobre a global da clínica
-                const configJsonAtivo = profSelecionada?.configJsonCartao ?? forma?.configJson ?? null;
+                // Config da profissional tem prioridade, mas só para Cartão de Crédito
+                const configJsonAtivo = formaPagamento === "Cartão de Crédito"
+                  ? (profSelecionada?.configJsonCartao ?? forma?.configJson ?? null)
+                  : (forma?.configJson ?? null);
                 let config: { maxParcelas: number; taxas: Array<{ parcelas: number; taxaPct: number }> } | null = null;
                 if (configJsonAtivo) {
                   try { config = JSON.parse(configJsonAtivo); } catch {}
@@ -983,8 +985,8 @@ export function ModalAgendamento({
                 );
               })()}
 
-              {/* Taxa para outras formas de pagamento (não cartão de crédito) */}
-              {formaPagamento !== "Cartão de Crédito" && (() => {
+              {/* Taxa para outras formas de pagamento (não cartão/link) */}
+              {formaPagamento !== "Cartão de Crédito" && formaPagamento !== "Link de Pagamento" && (() => {
                 const forma = formasPgto.find((f) => f.nome === formaPagamento);
                 if (!forma || forma.percentualTaxa === 0 || totalServicos === 0) return null;
                 const taxa = totalServicos * (forma.percentualTaxa / 100);
