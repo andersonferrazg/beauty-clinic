@@ -414,6 +414,11 @@ export default function ConfiguracoesPage() {
                     placeholder="seu@email.com"
                     className="w-full border border-[#e8dcc4] rounded-lg px-3 py-1.5 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
                   />
+                  {agendOnlineAtivo && !emailNotif && (
+                    <p className="mt-1.5 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                      ⚠️ Agendamento online está ativo mas nenhum e-mail está configurado — novos agendamentos não vão gerar alertas.
+                    </p>
+                  )}
                 </div>
               </>
             )}
