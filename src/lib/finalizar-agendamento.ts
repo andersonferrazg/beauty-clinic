@@ -90,6 +90,9 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
     return;
   }
 
+  // Retorno: não gera receita nem comissão (paciente não paga), mas baixa estoque normalmente.
+  const isRetorno = agendamento.formaPagamento === "Retorno";
+
   const valorBruto = agendamento.itens.reduce(
     (sum, item) => sum + item.preco * item.quantidade,
     0,
@@ -100,7 +103,7 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
   let taxaValor = 0;
   let valorLiquido = valorBruto;
 
-  if (agendamento.formaPagamento) {
+  if (!isRetorno && agendamento.formaPagamento) {
     const formaPgto = await prisma.formaPagamento.findFirst({
       where: { tenantId, nome: agendamento.formaPagamento, ativa: true },
       select: { percentualTaxa: true, configJson: true },
@@ -126,7 +129,7 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
   await prisma.$transaction(async (tx) => {
     let lancamentoId: string | null = null;
 
-    if (valorBruto > 0) {
+    if (!isRetorno && valorBruto > 0) {
       const profNome = agendamento.profissional.nome;
       const cliNome = agendamento.cliente?.nome ?? "Atendimento avulso";
       const descricao = `${cliNome} — ${profNome}`;
