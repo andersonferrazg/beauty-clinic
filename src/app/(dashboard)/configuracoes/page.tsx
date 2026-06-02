@@ -73,8 +73,11 @@ export default function ConfiguracoesPage() {
   const [maxParcelasLink, setMaxParcelasLink] = useState(12);
   const [taxasLink, setTaxasLink] = useState<TaxaParcela[]>([]);
 
-  // Raw strings para os inputs de taxa das formas de pagamento (permite limpar o 0)
+  // Raw strings para os inputs de taxa (permite digitar decimais sem o ponto sumir)
   const [rawTaxas, setRawTaxas] = useState<Record<string, string>>({});
+  const [rawTaxasParcelamento, setRawTaxasParcelamento] = useState<Record<number, string>>({});
+  const [rawTaxasLink, setRawTaxasLink] = useState<Record<number, string>>({});
+  const [rawTaxasProf, setRawTaxasProf] = useState<Record<number, string>>({});
 
   // Estado para profissional não-admin gerenciar suas próprias taxas de parcelamento
   const [profissionalId, setProfissionalId] = useState<string | null>(null);
@@ -761,14 +764,17 @@ export default function ConfiguracoesPage() {
                               <input
                                 type="text"
                                 inputMode="decimal"
-                                value={taxa.taxaPct === 0 ? "" : taxa.taxaPct}
+                                value={rawTaxasParcelamento[n] ?? (taxa.taxaPct === 0 ? "" : String(taxa.taxaPct))}
                                 onFocus={(e) => e.target.select()}
                                 onChange={(e) => {
-                                  const num = parseFloat(e.target.value.replace(",", "."));
-                                  atualizarTaxaParcela(n, "taxaPct", isNaN(num) ? 0 : num);
+                                  const raw = e.target.value;
+                                  setRawTaxasParcelamento((prev) => ({ ...prev, [n]: raw }));
+                                  const num = parseFloat(raw.replace(",", "."));
+                                  if (!isNaN(num)) atualizarTaxaParcela(n, "taxaPct", num);
                                 }}
                                 onBlur={(e) => {
                                   const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                                  setRawTaxasParcelamento((prev) => ({ ...prev, [n]: String(num) }));
                                   atualizarTaxaParcela(n, "taxaPct", num);
                                 }}
                                 className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
@@ -850,14 +856,17 @@ export default function ConfiguracoesPage() {
                               <input
                                 type="text"
                                 inputMode="decimal"
-                                value={taxa.taxaPct === 0 ? "" : taxa.taxaPct}
+                                value={rawTaxasLink[n] ?? (taxa.taxaPct === 0 ? "" : String(taxa.taxaPct))}
                                 onFocus={(e) => e.target.select()}
                                 onChange={(e) => {
-                                  const num = parseFloat(e.target.value.replace(",", "."));
-                                  atualizarTaxaLink(n, "taxaPct", isNaN(num) ? 0 : num);
+                                  const raw = e.target.value;
+                                  setRawTaxasLink((prev) => ({ ...prev, [n]: raw }));
+                                  const num = parseFloat(raw.replace(",", "."));
+                                  if (!isNaN(num)) atualizarTaxaLink(n, "taxaPct", num);
                                 }}
                                 onBlur={(e) => {
                                   const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                                  setRawTaxasLink((prev) => ({ ...prev, [n]: String(num) }));
                                   atualizarTaxaLink(n, "taxaPct", num);
                                 }}
                                 className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
@@ -971,14 +980,17 @@ export default function ConfiguracoesPage() {
                               <input
                                 type="text"
                                 inputMode="decimal"
-                                value={taxa.taxaPct === 0 ? "" : taxa.taxaPct}
+                                value={rawTaxasProf[n] ?? (taxa.taxaPct === 0 ? "" : String(taxa.taxaPct))}
                                 onFocus={(e) => e.target.select()}
                                 onChange={(e) => {
-                                  const num = parseFloat(e.target.value.replace(",", "."));
-                                  atualizarProfTaxaParcela(n, "taxaPct", isNaN(num) ? 0 : num);
+                                  const raw = e.target.value;
+                                  setRawTaxasProf((prev) => ({ ...prev, [n]: raw }));
+                                  const num = parseFloat(raw.replace(",", "."));
+                                  if (!isNaN(num)) atualizarProfTaxaParcela(n, "taxaPct", num);
                                 }}
                                 onBlur={(e) => {
                                   const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                                  setRawTaxasProf((prev) => ({ ...prev, [n]: String(num) }));
                                   atualizarProfTaxaParcela(n, "taxaPct", num);
                                 }}
                                 className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
