@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Loader2, TrendingUp, TrendingDown, DollarSign, Wallet,
-  Calendar, AlertCircle, Cake, ChevronRight, Users,
+  Calendar, AlertCircle, Cake, ChevronRight, Users, Building2, Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +47,8 @@ type DashboardData = {
   nomeUsuario: string;
   agendamentosHoje: AgendamentoHoje[];
   resumoMes: { receita: number; despesa: number; lucro: number } | null;
+  gastosClinicaMes: number;
+  gastosPessoalMes: number;
   comissoesPendentes: { total: number; count: number } | null;
   contasVencendo: ContaVencendo[];
   aniversariantesMes: Aniversariante[];
@@ -101,9 +103,10 @@ export default function DashboardPage() {
 
   if (!dados) return null;
 
-  const { isAdmin, nomeUsuario, agendamentosHoje, resumoMes, comissoesPendentes,
-    contasVencendo, aniversariantesMes, faturamentoPorProfissional,
-    comissaoMesProfissional, atendimentosMes } = dados;
+  const { isAdmin, nomeUsuario, agendamentosHoje, resumoMes,
+    gastosClinicaMes = 0, gastosPessoalMes = 0,
+    comissoesPendentes, contasVencendo, aniversariantesMes,
+    faturamentoPorProfissional, comissaoMesProfissional, atendimentosMes } = dados;
 
   const maxReceita = faturamentoPorProfissional.length > 0
     ? Math.max(...faturamentoPorProfissional.map((p) => p.receita))
@@ -169,6 +172,56 @@ export default function DashboardPage() {
             {(comissoesPendentes?.count ?? 0) > 0 && (
               <p className="text-xs text-[#9a7d50] mt-0.5">{comissoesPendentes!.count} pendente(s)</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Comparativo: receita vs gastos ────────────────────────────────────── */}
+      {isAdmin && resumoMes && (
+        <div className="bg-white rounded-xl border border-[#e8dcc4] p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <DollarSign size={16} className="text-[#B89968]" />
+            <h2 className="font-semibold text-[#5a4530] text-sm">
+              Comparativo — {MESES[new Date().getMonth()]}
+            </h2>
+          </div>
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp size={14} className="text-emerald-500" />
+                <span className="text-sm text-[#9a7d50]">Receita atendimentos</span>
+              </div>
+              <span className="text-sm font-semibold text-emerald-600">{fmt(resumoMes.receita)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building2 size={14} className="text-red-400" />
+                <span className="text-sm text-[#9a7d50]">Gastos Clínica</span>
+              </div>
+              <span className="text-sm font-semibold text-red-500">- {fmt(gastosClinicaMes)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Home size={14} className="text-red-400" />
+                <span className="text-sm text-[#9a7d50]">Gastos Pessoal</span>
+              </div>
+              <span className="text-sm font-semibold text-red-500">- {fmt(gastosPessoalMes)}</span>
+            </div>
+            <div className="border-t border-[#e8dcc4] pt-2.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[#9a7d50]">Total de Gastos</span>
+                <span className="text-sm font-semibold text-red-500">- {fmt(gastosClinicaMes + gastosPessoalMes)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-[#5a4530]">Resultado Final</span>
+                <span className={cn(
+                  "text-base font-bold",
+                  (resumoMes.receita - gastosClinicaMes - gastosPessoalMes) >= 0 ? "text-emerald-600" : "text-red-500"
+                )}>
+                  {fmt(resumoMes.receita - gastosClinicaMes - gastosPessoalMes)}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}

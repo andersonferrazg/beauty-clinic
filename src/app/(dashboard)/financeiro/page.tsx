@@ -295,8 +295,9 @@ export default function FinanceiroPage() {
     carregar();
   }
 
+  const CATEGORIAS_GASTOS = ["Gastos Clínica", "Gastos Casa"];
   const receitas = lancamentos.filter((l) => l.tipo === "RECEITA");
-  const despesas = lancamentos.filter((l) => l.tipo === "DESPESA");
+  const despesas = lancamentos.filter((l) => l.tipo === "DESPESA" && !CATEGORIAS_GASTOS.includes(l.categoria ?? ""));
   const totalReceitas = receitas.reduce((s, l) => s + (l.pago ? l.valor : 0), 0);
   const totalDespesas = despesas.reduce((s, l) => s + (l.pago ? l.valor : 0), 0);
   const lucro = totalReceitas - totalDespesas;

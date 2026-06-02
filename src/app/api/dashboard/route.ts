@@ -35,6 +35,8 @@ export async function GET() {
 
   // ─── Admin: resumo financeiro do mês ───────────────────────────────────────
   let resumoMes = null;
+  let gastosClinicaMes = 0;
+  let gastosPessoalMes = 0;
   let comissoesPendentes = null;
   let contasVencendo: object[] = [];
   let aniversariantesMes: object[] = [];
@@ -68,7 +70,7 @@ export async function GET() {
               .slice(0, 10),
           );
 
-    // Todas as 6 queries em paralelo — tempos se sobrepõem em vez de somar
+    // Todas as queries em paralelo — tempos se sobrepõem em vez de somar
     const [
       lancamentos,
       pendentes,
@@ -76,9 +78,15 @@ export async function GET() {
       aniversariantesRes,
       profissionais,
       comissoesMes,
+      gastosClinicaAgg,
+      gastosCasaAgg,
     ] = await Promise.all([
       prisma.lancamento.findMany({
-        where: { tenantId, criadoEm: { gte: inicioMes, lt: fimMes } },
+        where: {
+          tenantId,
+          criadoEm: { gte: inicioMes, lt: fimMes },
+          categoria: { notIn: ["Gastos Clínica", "Gastos Casa"] },
+        },
         select: { tipo: true, valor: true, pago: true, origem: true },
       }),
       prisma.comissaoLancamento.aggregate({
@@ -101,11 +109,22 @@ export async function GET() {
         where: { tenantId, criadoEm: { gte: inicioMes, lt: fimMes } },
         select: { profissionalId: true, valorBase: true },
       }),
+      prisma.lancamento.aggregate({
+        where: { tenantId, categoria: "Gastos Clínica", pago: true, vencimento: { gte: inicioMes, lt: fimMes } },
+        _sum: { valor: true },
+      }),
+      prisma.lancamento.aggregate({
+        where: { tenantId, categoria: "Gastos Casa", pago: true, vencimento: { gte: inicioMes, lt: fimMes } },
+        _sum: { valor: true },
+      }),
     ]);
 
     const receita = lancamentos.filter((l) => l.tipo === "RECEITA").reduce((s, l) => s + l.valor, 0);
     const despesa = lancamentos.filter((l) => l.tipo === "DESPESA").reduce((s, l) => s + l.valor, 0);
     resumoMes = { receita, despesa, lucro: receita - despesa };
+
+    gastosClinicaMes = gastosClinicaAgg._sum.valor ?? 0;
+    gastosPessoalMes = gastosCasaAgg._sum.valor ?? 0;
 
     comissoesPendentes = {
       total: pendentes._sum.valorComissao ?? 0,
@@ -155,6 +174,8 @@ export async function GET() {
     nomeUsuario: nome,
     agendamentosHoje,
     resumoMes,
+    gastosClinicaMes,
+    gastosPessoalMes,
     comissoesPendentes,
     contasVencendo,
     aniversariantesMes,
