@@ -838,9 +838,9 @@ export default function AgendaPage() {
                       if (min < 0 || min > TOTAL_SLOTS * 30) return null;
                       const pct = (min / (TOTAL_SLOTS * 30)) * 100;
                       return (
-                        <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: `${pct}%` }}>
+                        <div className="absolute left-0 right-0 z-20 pointer-events-none opacity-40" style={{ top: `${pct}%` }}>
                           <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 -mt-1 absolute" />
-                          <div className="border-t-2 border-red-500 w-full" />
+                          <div className="border-t border-red-500 w-full" />
                         </div>
                       );
                     })()}
@@ -992,11 +992,11 @@ export default function AgendaPage() {
                       const pct = (min / (TOTAL_SLOTS * 30)) * 100;
                       return (
                         <div
-                          className="absolute left-0 right-0 z-20 pointer-events-none"
+                          className="absolute left-0 right-0 z-20 pointer-events-none opacity-40"
                           style={{ top: `${pct}%` }}
                         >
                           <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 -mt-1 absolute" />
-                          <div className="border-t-2 border-red-500 w-full" />
+                          <div className="border-t border-red-500 w-full" />
                         </div>
                       );
                     })()}
