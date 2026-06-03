@@ -60,7 +60,6 @@ const navegacao: NavItem[] = [
   { href: "/gastos/clinica", label: "Gastos Clínica", icon: Building2, visivel: (p) => p.isAdmin || p.acessarDespesas },
   { href: "/gastos/casa", label: "Gastos Pessoal", icon: Home, visivel: (p) => p.isAdmin || p.acessarDespesas },
   { href: "/comissoes", label: "Comissões", icon: Wallet, visivel: (p) => p.isAdmin || p.verComissoesReceber || p.verPagamentosComissao },
-  { href: "/comandas", label: "Comandas", icon: ClipboardList, visivel: (p) => p.isAdmin || p.acessarFinanceiro },
   { href: "/orcamentos", label: "Orçamentos", icon: FileText, visivel: (p) => p.isAdmin || p.acessarFinanceiro },
   { href: "/confirmacoes", label: "Confirmações WA", icon: Send, visivel: (p) => p.isAdmin || p.verAgenda },
   { href: "/mensagens", label: "Msgs Pré-definidas", icon: MessageSquare, visivel: (p) => p.isAdmin || p.acessarServicos },

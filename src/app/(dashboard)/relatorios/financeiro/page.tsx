@@ -10,6 +10,7 @@ type Lancamento = {
   descricao: string;
   valor: number;
   pago: boolean;
+  formaPagamento: string | null;
 };
 
 type Comissao = {
@@ -53,8 +54,9 @@ export default function RelatorioFinanceiroPage() {
   const totalReceitas = receitas.reduce((s, l) => s + l.valor, 0);
   const totalReceitasPago = receitas.filter((l) => l.pago).reduce((s, l) => s + l.valor, 0);
 
-  // Despesas exceto comissões (já contadas separadamente)
-  const despesasOperacionais = despesas.filter((l) => l.categoria !== "Comissões");
+  // Despesas da clínica: excluir comissões (contadas à parte) e gastos pessoais (isolados)
+  const CATEGORIAS_EXCLUIDAS = ["Comissões", "Gastos Casa"];
+  const despesasOperacionais = despesas.filter((l) => !CATEGORIAS_EXCLUIDAS.includes(l.categoria ?? ""));
   const totalDespesasOp = despesasOperacionais.reduce((s, l) => s + l.valor, 0);
   const totalDespesasOpPago = despesasOperacionais.filter((l) => l.pago).reduce((s, l) => s + l.valor, 0);
 
@@ -80,6 +82,23 @@ export default function RelatorioFinanceiroPage() {
     acc[cat] = (acc[cat] || 0) + l.valor;
     return acc;
   }, {});
+
+  // Breakdown por forma de pagamento (só receitas pagas)
+  const FORMAS_PAGAMENTO = [
+    { key: "Dinheiro",             label: "Dinheiro" },
+    { key: "Pix/Transferência",    label: "PIX / Transf." },
+    { key: "Cartão de Crédito",    label: "Crédito" },
+    { key: "Cartão de Débito",     label: "Débito" },
+    { key: "Link de Pagamento",    label: "Link Pgto." },
+    { key: "Cheque",               label: "Cheque" },
+    { key: "Cortesia",             label: "Cortesia" },
+  ];
+  const receitasPagas = receitas.filter((l) => l.pago);
+  const totalFormas = receitasPagas.reduce((s, l) => s + l.valor, 0) || 1;
+  const breakdownFormas = FORMAS_PAGAMENTO.map(({ key, label }) => {
+    const valor = receitasPagas.filter((l) => (l.formaPagamento ?? "Dinheiro") === key).reduce((s, l) => s + l.valor, 0);
+    return { label, valor, pct: (valor / totalFormas) * 100 };
+  }).filter((f) => f.valor > 0);
 
   // Comissões por profissional
   const comissoesPorProf = comissoes.reduce<Record<string, { total: number; pago: number; cor: string }>>((acc, c) => {
@@ -225,6 +244,22 @@ export default function RelatorioFinanceiroPage() {
           </div>
         </div>
       </div>
+
+      {/* Breakdown por forma de pagamento */}
+      {!carregando && breakdownFormas.length > 0 && (
+        <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 shadow-sm mb-6">
+          <h2 className="text-sm font-semibold text-[#9a7d50] uppercase tracking-wider mb-4">Receita por forma de pagamento</h2>
+          <div className="flex flex-wrap gap-3">
+            {breakdownFormas.map(({ label, valor, pct }) => (
+              <div key={label} className="flex-1 min-w-[100px] bg-[#faf5ee] rounded-xl p-3 text-center">
+                <p className="text-xs text-[#9a7d50] mb-1">{label}</p>
+                <p className="text-sm font-bold text-[#5a4530]">{fmt(valor)}</p>
+                <p className="text-xs font-semibold text-[#B89968] mt-0.5">{pct.toFixed(1)}%</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {carregando ? (
         <div className="flex items-center justify-center py-12">
