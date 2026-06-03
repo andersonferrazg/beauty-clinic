@@ -5,6 +5,7 @@ import {
   Loader2, TrendingUp, TrendingDown, Wallet,
   Clock, Download, Printer, X, CalendarDays,
   Banknote, Landmark, CreditCard, Gift, FileText, Link2,
+  AlertCircle, BarChart2, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ type Lancamento = {
   formaPagamento: string | null;
   vencimento: string | null;
   criadoEm: string;
+  projetado?: boolean;
 };
 
 type Comissao = {
@@ -28,6 +30,7 @@ type Comissao = {
 };
 
 type DadoMensal = { mes: number; receita: number; despesa: number };
+type TopServico  = { nome: string; receita: number; qtd: number };
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -48,13 +51,13 @@ function dataExibicao(iso: string) {
 const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 const FORMAS_BREAKDOWN = [
-  { key: "Dinheiro",          label: "Dinheiro",     Icon: Banknote },
-  { key: "PIX",               label: "PIX",          Icon: Landmark },
-  { key: "Cartão de Crédito", label: "Crédito",      Icon: CreditCard },
-  { key: "Cartão de Débito",  label: "Débito",       Icon: CreditCard },
-  { key: "Link de Pagamento", label: "Link",         Icon: Link2 },
-  { key: "Cheque",            label: "Cheque",       Icon: FileText },
-  { key: "Cortesia",          label: "Cortesia",     Icon: Gift },
+  { key: "Dinheiro",          label: "Dinheiro",  Icon: Banknote },
+  { key: "PIX",               label: "PIX",       Icon: Landmark },
+  { key: "Cartão de Crédito", label: "Crédito",   Icon: CreditCard },
+  { key: "Cartão de Débito",  label: "Débito",    Icon: CreditCard },
+  { key: "Link de Pagamento", label: "Link",      Icon: Link2 },
+  { key: "Cheque",            label: "Cheque",    Icon: FileText },
+  { key: "Cortesia",          label: "Cortesia",  Icon: Gift },
 ];
 
 const FORMAS_FILTRO = [
@@ -69,6 +72,105 @@ const FORMAS_FILTRO = [
   { key: "Retorno",           label: "Retorno" },
   { key: "__SEM_FORMA__",     label: "Sem forma" },
 ];
+
+const CORES_SERVICOS = ["#B89968", "#6366F1", "#EC4899", "#10B981", "#F59E0B"];
+
+// ── Modal "Ver todos os serviços" ─────────────────────────────────────────────
+function ModalTodosServicos({
+  servicos,
+  total,
+  onFechar,
+}: {
+  servicos: TopServico[];
+  total: number;
+  onFechar: () => void;
+}) {
+  const [ordem, setOrdem] = useState<"receita" | "qtd">("receita");
+  const [dir, setDir] = useState<"desc" | "asc">("desc");
+
+  function alternarOrdem(col: "receita" | "qtd") {
+    if (col === ordem) setDir(d => d === "desc" ? "asc" : "desc");
+    else { setOrdem(col); setDir("desc"); }
+  }
+
+  const ordenados = [...servicos].sort((a, b) => {
+    const diff = a[ordem] - b[ordem];
+    return dir === "desc" ? -diff : diff;
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onFechar} />
+      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[90dvh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8dcc4] flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <BarChart2 size={16} className="text-[#B89968]" />
+            <h2 className="text-base font-semibold text-[#5a4530]">Todos os serviços</h2>
+          </div>
+          <button onClick={onFechar} className="text-[#9a7d50] hover:text-[#5a4530]">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-[#faf5ee]">
+              <tr className="border-b border-[#e8dcc4]">
+                <th className="text-left px-4 py-2.5 text-[#9a7d50] font-medium">#</th>
+                <th className="text-left px-2 py-2.5 text-[#9a7d50] font-medium">Serviço</th>
+                <th
+                  className="text-right px-3 py-2.5 text-[#9a7d50] font-medium cursor-pointer select-none hover:text-[#5a4530]"
+                  onClick={() => alternarOrdem("qtd")}
+                >
+                  <span className="flex items-center justify-end gap-1">
+                    Qtd {ordem === "qtd" ? (dir === "desc" ? <ChevronDown size={12} /> : <ChevronUp size={12} />) : null}
+                  </span>
+                </th>
+                <th
+                  className="text-right px-4 py-2.5 text-[#9a7d50] font-medium cursor-pointer select-none hover:text-[#5a4530]"
+                  onClick={() => alternarOrdem("receita")}
+                >
+                  <span className="flex items-center justify-end gap-1">
+                    Receita {ordem === "receita" ? (dir === "desc" ? <ChevronDown size={12} /> : <ChevronUp size={12} />) : null}
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {ordenados.map((s, i) => {
+                const pct = total > 0 ? (s.receita / total) * 100 : 0;
+                return (
+                  <tr key={s.nome} className="border-b border-[#e8dcc4]/50 hover:bg-[#faf5ee]/50">
+                    <td className="px-4 py-2.5 text-[#9a7d50] font-medium">{i + 1}</td>
+                    <td className="px-2 py-2.5">
+                      <p className="text-[#5a4530] font-medium leading-tight">{s.nome}</p>
+                      <div className="w-full bg-[#f5f0e8] rounded-full h-1 mt-1">
+                        <div
+                          className="h-1 rounded-full"
+                          style={{ width: `${pct}%`, backgroundColor: CORES_SERVICOS[i % CORES_SERVICOS.length] }}
+                        />
+                      </div>
+                    </td>
+                    <td className="text-right px-3 py-2.5 text-[#9a7d50]">{s.qtd}x</td>
+                    <td className="text-right px-4 py-2.5 font-semibold text-[#5a4530] whitespace-nowrap">{fmt(s.receita)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="bg-[#faf5ee] border-t-2 border-[#e8dcc4]">
+                <td colSpan={2} className="px-4 py-2.5 text-xs font-bold text-[#5a4530]">Total</td>
+                <td className="text-right px-3 py-2.5 text-xs font-bold text-[#5a4530]">
+                  {ordenados.reduce((s, x) => s + x.qtd, 0)}x
+                </td>
+                <td className="text-right px-4 py-2.5 text-xs font-bold text-[#5a4530] whitespace-nowrap">{fmt(total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Modal de detalhe do dia ────────────────────────────────────────────────────
 function ModalDetalheDia({
@@ -201,6 +303,16 @@ export default function RelatorioFinanceiroPage() {
   const [dadosAnuais, setDadosAnuais] = useState<DadoMensal[] | null>(null);
   const [fcCarregando, setFcCarregando] = useState(false);
 
+  // Projeção / futuros
+  const [incluirFuturos, setIncluirFuturos] = useState(false);
+  const [projecao, setProjecao] = useState<Lancamento[]>([]);
+
+  // Top serviços
+  const [top5, setTop5] = useState<TopServico[]>([]);
+  const [top5Todos, setTop5Todos] = useState<TopServico[]>([]);
+  const [top5Total, setTop5Total] = useState(0);
+  const [mostrarTodosServicos, setMostrarTodosServicos] = useState(false);
+
   useEffect(() => {
     setCarregando(true);
     Promise.all([
@@ -223,35 +335,56 @@ export default function RelatorioFinanceiroPage() {
       .finally(() => setFcCarregando(false));
   }, [anoFc]);
 
-  // ── Cálculos do Resumo ─────────────────────────────────────────────────────
-  const receitas = lancamentos.filter((l) => l.tipo === "RECEITA");
+  useEffect(() => {
+    if (!incluirFuturos) { setProjecao([]); return; }
+    fetch(`/api/relatorios/projecao?mes=${mes}`)
+      .then(r => r.json())
+      .then(d => setProjecao(Array.isArray(d) ? d : []));
+  }, [mes, incluirFuturos]);
+
+  useEffect(() => {
+    fetch(`/api/relatorios/top-servicos?mes=${mes}&futuros=${incluirFuturos}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d && Array.isArray(d.top5))  setTop5(d.top5);
+        if (d && Array.isArray(d.todos)) setTop5Todos(d.todos);
+        if (d && typeof d.total === "number") setTop5Total(d.total);
+      })
+      .catch(() => {});
+  }, [mes, incluirFuturos]);
+
+  // ── Cálculos ───────────────────────────────────────────────────────────────
+  const todasReceitas: Lancamento[] = [
+    ...lancamentos.filter(l => l.tipo === "RECEITA"),
+    ...(incluirFuturos ? projecao : []),
+  ];
   const despesas = lancamentos.filter((l) => l.tipo === "DESPESA");
 
-  const totalReceitas = receitas.reduce((s, l) => s + l.valor, 0);
-  const totalReceitasPago = receitas.filter((l) => l.pago).reduce((s, l) => s + l.valor, 0);
+  const totalReceitas    = todasReceitas.reduce((s, l) => s + l.valor, 0);
+  const totalReceitasPago = todasReceitas.filter(l => l.pago).reduce((s, l) => s + l.valor, 0);
+  const totalProjetado   = incluirFuturos ? projecao.reduce((s, l) => s + l.valor, 0) : 0;
 
   const CATEGORIAS_EXCLUIDAS = ["Comissões", "Gastos Casa"];
-  const despesasOperacionais = despesas.filter((l) => !CATEGORIAS_EXCLUIDAS.includes(l.categoria ?? ""));
-  const totalDespesasOp = despesasOperacionais.reduce((s, l) => s + l.valor, 0);
-  const totalDespesasOpPago = despesasOperacionais.filter((l) => l.pago).reduce((s, l) => s + l.valor, 0);
+  const despesasOperacionais  = despesas.filter(l => !CATEGORIAS_EXCLUIDAS.includes(l.categoria ?? ""));
+  const totalDespesasOp       = despesasOperacionais.reduce((s, l) => s + l.valor, 0);
+  const totalDespesasOpPago   = despesasOperacionais.filter(l => l.pago).reduce((s, l) => s + l.valor, 0);
 
-  const totalComissoes = comissoes.reduce((s, c) => s + c.valorComissao, 0);
-  const totalComissoesPagas = comissoes.filter((c) => c.pago).reduce((s, c) => s + c.valorComissao, 0);
+  const totalComissoes        = comissoes.reduce((s, c) => s + c.valorComissao, 0);
+  const totalComissoesPagas   = comissoes.filter(c => c.pago).reduce((s, c) => s + c.valorComissao, 0);
   const totalComissoesPendentes = totalComissoes - totalComissoesPagas;
 
   const totalDespesasPago = totalDespesasOpPago + totalComissoesPagas;
-  const lucro = totalReceitasPago - totalDespesasPago;
-  const lucroAjustado = totalReceitasPago - totalDespesasOpPago - totalComissoes;
+  const lucro             = totalReceitasPago - totalDespesasPago;
+  const lucroAjustado     = totalReceitasPago - totalDespesasOpPago - totalComissoes;
 
-  const receitasPagas = receitas.filter((l) => l.pago);
-  // Formas de pagamento: sempre mostra todas; null não cai em Dinheiro
+  // Breakdown de formas de pagamento (usa apenas receitas PAGAS — projetos sem pago=true não contam)
+  const receitasPagas = todasReceitas.filter(l => l.pago);
   const breakdownFormas = FORMAS_BREAKDOWN.map(({ key, label, Icon }) => {
-    const valor = receitasPagas.filter((l) => l.formaPagamento === key).reduce((s, l) => s + l.valor, 0);
-    const pct = totalReceitasPago > 0 ? (valor / totalReceitasPago) * 100 : 0;
+    const valor = receitasPagas.filter(l => l.formaPagamento === key).reduce((s, l) => s + l.valor, 0);
+    const pct   = totalReceitasPago > 0 ? (valor / totalReceitasPago) * 100 : 0;
     return { label, valor, pct, Icon, semForma: false };
   });
-  // Card extra para lançamentos sem forma definida
-  const valorSemForma = receitasPagas.filter((l) => !l.formaPagamento).reduce((s, l) => s + l.valor, 0);
+  const valorSemForma = receitasPagas.filter(l => !l.formaPagamento).reduce((s, l) => s + l.valor, 0);
   if (valorSemForma > 0) {
     breakdownFormas.push({
       label: "Sem forma",
@@ -262,7 +395,7 @@ export default function RelatorioFinanceiroPage() {
     });
   }
 
-  const receitasPorCat = receitas.reduce<Record<string, number>>((acc, l) => {
+  const receitasPorCat = todasReceitas.reduce<Record<string, number>>((acc, l) => {
     const cat = l.categoria || "Outros";
     acc[cat] = (acc[cat] || 0) + l.valor;
     return acc;
@@ -282,7 +415,7 @@ export default function RelatorioFinanceiroPage() {
     return acc;
   }, {});
 
-  // ── Cálculos do Fluxo Diário ───────────────────────────────────────────────
+  // ── Fluxo Diário ──────────────────────────────────────────────────────────
   const lancsPorDia: Record<string, Lancamento[]> = {};
   for (const l of lancamentos.filter(ll => ll.categoria !== "Gastos Casa")) {
     const data = (l.vencimento ?? l.criadoEm).slice(0, 10);
@@ -290,11 +423,10 @@ export default function RelatorioFinanceiroPage() {
     lancsPorDia[data].push(l);
   }
 
-  // Todos os dias do mês (com R$0 nos dias sem lançamento)
   const [anoMesStr, mesNumStr] = mes.split("-");
   const diasNoMes = new Date(parseInt(anoMesStr), parseInt(mesNumStr), 0).getDate();
   const todosDiasMes = Array.from({ length: diasNoMes }, (_, i) => {
-    const dia = String(i + 1).padStart(2, "0");
+    const dia  = String(i + 1).padStart(2, "0");
     const data = `${mes}-${dia}`;
     const lancs = lancsPorDia[data] ?? [];
     const rec  = lancs.filter(l => l.tipo === "RECEITA" && l.pago).reduce((s, l) => s + l.valor, 0);
@@ -302,7 +434,6 @@ export default function RelatorioFinanceiroPage() {
     return { data, dia, lancs, receita: rec, despesa: desp, resultado: rec - desp };
   });
 
-  // 3 colunas: ~10 dias cada
   const colSize = Math.ceil(diasNoMes / 3);
   const colunasDiario = [
     todosDiasMes.slice(0, colSize),
@@ -320,7 +451,18 @@ export default function RelatorioFinanceiroPage() {
     { receita: 0, despesa: 0 },
   ) ?? { receita: 0, despesa: 0 };
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  const mesesComReceita = dadosAnuais ? dadosAnuais.filter(d => d.receita > 0) : [];
+  const melhorMes = mesesComReceita.length > 0
+    ? mesesComReceita.reduce((mx, d) => d.receita > mx.receita ? d : mx)
+    : null;
+  const piorMes = mesesComReceita.length > 0
+    ? mesesComReceita.reduce((mn, d) => d.receita < mn.receita ? d : mn)
+    : null;
+  const ganhoMedio = mesesComReceita.length > 0
+    ? totalAnual.receita / mesesComReceita.length
+    : 0;
+
+  // ──────────────────────────────────────────────────────────────────────────
   const nomeMes = new Date(parseInt(anoMesStr), parseInt(mesNumStr) - 1, 1)
     .toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
@@ -345,7 +487,6 @@ export default function RelatorioFinanceiroPage() {
       linhas.push([data, receita.toFixed(2), despesa.toFixed(2), resultado.toFixed(2)]);
     });
     linhas.push(["Total", totalDiario.receita.toFixed(2), totalDiario.despesa.toFixed(2), totalDiario.resultado.toFixed(2)]);
-
     const csv = "﻿" + linhas.map(l => l.map(c => `"${c}"`).join(";")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -364,14 +505,34 @@ export default function RelatorioFinanceiroPage() {
           <h1 className="text-2xl font-serif font-semibold text-[#5a4530]">Resumo Financeiro</h1>
           <p className="text-sm text-[#9a7d50] mt-1 capitalize">{nomeMes}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
           {aba !== "anual" && (
-            <input
-              type="month"
-              value={mes}
-              onChange={(e) => { setMes(e.target.value); setDiaSelecionado(null); }}
-              className="border border-[#B89968]/30 rounded-lg px-3 py-1.5 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
-            />
+            <>
+              <input
+                type="month"
+                value={mes}
+                onChange={(e) => { setMes(e.target.value); setDiaSelecionado(null); }}
+                className="border border-[#B89968]/30 rounded-lg px-3 py-1.5 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+              />
+              {/* Toggle dados futuros */}
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <button
+                  role="switch"
+                  aria-checked={incluirFuturos}
+                  onClick={() => setIncluirFuturos(v => !v)}
+                  className={cn(
+                    "relative w-9 h-5 rounded-full transition-colors flex-shrink-0",
+                    incluirFuturos ? "bg-[#B89968]" : "bg-[#e8dcc4]"
+                  )}
+                >
+                  <span className={cn(
+                    "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                    incluirFuturos ? "translate-x-4" : "translate-x-0"
+                  )} />
+                </button>
+                <span className="text-xs text-[#9a7d50] whitespace-nowrap">Ver projeção</span>
+              </label>
+            </>
           )}
           {aba === "anual" && (
             <div className="flex items-center gap-1 border border-[#B89968]/30 rounded-lg px-3 py-1.5">
@@ -399,12 +560,23 @@ export default function RelatorioFinanceiroPage() {
         </div>
       </div>
 
+      {/* Aviso de projeção */}
+      {incluirFuturos && aba !== "anual" && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 mb-4">
+          <AlertCircle size={15} className="text-amber-500 flex-shrink-0" />
+          <p className="text-xs text-amber-700">
+            <span className="font-semibold">Esta é apenas uma projeção</span> — inclui atendimentos agendados ainda não finalizados
+            {totalProjetado > 0 ? ` (${fmt(totalProjetado)} projetado)` : ""}.
+          </p>
+        </div>
+      )}
+
       {/* Abas */}
       <div className="flex border-b border-[#e8dcc4] mb-6 gap-1">
         {([
-          { key: "resumo",  label: "Resumo" },
-          { key: "diario",  label: "Fluxo Diário" },
-          { key: "anual",   label: "Fluxo de Caixa" },
+          { key: "resumo", label: "Resumo" },
+          { key: "diario", label: "Fluxo Diário" },
+          { key: "anual",  label: "Fluxo de Caixa" },
         ] as const).map(({ key, label }) => (
           <button
             key={key}
@@ -419,12 +591,14 @@ export default function RelatorioFinanceiroPage() {
         ))}
       </div>
 
-      {/* ── Aba Resumo ────────────────────────────────────────────────────────── */}
+      {/* ── Loading ──────────────────────────────────────────────────────────── */}
       {carregando ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 size={28} className="animate-spin text-[#B89968]" />
         </div>
+
       ) : aba === "resumo" ? (
+        /* ── Aba Resumo ────────────────────────────────────────────────────── */
         <>
           {/* DRE */}
           <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 shadow-sm mb-5">
@@ -434,6 +608,11 @@ export default function RelatorioFinanceiroPage() {
                 <div className="flex items-center gap-2">
                   <TrendingUp size={14} className="text-green-600" />
                   <span className="text-sm text-[#5a4530]">(+) Receita Bruta</span>
+                  {incluirFuturos && totalProjetado > 0 && (
+                    <span className="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded font-medium">
+                      +{fmt(totalProjetado)} projetado
+                    </span>
+                  )}
                 </div>
                 <span className="text-sm font-semibold text-green-600">{fmt(totalReceitas)}</span>
               </div>
@@ -474,7 +653,7 @@ export default function RelatorioFinanceiroPage() {
             </div>
           </div>
 
-          {/* Formas de pagamento — sempre mostra todas */}
+          {/* Formas de pagamento */}
           <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 shadow-sm mb-5">
             <h2 className="text-xs font-semibold text-[#9a7d50] uppercase tracking-wider mb-4">Receita por forma de pagamento</h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -491,6 +670,54 @@ export default function RelatorioFinanceiroPage() {
               ))}
             </div>
           </div>
+
+          {/* Top 5 serviços */}
+          {top5.length > 0 && (
+            <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 shadow-sm mb-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xs font-semibold text-[#9a7d50] uppercase tracking-wider">Top serviços do mês</h2>
+                {top5Todos.length > 5 && (
+                  <button
+                    onClick={() => setMostrarTodosServicos(true)}
+                    className="text-xs text-[#B89968] hover:text-[#9a7d50] font-medium"
+                  >
+                    Ver todos ({top5Todos.length})
+                  </button>
+                )}
+              </div>
+              <div className="space-y-3">
+                {top5.map((s, i) => {
+                  const pct = top5Total > 0 ? (s.receita / top5Total) * 100 : 0;
+                  const cor = CORES_SERVICOS[i % CORES_SERVICOS.length];
+                  return (
+                    <div key={s.nome}>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: cor }}
+                          />
+                          <span className="text-[#5a4530] font-medium truncate">{s.nome}</span>
+                          <span className="text-[#9a7d50] flex-shrink-0">{s.qtd}x</span>
+                        </div>
+                        <span className="font-semibold text-[#5a4530] pl-2 flex-shrink-0">{fmt(s.receita)}</span>
+                      </div>
+                      <div className="w-full bg-[#f5f0e8] rounded-full h-1.5">
+                        <div
+                          className="h-1.5 rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: cor }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 pt-3 border-t border-[#e8dcc4] flex justify-between text-xs text-[#9a7d50]">
+                <span>Total por serviços</span>
+                <span className="font-semibold text-[#5a4530]">{fmt(top5Total)}</span>
+              </div>
+            </div>
+          )}
 
           {/* Categorias + Comissões */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -581,7 +808,7 @@ export default function RelatorioFinanceiroPage() {
         </>
 
       ) : aba === "diario" ? (
-        /* ── Aba Fluxo Diário: todos os dias em 3 colunas ──────────────────── */
+        /* ── Aba Fluxo Diário ─────────────────────────────────────────────── */
         <div className="bg-white rounded-xl border border-[#e8dcc4] shadow-sm overflow-hidden">
           <p className="text-xs text-[#9a7d50] px-4 py-3 border-b border-[#e8dcc4] bg-[#faf5ee]">
             Clique no dia para ver os lançamentos detalhados.
@@ -663,102 +890,128 @@ export default function RelatorioFinanceiroPage() {
 
       ) : (
         /* ── Aba Fluxo de Caixa (anual) ──────────────────────────────────── */
-        <div className="bg-white rounded-xl border border-[#e8dcc4] shadow-sm overflow-hidden">
-          {fcCarregando || !dadosAnuais ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 size={28} className="animate-spin text-[#B89968]" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs sm:text-sm">
-                <thead>
-                  <tr className="bg-[#faf5ee] border-b border-[#e8dcc4]">
-                    <th className="text-left px-4 py-3 text-[#9a7d50] font-medium min-w-[100px]"></th>
-                    {MESES_ABREV.map((m) => (
-                      <th key={m} className="text-right px-3 py-3 text-[#9a7d50] font-medium whitespace-nowrap">{m}</th>
-                    ))}
-                    <th className="text-right px-4 py-3 text-[#5a4530] font-bold">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Receitas */}
-                  <tr className="border-b border-[#e8dcc4]">
-                    <td className="px-4 py-3 font-semibold text-[#5a4530]">Receitas</td>
-                    {dadosAnuais.map((d) => (
-                      <td key={d.mes} className="text-right px-3 py-3 text-emerald-600 whitespace-nowrap">
-                        {d.receita > 0 ? fmt(d.receita) : <span className="text-[#c8b99a]">R$ 0,00</span>}
-                      </td>
-                    ))}
-                    <td className="text-right px-4 py-3 font-bold text-emerald-600 whitespace-nowrap">{fmt(totalAnual.receita)}</td>
-                  </tr>
-                  {/* Despesas */}
-                  <tr className="border-b border-[#e8dcc4]">
-                    <td className="px-4 py-3 font-semibold text-[#5a4530]">Despesas</td>
-                    {dadosAnuais.map((d) => (
-                      <td key={d.mes} className="text-right px-3 py-3 text-red-500 whitespace-nowrap">
-                        {d.despesa > 0 ? fmt(d.despesa) : <span className="text-[#c8b99a]">R$ 0,00</span>}
-                      </td>
-                    ))}
-                    <td className="text-right px-4 py-3 font-bold text-red-500 whitespace-nowrap">{fmt(totalAnual.despesa)}</td>
-                  </tr>
-                  {/* Lucro/Prejuízo */}
-                  <tr className="border-b border-[#e8dcc4]">
-                    <td className="px-4 py-3 font-semibold text-[#5a4530]">Lucro / Prejuízo</td>
-                    {dadosAnuais.map((d) => {
-                      const lucroMes = d.receita - d.despesa;
-                      return (
-                        <td key={d.mes} className="text-right px-2 py-2 whitespace-nowrap">
-                          {d.receita === 0 && d.despesa === 0 ? (
-                            <span className="text-[#c8b99a] text-xs px-2 py-1">R$ 0,00</span>
-                          ) : (
-                            <span className={cn(
-                              "font-bold text-xs px-2 py-1 rounded",
-                              lucroMes >= 0 ? "bg-emerald-500 text-white" : "bg-red-100 text-red-600"
-                            )}>
-                              {fmt(lucroMes)}
-                            </span>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="text-right px-2 py-2">
-                      <span className={cn(
-                        "font-bold text-xs px-2 py-1 rounded",
-                        (totalAnual.receita - totalAnual.despesa) >= 0 ? "bg-emerald-500 text-white" : "bg-red-100 text-red-600"
-                      )}>
-                        {fmt(totalAnual.receita - totalAnual.despesa)}
-                      </span>
-                    </td>
-                  </tr>
-                  {/* Lucratividade */}
-                  <tr>
-                    <td className="px-4 py-3 font-semibold text-[#5a4530]">Lucratividade</td>
-                    {dadosAnuais.map((d) => {
-                      const pct = d.receita > 0 ? ((d.receita - d.despesa) / d.receita) * 100 : 0;
-                      return (
-                        <td key={d.mes} className={cn(
-                          "text-right px-3 py-3 font-semibold whitespace-nowrap",
-                          d.receita === 0 ? "text-[#c8b99a]" : pct >= 0 ? "text-emerald-600" : "text-red-500"
-                        )}>
-                          {d.receita === 0 ? "0,0%" : `${pct.toFixed(1)}%`}
-                        </td>
-                      );
-                    })}
-                    <td className={cn(
-                      "text-right px-4 py-3 font-bold",
-                      totalAnual.receita === 0 ? "text-[#c8b99a]" :
-                      ((totalAnual.receita - totalAnual.despesa) / totalAnual.receita) >= 0 ? "text-emerald-600" : "text-red-500"
-                    )}>
-                      {totalAnual.receita > 0
-                        ? `${(((totalAnual.receita - totalAnual.despesa) / totalAnual.receita) * 100).toFixed(1)}%`
-                        : "0,0%"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+        <>
+          {/* Indicadores Melhor / Pior / Médio */}
+          {dadosAnuais && mesesComReceita.length > 0 && (
+            <div className="grid grid-cols-3 gap-4 mb-5">
+              <div className="bg-white rounded-xl border border-[#e8dcc4] p-4 shadow-sm text-center">
+                <p className="text-[10px] font-semibold text-[#9a7d50] uppercase tracking-wider mb-1">Melhor mês</p>
+                {melhorMes && (
+                  <>
+                    <p className="text-xs font-bold text-[#B89968] mb-0.5">{MESES_ABREV[melhorMes.mes - 1]}</p>
+                    <p className="text-sm font-bold text-emerald-600">{fmt(melhorMes.receita)}</p>
+                  </>
+                )}
+              </div>
+              <div className="bg-white rounded-xl border border-[#e8dcc4] p-4 shadow-sm text-center">
+                <p className="text-[10px] font-semibold text-[#9a7d50] uppercase tracking-wider mb-1">Ganho médio</p>
+                <p className="text-sm font-bold text-[#5a4530] mt-5">{fmt(ganhoMedio)}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-[#e8dcc4] p-4 shadow-sm text-center">
+                <p className="text-[10px] font-semibold text-[#9a7d50] uppercase tracking-wider mb-1">Pior mês</p>
+                {piorMes && (
+                  <>
+                    <p className="text-xs font-bold text-[#B89968] mb-0.5">{MESES_ABREV[piorMes.mes - 1]}</p>
+                    <p className="text-sm font-bold text-red-500">{fmt(piorMes.receita)}</p>
+                  </>
+                )}
+              </div>
             </div>
           )}
-        </div>
+
+          <div className="bg-white rounded-xl border border-[#e8dcc4] shadow-sm overflow-hidden">
+            {fcCarregando || !dadosAnuais ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 size={28} className="animate-spin text-[#B89968]" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-[#faf5ee] border-b border-[#e8dcc4]">
+                      <th className="text-left px-4 py-3 text-[#9a7d50] font-medium min-w-[100px]"></th>
+                      {MESES_ABREV.map((m) => (
+                        <th key={m} className="text-right px-3 py-3 text-[#9a7d50] font-medium whitespace-nowrap">{m}</th>
+                      ))}
+                      <th className="text-right px-4 py-3 text-[#5a4530] font-bold">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-[#e8dcc4]">
+                      <td className="px-4 py-3 font-semibold text-[#5a4530]">Receitas</td>
+                      {dadosAnuais.map((d) => (
+                        <td key={d.mes} className="text-right px-3 py-3 text-emerald-600 whitespace-nowrap">
+                          {d.receita > 0 ? fmt(d.receita) : <span className="text-[#c8b99a]">R$ 0,00</span>}
+                        </td>
+                      ))}
+                      <td className="text-right px-4 py-3 font-bold text-emerald-600 whitespace-nowrap">{fmt(totalAnual.receita)}</td>
+                    </tr>
+                    <tr className="border-b border-[#e8dcc4]">
+                      <td className="px-4 py-3 font-semibold text-[#5a4530]">Despesas</td>
+                      {dadosAnuais.map((d) => (
+                        <td key={d.mes} className="text-right px-3 py-3 text-red-500 whitespace-nowrap">
+                          {d.despesa > 0 ? fmt(d.despesa) : <span className="text-[#c8b99a]">R$ 0,00</span>}
+                        </td>
+                      ))}
+                      <td className="text-right px-4 py-3 font-bold text-red-500 whitespace-nowrap">{fmt(totalAnual.despesa)}</td>
+                    </tr>
+                    <tr className="border-b border-[#e8dcc4]">
+                      <td className="px-4 py-3 font-semibold text-[#5a4530]">Lucro / Prejuízo</td>
+                      {dadosAnuais.map((d) => {
+                        const lucroMes = d.receita - d.despesa;
+                        return (
+                          <td key={d.mes} className="text-right px-2 py-2 whitespace-nowrap">
+                            {d.receita === 0 && d.despesa === 0 ? (
+                              <span className="text-[#c8b99a] text-xs px-2 py-1">R$ 0,00</span>
+                            ) : (
+                              <span className={cn(
+                                "font-bold text-xs px-2 py-1 rounded",
+                                lucroMes >= 0 ? "bg-emerald-500 text-white" : "bg-red-100 text-red-600"
+                              )}>
+                                {fmt(lucroMes)}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="text-right px-2 py-2">
+                        <span className={cn(
+                          "font-bold text-xs px-2 py-1 rounded",
+                          (totalAnual.receita - totalAnual.despesa) >= 0 ? "bg-emerald-500 text-white" : "bg-red-100 text-red-600"
+                        )}>
+                          {fmt(totalAnual.receita - totalAnual.despesa)}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 font-semibold text-[#5a4530]">Lucratividade</td>
+                      {dadosAnuais.map((d) => {
+                        const pct = d.receita > 0 ? ((d.receita - d.despesa) / d.receita) * 100 : 0;
+                        return (
+                          <td key={d.mes} className={cn(
+                            "text-right px-3 py-3 font-semibold whitespace-nowrap",
+                            d.receita === 0 ? "text-[#c8b99a]" : pct >= 0 ? "text-emerald-600" : "text-red-500"
+                          )}>
+                            {d.receita === 0 ? "0,0%" : `${pct.toFixed(1)}%`}
+                          </td>
+                        );
+                      })}
+                      <td className={cn(
+                        "text-right px-4 py-3 font-bold",
+                        totalAnual.receita === 0 ? "text-[#c8b99a]" :
+                        ((totalAnual.receita - totalAnual.despesa) / totalAnual.receita) >= 0 ? "text-emerald-600" : "text-red-500"
+                      )}>
+                        {totalAnual.receita > 0
+                          ? `${(((totalAnual.receita - totalAnual.despesa) / totalAnual.receita) * 100).toFixed(1)}%`
+                          : "0,0%"}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Modal detalhe do dia */}
@@ -767,6 +1020,15 @@ export default function RelatorioFinanceiroPage() {
           data={diaSelecionado}
           lancamentos={lancsPorDia[diaSelecionado] ?? []}
           onFechar={() => setDiaSelecionado(null)}
+        />
+      )}
+
+      {/* Modal todos os serviços */}
+      {mostrarTodosServicos && (
+        <ModalTodosServicos
+          servicos={top5Todos}
+          total={top5Total}
+          onFechar={() => setMostrarTodosServicos(false)}
         />
       )}
     </div>
