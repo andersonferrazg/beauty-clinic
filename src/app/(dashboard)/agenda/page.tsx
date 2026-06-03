@@ -793,12 +793,14 @@ export default function AgendaPage() {
             const nomes = feriadosDoDia(dataAtual);
             if (nomes.length === 0) return null;
             return (
-              <div className="flex border-b border-amber-200 bg-amber-50">
-                <div className="w-14 flex-shrink-0 border-r border-amber-200 flex items-center justify-center py-1.5">
-                  <span className="text-[9px] text-amber-600 font-semibold uppercase tracking-wide">Feriado</span>
+              <div className="flex border-b border-[#e7e2da]">
+                <div className="w-14 flex-shrink-0 border-r border-[#e7e2da] flex items-center justify-end pr-1 py-1.5">
+                  <span className="text-[9px] text-[#545454] font-normal">Feriado</span>
                 </div>
-                <div className="flex-1 flex items-center px-3 py-1.5 gap-1">
-                  <span className="text-xs text-amber-700 font-medium">{nomes.join(" · ")}</span>
+                <div className="flex-1 flex items-center px-3 py-1.5">
+                  <span className="text-[12px] font-normal text-[#b76921] bg-[#ffe8b3] rounded-[5px] px-1.5 py-0.5">
+                    {nomes.join(" · ")}
+                  </span>
                 </div>
               </div>
             );
@@ -808,22 +810,21 @@ export default function AgendaPage() {
             const temFeriado = diasSemana.some((dia) => feriadosDoDia(dia).length > 0);
             if (!temFeriado) return null;
             return (
-              <div className="flex border-b border-amber-200">
-                <div className="w-14 flex-shrink-0 border-r border-amber-200 bg-amber-50 flex items-center justify-center py-1.5">
-                  <span className="text-[9px] text-amber-600 font-semibold uppercase tracking-wide">Feriado</span>
+              <div className="flex border-b border-[#e7e2da]">
+                <div className="w-14 flex-shrink-0 border-r border-[#e7e2da] flex items-center justify-end pr-1 py-1.5">
+                  <span className="text-[9px] text-[#545454] font-normal">Feriado</span>
                 </div>
                 {diasSemana.map((dia) => {
                   const nomes = feriadosDoDia(dia);
                   return (
                     <div
                       key={formatarDataISO(dia)}
-                      className={cn(
-                        "flex-1 border-r border-amber-100 last:border-r-0 px-1 py-1.5 flex items-center",
-                        nomes.length > 0 ? "bg-amber-50" : "bg-white"
-                      )}
+                      className="flex-1 border-r border-[#e7e2da] last:border-r-0 px-1 py-1.5 flex items-center"
                     >
                       {nomes.length > 0 && (
-                        <span className="text-[10px] text-amber-700 font-medium leading-tight">{nomes[0]}</span>
+                        <span className="text-[11px] font-normal text-[#b76921] bg-[#ffe8b3] rounded-[5px] px-1.5 py-0.5 leading-tight">
+                          {nomes[0]}
+                        </span>
                       )}
                     </div>
                   );
