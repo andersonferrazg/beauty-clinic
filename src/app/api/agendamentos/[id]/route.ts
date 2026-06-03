@@ -106,6 +106,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
   });
 
+  // Se formaPagamento mudou e o agendamento já tem lançamento, sincroniza o lançamento
+  if (formaPagamento !== undefined && atualizado?.lancamentoId) {
+    await prisma.lancamento.update({
+      where: { id: atualizado.lancamentoId },
+      data: { formaPagamento: formaPagamento || null },
+    });
+  }
+
   return NextResponse.json(atualizado ?? agendamento);
 }
 

@@ -48,25 +48,26 @@ function dataExibicao(iso: string) {
 const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 const FORMAS_BREAKDOWN = [
-  { key: "Dinheiro",           label: "Dinheiro",     Icon: Banknote },
-  { key: "Pix/Transferência",  label: "PIX / Transf.",Icon: Landmark },
-  { key: "Cartão de Crédito",  label: "Crédito",      Icon: CreditCard },
-  { key: "Cartão de Débito",   label: "Débito",       Icon: CreditCard },
-  { key: "Link de Pagamento",  label: "Link",         Icon: Link2 },
-  { key: "Cheque",             label: "Cheque",       Icon: FileText },
-  { key: "Cortesia",           label: "Cortesia",     Icon: Gift },
+  { key: "Dinheiro",          label: "Dinheiro",     Icon: Banknote },
+  { key: "PIX",               label: "PIX",          Icon: Landmark },
+  { key: "Cartão de Crédito", label: "Crédito",      Icon: CreditCard },
+  { key: "Cartão de Débito",  label: "Débito",       Icon: CreditCard },
+  { key: "Link de Pagamento", label: "Link",         Icon: Link2 },
+  { key: "Cheque",            label: "Cheque",       Icon: FileText },
+  { key: "Cortesia",          label: "Cortesia",     Icon: Gift },
 ];
 
 const FORMAS_FILTRO = [
-  { key: "TODOS",              label: "Todos" },
-  { key: "Dinheiro",           label: "Dinheiro" },
-  { key: "Pix/Transferência",  label: "PIX" },
-  { key: "Cartão de Crédito",  label: "Crédito" },
-  { key: "Cartão de Débito",   label: "Débito" },
-  { key: "Link de Pagamento",  label: "Link" },
-  { key: "Cheque",             label: "Cheque" },
-  { key: "Cortesia",           label: "Cortesia" },
-  { key: "Retorno",            label: "Retorno" },
+  { key: "TODOS",             label: "Todos" },
+  { key: "Dinheiro",          label: "Dinheiro" },
+  { key: "PIX",               label: "PIX" },
+  { key: "Cartão de Crédito", label: "Crédito" },
+  { key: "Cartão de Débito",  label: "Débito" },
+  { key: "Link de Pagamento", label: "Link" },
+  { key: "Cheque",            label: "Cheque" },
+  { key: "Cortesia",          label: "Cortesia" },
+  { key: "Retorno",           label: "Retorno" },
+  { key: "__SEM_FORMA__",     label: "Sem forma" },
 ];
 
 // ── Modal de detalhe do dia ────────────────────────────────────────────────────
@@ -87,7 +88,9 @@ function ModalDetalheDia({
 
   const filtrados = filtro === "TODOS"
     ? lancamentos
-    : lancamentos.filter((l) => (l.formaPagamento ?? "Dinheiro") === filtro);
+    : filtro === "__SEM_FORMA__"
+    ? lancamentos.filter((l) => !l.formaPagamento)
+    : lancamentos.filter((l) => l.formaPagamento === filtro);
 
   const totalReceita = filtrados.filter(l => l.tipo === "RECEITA" && l.pago).reduce((s, l) => s + l.valor, 0);
   const totalDespesa = filtrados.filter(l => l.tipo === "DESPESA" && l.pago && l.categoria !== "Comissões").reduce((s, l) => s + l.valor, 0);
@@ -119,7 +122,11 @@ function ModalDetalheDia({
 
         <div className="px-5 pt-3 pb-2 flex-shrink-0">
           <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-            {FORMAS_FILTRO.filter(f => f.key === "TODOS" || lancamentos.some(l => (l.formaPagamento ?? "Dinheiro") === f.key)).map(({ key, label }) => (
+            {FORMAS_FILTRO.filter(f =>
+              f.key === "TODOS" ||
+              f.key === "__SEM_FORMA__" ? lancamentos.some(l => !l.formaPagamento) :
+              true
+            ).map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => setFiltro(key)}
@@ -237,12 +244,23 @@ export default function RelatorioFinanceiroPage() {
   const lucroAjustado = totalReceitasPago - totalDespesasOpPago - totalComissoes;
 
   const receitasPagas = receitas.filter((l) => l.pago);
-  // Formas de pagamento: sempre mostra todas, mesmo com R$0
+  // Formas de pagamento: sempre mostra todas; null não cai em Dinheiro
   const breakdownFormas = FORMAS_BREAKDOWN.map(({ key, label, Icon }) => {
-    const valor = receitasPagas.filter((l) => (l.formaPagamento ?? "Dinheiro") === key).reduce((s, l) => s + l.valor, 0);
+    const valor = receitasPagas.filter((l) => l.formaPagamento === key).reduce((s, l) => s + l.valor, 0);
     const pct = totalReceitasPago > 0 ? (valor / totalReceitasPago) * 100 : 0;
-    return { label, valor, pct, Icon };
+    return { label, valor, pct, Icon, semForma: false };
   });
+  // Card extra para lançamentos sem forma definida
+  const valorSemForma = receitasPagas.filter((l) => !l.formaPagamento).reduce((s, l) => s + l.valor, 0);
+  if (valorSemForma > 0) {
+    breakdownFormas.push({
+      label: "Sem forma",
+      valor: valorSemForma,
+      pct: totalReceitasPago > 0 ? (valorSemForma / totalReceitasPago) * 100 : 0,
+      Icon: FileText,
+      semForma: true,
+    });
+  }
 
   const receitasPorCat = receitas.reduce<Record<string, number>>((acc, l) => {
     const cat = l.categoria || "Outros";
@@ -460,12 +478,15 @@ export default function RelatorioFinanceiroPage() {
           <div className="bg-white rounded-xl border border-[#e8dcc4] p-5 shadow-sm mb-5">
             <h2 className="text-xs font-semibold text-[#9a7d50] uppercase tracking-wider mb-4">Receita por forma de pagamento</h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-              {breakdownFormas.map(({ label, valor, pct, Icon }) => (
-                <div key={label} className="flex flex-col items-center gap-1 py-3 px-2 bg-[#faf5ee] rounded-xl text-center">
-                  <Icon size={18} className={valor > 0 ? "text-[#B89968]" : "text-[#c8b99a]"} />
+              {breakdownFormas.map(({ label, valor, pct, Icon, semForma }) => (
+                <div key={label} className={cn(
+                  "flex flex-col items-center gap-1 py-3 px-2 rounded-xl text-center",
+                  semForma ? "bg-amber-50" : "bg-[#faf5ee]"
+                )}>
+                  <Icon size={18} className={semForma ? "text-amber-400" : valor > 0 ? "text-[#B89968]" : "text-[#c8b99a]"} />
                   <p className="text-[10px] text-[#9a7d50] leading-tight">{label}</p>
-                  <p className={cn("text-xs font-bold", valor > 0 ? "text-[#5a4530]" : "text-[#c8b99a]")}>{fmt(valor)}</p>
-                  <p className={cn("text-[10px] font-semibold", valor > 0 ? "text-[#B89968]" : "text-[#c8b99a]")}>{pct.toFixed(1)}%</p>
+                  <p className={cn("text-xs font-bold", semForma ? "text-amber-600" : valor > 0 ? "text-[#5a4530]" : "text-[#c8b99a]")}>{fmt(valor)}</p>
+                  <p className={cn("text-[10px] font-semibold", semForma ? "text-amber-500" : valor > 0 ? "text-[#B89968]" : "text-[#c8b99a]")}>{pct.toFixed(1)}%</p>
                 </div>
               ))}
             </div>
