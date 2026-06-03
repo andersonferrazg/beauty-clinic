@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays, Search, Sli
 import { BuscaCliente } from "@/components/agenda/BuscaCliente";
 import { cn } from "@/lib/utils";
 import { getSessaoCliente } from "@/lib/sessao-cliente";
+import { feriadosDoDia } from "@/lib/feriados";
 
 // ── Mini calendário popup ─────────────────────────────────────────────────────
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -785,6 +786,54 @@ export default function AgendaPage() {
         }}
       >
         <div>
+
+        {/* ── Feriados nacionais ───────────────────────────────────────────────── */}
+        {(() => {
+          if (modoVista === 'diario') {
+            const nomes = feriadosDoDia(dataAtual);
+            if (nomes.length === 0) return null;
+            return (
+              <div className="flex border-b border-amber-200 bg-amber-50">
+                <div className="w-14 flex-shrink-0 border-r border-amber-200 flex items-center justify-center py-1.5">
+                  <span className="text-[9px] text-amber-600 font-semibold uppercase tracking-wide">Feriado</span>
+                </div>
+                <div className="flex-1 flex items-center px-3 py-1.5 gap-1">
+                  <span className="text-xs text-amber-700 font-medium">{nomes.join(" · ")}</span>
+                </div>
+              </div>
+            );
+          }
+
+          if (modoVista === 'semanal') {
+            const temFeriado = diasSemana.some((dia) => feriadosDoDia(dia).length > 0);
+            if (!temFeriado) return null;
+            return (
+              <div className="flex border-b border-amber-200">
+                <div className="w-14 flex-shrink-0 border-r border-amber-200 bg-amber-50 flex items-center justify-center py-1.5">
+                  <span className="text-[9px] text-amber-600 font-semibold uppercase tracking-wide">Feriado</span>
+                </div>
+                {diasSemana.map((dia) => {
+                  const nomes = feriadosDoDia(dia);
+                  return (
+                    <div
+                      key={formatarDataISO(dia)}
+                      className={cn(
+                        "flex-1 border-r border-amber-100 last:border-r-0 px-1 py-1.5 flex items-center",
+                        nomes.length > 0 ? "bg-amber-50" : "bg-white"
+                      )}
+                    >
+                      {nomes.length > 0 && (
+                        <span className="text-[10px] text-amber-700 font-medium leading-tight">{nomes[0]}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          }
+
+          return null;
+        })()}
 
         {/* Coluna de horas compartilhada + colunas condicionais */}
         <div className="flex">
