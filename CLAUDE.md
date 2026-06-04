@@ -76,6 +76,8 @@ lunnaagenda/
 │   ├── schema.prisma            # modelos de dados (provider: sqlite local, postgresql prod)
 │   ├── seed.ts                  # seed inicial (tenant + admin + profissionais + status)
 │   ├── seed-financeiro.ts       # seed de lançamentos mai–dez 2026
+│   ├── backfill-vencimento.ts   # backfill one-shot: corrige vencimento=null + reverte mal-finalizados
+│   ├── backfill-taxa.ts         # backfill one-shot: aplica taxa retroativa em lançamentos sem valorBruto
 │   └── hash-passwords.ts        # script one-shot para migrar senhas plain→bcrypt
 ├── scripts/
 │   └── patch-schema.js          # troca provider sqlite→postgresql antes do build (Railway/Vercel)
@@ -123,7 +125,12 @@ lunnaagenda/
 │   │       ├── backup/
 │   │       ├── dashboard/
 │   │       ├── fluxo-caixa/
-│   │       └── configuracoes/
+│   │       ├── configuracoes/
+│   │       └── relatorios/
+│   │           ├── top-servicos/    # GET ?mes=YYYY-MM&futuros=true|false → top5, todos, total
+│   │           ├── projecao/        # GET ?mes=YYYY-MM → agendamentos futuros como lancamentos sintéticos
+│   │           ├── anual/           # GET ?ano=YYYY → 12 meses {mes, receita, despesa}[]
+│   │           └── melhores-clientes/ # GET ?inicio=&fim=&tipo= → ranking de clientes
 │   ├── components/
 │   │   ├── ui/                  # button, input, label, card, badge (shadcn)
 │   │   ├── agenda/
@@ -310,6 +317,32 @@ Quando `Profissional.profissionalTerceiro = true`, a função `finalizar` em `sr
 
 Se for adicionar nova lógica em `finalizar()` (ex: integração contábil, notificação), respeitar o early-return.
 
+### Regras financeiras críticas (não reverter)
+
+**`Lancamento.vencimento` = data do atendimento, NÃO data de gravação:**
+Em `src/lib/finalizar-agendamento.ts`, o lançamento é criado com `vencimento: agendamento.inicio`.
+Isso garante que o Fluxo Diário e os relatórios mostrem a receita no dia correto do atendimento.
+Se `vencimento` for `null`, o sistema cai para `criadoEm` (data de finalização), que pode ser dias depois — errado.
+
+**`StatusAgenda.contaConfirmado = true` SOMENTE no status "Finalizado":**
+O flag `contaConfirmado` determina se um agendamento gera receita real no financeiro.
+Apenas "Finalizado" deve ter `contaConfirmado: true`. Qualquer outro status ("Confirmado", "Aguardando", etc.) deve ter `false`.
+Se "Confirmado" receber `true`, agendamentos futuros já marcados como "Confirmado" gerarão lancamentos de receita reais — erro grave.
+O seed aplica isso idempotentemente (`await prisma.statusAgenda.update({ data: { contaConfirmado: s.contaConfirmado } })`).
+
+**Taxa por forma de pagamento (`FormaPagamento.percentualTaxa` / `configJson`):**
+Ao finalizar, `finalizar-agendamento.ts` busca a `FormaPagamento` pelo nome e calcula:
+- Cartão de Crédito: usa `configJson` por parcelas. `profissional.configJsonCartao` tem prioridade sobre o global.
+- Demais formas: usa `percentualTaxa` plano.
+- Fórmula: `taxaValor = Math.round(valorBruto × (taxaPercentual / 100) × 100) / 100`
+- Lançamento grava: `valor = valorLiquido`, `valorBruto`, `taxa`, `percentualTaxa`.
+- Sem taxa configurada: todos os campos ficam `null` e `valor = valorBruto`.
+
+**Backfills já executados em produção (Supabase):**
+- `prisma/backfill-vencimento.ts` — reverteu 4 agendamentos mal-finalizados ("Confirmado") e corrigiu `vencimento=null` em 12 lançamentos.
+- `prisma/backfill-taxa.ts` — aplicou taxa retroativa em lançamentos Débito/Link sem `valorBruto`.
+Esses scripts são idempotentes e podem ser re-executados com segurança se necessário.
+
 ### iOS Safari — sticky dentro de overflow (BUG CONHECIDO — não reverter)
 
 `position: sticky` dentro de um container `overflow: auto` **não renderiza no iOS Safari** até o usuário interagir (tocar/arrastar). Também `overflow: hidden` em qualquer ancestral bloqueia o paint de filhos sticky.
@@ -390,7 +423,13 @@ useEffect(() => {
 
 ### `/dashboard`
 - Página inicial após login
-- **Admin:** 4 KPIs do mês (receita, despesas, lucro, comissões pendentes) + agenda do dia + contas vencendo em 7 dias + aniversariantes do mês + faturamento por profissional (barras)
+- **Admin:** 4 KPIs do mês (receita, gastos totais, lucro, comissões pendentes) + agenda do dia + contas vencendo em 7 dias + aniversariantes do mês + comparativo financeiro + faturamento por profissional (barras)
+  - "Despesas mês" = `gastosClinicaMes + gastosPessoalMes` (total por vencimento — inclui a pagar)
+  - "Lucro mês" = `receita − gastosClinicaMes − gastosPessoalMes`
+  - Os totais de gastos vêm de `/api/dashboard` que agrega por `vencimento` (não por `pago=true`)
+  - `faturamentoPorProfissional` calculado a partir das `ComissaoLancamento.valorBase` do mês
+  - Aniversariantes: SQL nativo `EXTRACT(MONTH FROM dataNascimento)` no Postgres; fallback JS no SQLite
+  - Queries do bloco admin paralelizadas com `Promise.all`
 - **Profissional:** agenda do dia + atendimentos do mês + comissão pendente do mês
 
 ### `/profissionais`
@@ -441,15 +480,31 @@ useEffect(() => {
 ### `/relatorios/performance`
 - Abas **EMPRESA** | **PROFISSIONAIS**
 - Filtros de período: Mês Atual / Semana Atual / Hoje / Mês Passado / Personalizado
-- Aba Empresa: gráfico de barras Receita/Despesa/Lucro + KPIs
-- Aba Profissionais: cards individuais com atendimentos, faturamento, ticket médio, top serviços
-
-### `/relatorios/financeiro`
-- DRE simplificado + receitas e despesas por categoria com barra de progresso
+- **Somente atendimentos finalizados** (`dataRealizado != null`) entram nos cálculos — agendamentos "Confirmados" ou de qualquer outro status não-finalizado são ignorados
+- Despesas operacionais do período buscadas via `/api/lancamentos?tipo=DESPESA` para cada mês do range; exclui Gastos Casa e Comissões. Lucro = Faturamento − Despesas
+- Aba Empresa: gráfico de barras Receita/Despesa/Lucro + KPIs (atendimentos, ticket médio, clientes únicos, horas)
+- Aba Profissionais: cards individuais com atendimentos, faturamento, ticket médio, horas, top 3 serviços
 - **Exportação CSV** disponível
 
-### `/relatorios/clientes`
-- Lista de aniversariantes do mês + tabela de todas as clientes
+### `/relatorios/financeiro`
+- **3 abas:** Resumo (DRE) | Fluxo Diário | Anual
+- **DRE (Resumo):**
+  - Receitas finalizadas + Projeção (quando toggle ativo) separadas no cálculo
+  - Breakdown por forma de pagamento (Dinheiro, PIX, Crédito, Débito, Link, Cheque, Cortesia)
+  - Breakdown de receitas e despesas por categoria com barra de progresso
+  - Comissões geradas × pagas × pendentes (linha separada)
+  - Top 5 serviços do mês com opção "Ver todos" (modal com tabela ordenável por Qtd ou Receita)
+  - Indicadores anuais: Melhor Mês, Pior Mês, Ganho Médio (baseados em `/api/relatorios/anual`)
+- **Toggle "Ver projeção"** — inclui agendamentos futuros não-finalizados como receita projetada (excluídos cancelados/não-compareceram). Faixa de aviso amarela com spinner durante o carregamento. Projetos aparecem no Fluxo Diário e DRE sem alterar os valores reais
+- **Fluxo Diário:** grade de 31 dias com receita/despesa/resultado por dia. Despesas mostradas por `vencimento` (não só pagas) — inclui a pagar. Clique no dia abre modal com lista de lançamentos filtráveis por forma de pagamento
+- **Anual:** matriz 12 meses com receita, despesa e saldo. Seletor de ano. Indicadores Melhor/Pior/Médio calculados apenas sobre meses com receita > 0
+- **Exportação CSV** disponível
+
+### `/relatorios/clientes` — Melhores Clientes
+- KPIs: Total de Clientes (ativos) e Novos no Período
+  - **"Novos no período"** = clientes cujo **primeiro atendimento finalizado** ocorreu dentro do período selecionado (não pela data de cadastro, pois os 350+ clientes foram importados de uma vez)
+- Ranking top 30 por Receita ou por Atendimentos
+- Filtros: Mês atual / Mês passado / 3 meses / 6 meses / 12 meses / Este ano / Personalizado
 - **Exportação CSV** disponível
 
 ---
@@ -493,6 +548,10 @@ Todas exigem `exigirSessao()` — sem sessão retorna 401.
 | `/api/agendamentos/busca` | GET | Busca agendamentos por nome de cliente (`?nome=`, `?limite=`, máx 100). Case-insensitive no PostgreSQL |
 | `/api/msgs-predefinidas` | GET, POST | Lista e cria templates WhatsApp por tenant |
 | `/api/msgs-predefinidas/[id]` | PATCH, DELETE | Edita nome/texto/ordem ou remove template |
+| `/api/relatorios/top-servicos` | GET | `?mes=YYYY-MM&futuros=true` → `{ top5, todos, total, totalQtd }` agrupados por serviço |
+| `/api/relatorios/projecao` | GET | `?mes=YYYY-MM` → agendamentos futuros não-finalizados como lancamentos sintéticos (`projetado: true`) |
+| `/api/relatorios/anual` | GET | `?ano=YYYY` → array de 12 meses com `{ mes, receita, despesa }` |
+| `/api/relatorios/melhores-clientes` | GET | `?inicio=YYYY-MM-DD&fim=YYYY-MM-DD&tipo=receita\|atendimentos` → ranking top 30 + total + novos |
 
 ---
 
@@ -685,6 +744,48 @@ Commits `4210b3f` e `a26eacd` — melhorias de usabilidade no dia a dia, inspira
 
 ### Migration em produção
 Aplicada via `npx prisma db push` apontando para o pooler Supabase (2026-05-29).
+
+---
+
+## Fase 8 — Relatórios financeiros completos + Correções pós-deploy (CONCLUÍDA ✅)
+
+Commits do período pós-migração para Vercel (jun/2026). Foco em alinhar os relatórios com o MinhaAgenda e corrigir bugs de dados identificados em produção.
+
+### Bugs corrigidos
+
+**Bug 1 — `Lancamento.vencimento = null` (lançamentos sem data do atendimento):**
+`finalizar-agendamento.ts` não gravava `vencimento`, causando uso de `criadoEm` (data de finalização) em vez da data do atendimento. Corrigido adicionando `vencimento: agendamento.inicio` na criação do lançamento.
+Backfill (`prisma/backfill-vencimento.ts`) corrigiu 12 lançamentos em produção e reverteu 4 agendamentos mal-finalizados.
+
+**Bug 2 — Status "Confirmado" com `contaConfirmado: true` (gerava receita real em agendamentos futuros):**
+O seed configurava "Confirmado" com `contaConfirmado: true`, fazendo com que qualquer agendamento ao mudar para "Confirmado" criasse um lançamento financeiro real. Corrigido para `false`.
+O seed agora também atualiza `contaConfirmado` no upsert, então re-rodar o seed corrige tenants já existentes.
+
+**Bug 3 — Taxa Débito/Link não aplicada retroativamente:**
+Lançamentos criados antes de o admin configurar as taxas tinham `valorBruto = null`. Backfill (`prisma/backfill-taxa.ts`) calculou e aplicou a taxa retroativamente para todas as formas com `percentualTaxa > 0`.
+
+**Bug 4 — Dashboard: "Despesas mês" = R$0, "Lucro mês" = Receita:**
+O card "Despesas mês" usava `resumoMes.despesa` (excluía Gastos Clínica/Casa) e a API aggregava apenas `pago: true`. Corrigido: card usa `gastosClinicaMes + gastosPessoalMes`; API agrega por vencimento sem filtro de pagamento.
+
+**Bug 5 — Performance contava todos os status:**
+A página somava todos os agendamentos do dia sem filtrar `dataRealizado`. Corrigido com filtro `a.dataRealizado != null`.
+
+**Bug 6 — Fluxo Diário mostrava só despesas pagas:**
+Filtro `l.pago` removido das despesas no Fluxo Diário. Agora todas as despesas aparecem no dia de vencimento.
+
+**Bug 7 — Melhores Clientes "Novos" = total de clientes:**
+`novosClientes` contava por `criadoEm` — todos os 350+ clientes foram importados na mesma data. Corrigido para contar clientes cujo **primeiro atendimento finalizado** cai no período.
+
+### Novas funcionalidades
+
+- **Toggle "Ver projeção"** no Relatório Financeiro — inclui agendamentos futuros como receita projetada
+- **Top 5 serviços** com modal "Ver todos" (ordenável por Qtd ou Receita)
+- **Fluxo Anual** — matriz 12 meses com indicadores Melhor Mês / Pior Mês / Ganho Médio
+- **Performance inclui despesas operacionais** do período no balanço
+- **Novas rotas de relatório:** `/api/relatorios/top-servicos`, `/api/relatorios/projecao`, `/api/relatorios/anual`
+
+### Schema implementado (Fase 8)
+- Sem mudanças de schema — apenas correções de lógica de negócio e novos endpoints.
 
 ---
 
