@@ -146,6 +146,7 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
           percentualTaxa: taxaValor > 0 ? taxaPercentual : null,
           pago: true,
           pagoEm: new Date(),
+          vencimento: agendamento.inicio,
           formaPagamento: agendamento.formaPagamento ?? null,
           origem: "AUTO_ATENDIMENTO",
         },

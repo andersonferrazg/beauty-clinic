@@ -422,6 +422,14 @@ export default function RelatorioFinanceiroPage() {
     if (!lancsPorDia[data]) lancsPorDia[data] = [];
     lancsPorDia[data].push(l);
   }
+  // Adiciona projeções ao fluxo diário quando toggle está ativo
+  if (incluirFuturos) {
+    for (const l of projecao) {
+      const data = (l.vencimento ?? l.criadoEm).slice(0, 10);
+      if (!lancsPorDia[data]) lancsPorDia[data] = [];
+      lancsPorDia[data].push(l);
+    }
+  }
 
   const [anoMesStr, mesNumStr] = mes.split("-");
   const diasNoMes = new Date(parseInt(anoMesStr), parseInt(mesNumStr), 0).getDate();
@@ -429,7 +437,8 @@ export default function RelatorioFinanceiroPage() {
     const dia  = String(i + 1).padStart(2, "0");
     const data = `${mes}-${dia}`;
     const lancs = lancsPorDia[data] ?? [];
-    const rec  = lancs.filter(l => l.tipo === "RECEITA" && l.pago).reduce((s, l) => s + l.valor, 0);
+    // Conta receitas pagas E projetadas (quando toggle ativo)
+    const rec  = lancs.filter(l => l.tipo === "RECEITA" && (l.pago || l.projetado)).reduce((s, l) => s + l.valor, 0);
     const desp = lancs.filter(l => l.tipo === "DESPESA" && l.pago && l.categoria !== "Comissões").reduce((s, l) => s + l.valor, 0);
     return { data, dia, lancs, receita: rec, despesa: desp, resultado: rec - desp };
   });

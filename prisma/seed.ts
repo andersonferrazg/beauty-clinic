@@ -38,7 +38,7 @@ async function main() {
   // Status padrão da agenda — atualizar sistemico se já existem, ou criar
   const statusPadrao = [
     { nome: "Agendado",         cor: "#94a3b8", contaConfirmado: false, ordem: 0, sistemico: false },
-    { nome: "Confirmado",       cor: "#1e40af", contaConfirmado: true,  ordem: 1, sistemico: false },
+    { nome: "Confirmado",       cor: "#1e40af", contaConfirmado: false, ordem: 1, sistemico: false },
     { nome: "À confirmar",      cor: "#3b82f6", contaConfirmado: false, ordem: 2, sistemico: true  },
     { nome: "Finalizado",       cor: "#16a34a", contaConfirmado: true,  ordem: 3, sistemico: true  },
     { nome: "Atrasou",          cor: "#ca8a04", contaConfirmado: false, ordem: 4, sistemico: false },
@@ -49,7 +49,7 @@ async function main() {
   for (const s of statusPadrao) {
     const existente = await prisma.statusAgenda.findFirst({ where: { tenantId: tenant.id, nome: s.nome } });
     if (existente) {
-      await prisma.statusAgenda.update({ where: { id: existente.id }, data: { sistemico: s.sistemico } });
+      await prisma.statusAgenda.update({ where: { id: existente.id }, data: { sistemico: s.sistemico, contaConfirmado: s.contaConfirmado } });
     } else {
       await prisma.statusAgenda.create({ data: { tenantId: tenant.id, ...s } });
     }
