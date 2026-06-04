@@ -5,7 +5,8 @@ import { Loader2, TrendingUp, TrendingDown, Users, Star, Clock, Calendar, Downlo
 import { cn } from "@/lib/utils";
 
 type Profissional = { id: string; nome: string; cor: string };
-type DadosProf = { atendimentos: number; faturamento: number; despesas: number; horas: number; clientes: Set<string>; servicos: Record<string, number> };
+type DadosProf = { atendimentos: number; faturamento: number; horas: number; clientes: Set<string>; servicos: Record<string, number> };
+type LancamentoSimples = { tipo: string; valor: number; categoria: string | null; vencimento: string | null; criadoEm: string };
 
 function fmt(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
@@ -72,6 +73,7 @@ export default function RelatorioPerformancePage() {
   const [dataFim, setDataFim] = useState("");
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [dados, setDados] = useState<Record<string, DadosProf>>({});
+  const [totalDespesasPeriodo, setTotalDespesasPeriodo] = useState(0);
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
@@ -87,16 +89,41 @@ export default function RelatorioPerformancePage() {
     const { inicio, fim } = calcularPeriodo(periodo, dataInicio, dataFim);
     const dias = diasNoPeriodo(inicio, fim);
 
-    Promise.all(
-      dias.map((dia) =>
-        fetch(`/api/agendamentos?data=${dataParaISO(dia)}`).then((r) => r.json())
-      )
-    ).then((results) => {
-      const todos = results.flat().filter((a: { cliente: unknown }) => a.cliente);
+    // Meses cobertos pelo período (para buscar despesas)
+    function mesesNoPeriodo(ini: Date, f: Date): string[] {
+      const meses: string[] = [];
+      const d = new Date(ini.getFullYear(), ini.getMonth(), 1);
+      while (d <= f) {
+        meses.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+        d.setMonth(d.getMonth() + 1);
+      }
+      return meses;
+    }
+
+    const meses = mesesNoPeriodo(inicio, fim);
+
+    Promise.all([
+      // Agendamentos dia a dia
+      Promise.all(
+        dias.map((dia) =>
+          fetch(`/api/agendamentos?data=${dataParaISO(dia)}`).then((r) => r.json())
+        )
+      ),
+      // Despesas do período (por mês)
+      Promise.all(
+        meses.map((m) =>
+          fetch(`/api/lancamentos?mes=${m}&tipo=DESPESA`).then((r) => r.json())
+        )
+      ),
+    ]).then(([agResults, despResults]) => {
+      // Apenas agendamentos finalizados (dataRealizado preenchido) com cliente
+      const todos = agResults.flat().filter((a: { cliente: unknown; dataRealizado: string | null }) =>
+        a.cliente && a.dataRealizado
+      );
       const resumo: Record<string, DadosProf> = {};
 
       for (const prof of profissionais) {
-        resumo[prof.id] = { atendimentos: 0, faturamento: 0, despesas: 0, horas: 0, clientes: new Set(), servicos: {} };
+        resumo[prof.id] = { atendimentos: 0, faturamento: 0, horas: 0, clientes: new Set(), servicos: {} };
       }
 
       for (const ag of todos as {
@@ -104,6 +131,7 @@ export default function RelatorioPerformancePage() {
         clienteId: string;
         inicio: string;
         fim: string;
+        dataRealizado: string;
         itens: { servico: { nome: string }; preco: number }[];
       }[]) {
         if (!resumo[ag.profissionalId]) continue;
@@ -118,7 +146,17 @@ export default function RelatorioPerformancePage() {
         }
       }
 
+      // Despesas operacionais da clínica no período (exclui Gastos Casa e Comissões)
+      const CATS_EXCLUIDAS = ["Gastos Casa", "Comissões"];
+      const todasDespesas = (despResults.flat() as LancamentoSimples[]).filter((l) => {
+        if (CATS_EXCLUIDAS.includes(l.categoria ?? "")) return false;
+        const dataLanc = new Date(l.vencimento ?? l.criadoEm);
+        return dataLanc >= inicio && dataLanc <= fim;
+      });
+      const totalDesp = todasDespesas.reduce((s, l) => s + l.valor, 0);
+
       setDados(resumo);
+      setTotalDespesasPeriodo(totalDesp);
     }).finally(() => setCarregando(false));
   }, [profissionais, periodo, dataInicio, dataFim]);
 
@@ -126,7 +164,7 @@ export default function RelatorioPerformancePage() {
 
   const totalAtendimentos = Object.values(dados).reduce((s, d) => s + d.atendimentos, 0);
   const totalFaturamento = Object.values(dados).reduce((s, d) => s + d.faturamento, 0);
-  const totalDespesas = Object.values(dados).reduce((s, d) => s + d.despesas, 0);
+  const totalDespesas = totalDespesasPeriodo;
   const totalLucro = totalFaturamento - totalDespesas;
   const totalClientesSet = new Set(Object.values(dados).flatMap((d) => [...d.clientes]));
   const totalHorasMin = Object.values(dados).reduce((s, d) => s + d.horas, 0);

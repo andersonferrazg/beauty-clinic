@@ -17,16 +17,18 @@ export async function GET(req: NextRequest) {
   const inicioDate = new Date(inicio + "T00:00:00");
   const fimDate = new Date(fim + "T23:59:59");
 
-  const [totalClientes, novosClientes, agendamentos] = await Promise.all([
+  const [totalClientes, primeiroAtendimentosPorCliente, agendamentos] = await Promise.all([
     prisma.cliente.count({
       where: { tenantId: sessao.tenantId, ativo: true },
     }),
-    prisma.cliente.count({
+    prisma.agendamento.groupBy({
+      by: ["clienteId"],
       where: {
         tenantId: sessao.tenantId,
-        ativo: true,
-        criadoEm: { gte: inicioDate, lte: fimDate },
+        clienteId: { not: null },
+        dataRealizado: { not: null },
       },
+      _min: { inicio: true },
     }),
     prisma.agendamento.findMany({
       where: {
@@ -73,6 +75,12 @@ export async function GET(req: NextRequest) {
     entry.atendimentos++;
     entry.receita += ag.lancamento?.valor ?? 0;
   }
+
+  // Clientes cujo primeiro atendimento realizado foi dentro do período selecionado
+  const novosClientes = primeiroAtendimentosPorCliente.filter((g) => {
+    const primeira = g._min.inicio;
+    return primeira && primeira >= inicioDate && primeira <= fimDate;
+  }).length;
 
   let ranking = Array.from(map.values());
   ranking.sort((a, b) =>

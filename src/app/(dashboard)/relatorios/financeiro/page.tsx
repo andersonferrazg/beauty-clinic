@@ -444,7 +444,7 @@ export default function RelatorioFinanceiroPage() {
     const lancs = lancsPorDia[data] ?? [];
     // Conta receitas pagas E projetadas (quando toggle ativo)
     const rec  = lancs.filter(l => l.tipo === "RECEITA" && (l.pago || l.projetado)).reduce((s, l) => s + l.valor, 0);
-    const desp = lancs.filter(l => l.tipo === "DESPESA" && l.pago && l.categoria !== "Comissões").reduce((s, l) => s + l.valor, 0);
+    const desp = lancs.filter(l => l.tipo === "DESPESA" && l.categoria !== "Comissões").reduce((s, l) => s + l.valor, 0);
     return { data, dia, lancs, receita: rec, despesa: desp, resultado: rec - desp };
   });
 

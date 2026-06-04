@@ -143,21 +143,21 @@ export default function DashboardPage() {
               </div>
               <span className="text-xs text-[#9a7d50] uppercase tracking-wider">Despesas mês</span>
             </div>
-            <p className="text-xl font-bold text-red-500">{fmt(resumoMes.despesa)}</p>
+            <p className="text-xl font-bold text-red-500">{fmt(gastosClinicaMes + gastosPessoalMes)}</p>
           </div>
 
           <div className="bg-white rounded-xl border border-[#e8dcc4] p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className={cn(
                 "w-8 h-8 rounded-lg flex items-center justify-center",
-                resumoMes.lucro >= 0 ? "bg-[#faf5ee]" : "bg-red-100"
+                (resumoMes.receita - gastosClinicaMes - gastosPessoalMes) >= 0 ? "bg-[#faf5ee]" : "bg-red-100"
               )}>
-                <DollarSign size={16} className={resumoMes.lucro >= 0 ? "text-[#B89968]" : "text-red-500"} />
+                <DollarSign size={16} className={(resumoMes.receita - gastosClinicaMes - gastosPessoalMes) >= 0 ? "text-[#B89968]" : "text-red-500"} />
               </div>
               <span className="text-xs text-[#9a7d50] uppercase tracking-wider">Lucro mês</span>
             </div>
-            <p className={cn("text-xl font-bold", resumoMes.lucro >= 0 ? "text-[#5a4530]" : "text-red-500")}>
-              {fmt(resumoMes.lucro)}
+            <p className={cn("text-xl font-bold", (resumoMes.receita - gastosClinicaMes - gastosPessoalMes) >= 0 ? "text-[#5a4530]" : "text-red-500")}>
+              {fmt(resumoMes.receita - gastosClinicaMes - gastosPessoalMes)}
             </p>
           </div>
 

@@ -110,11 +110,11 @@ export async function GET() {
         select: { profissionalId: true, valorBase: true },
       }),
       prisma.lancamento.aggregate({
-        where: { tenantId, categoria: "Gastos Clínica", pago: true, vencimento: { gte: inicioMes, lt: fimMes } },
+        where: { tenantId, categoria: "Gastos Clínica", vencimento: { gte: inicioMes, lt: fimMes } },
         _sum: { valor: true },
       }),
       prisma.lancamento.aggregate({
-        where: { tenantId, categoria: "Gastos Casa", pago: true, vencimento: { gte: inicioMes, lt: fimMes } },
+        where: { tenantId, categoria: "Gastos Casa", vencimento: { gte: inicioMes, lt: fimMes } },
         _sum: { valor: true },
       }),
     ]);
