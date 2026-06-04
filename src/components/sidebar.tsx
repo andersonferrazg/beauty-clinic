@@ -227,14 +227,19 @@ export function Sidebar() {
         </nav>
 
         {/* Footer — Usuário + Logout */}
-        <div className="px-2 pt-2 border-t border-white/10" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+        <div className="px-2 pt-2 pb-2 border-t border-white/10" style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}>
           {nomeUsuario && (
-            <p className="px-3 pt-1 pb-0.5 text-white/50 text-xs truncate">{nomeUsuario}</p>
+            <div className="px-3 pt-1 pb-1">
+              <p className="text-white/70 text-xs font-medium truncate leading-tight">{nomeUsuario}</p>
+              <p className="text-white/30 text-[10px]">
+                {permissoes?.isAdmin ? "Administrador" : "Profissional"}
+              </p>
+            </div>
           )}
           <button
             onClick={sair}
             disabled={saindo}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors w-full disabled:opacity-50"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors w-full disabled:opacity-50"
           >
             {saindo ? <Loader2 size={17} className="animate-spin" /> : <LogOut size={17} />}
             Sair
