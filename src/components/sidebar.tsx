@@ -81,6 +81,7 @@ export function Sidebar() {
   const [saindo, setSaindo] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [permissoes, setPermissoes] = useState<Permissoes | null>(null);
+  const [nomeUsuario, setNomeUsuario] = useState<string | null>(null);
   const [notifNaoLidas, setNotifNaoLidas] = useState(0);
 
   useEffect(() => {
@@ -93,8 +94,9 @@ export function Sidebar() {
   useEffect(() => {
     getSessaoCliente()
       .then((s: unknown) => {
-        const sessao = s as { permissoes?: Permissoes } | null;
+        const sessao = s as { permissoes?: Permissoes; nome?: string } | null;
         if (sessao?.permissoes) setPermissoes(sessao.permissoes);
+        if (sessao?.nome) setNomeUsuario(sessao.nome);
       })
       .catch(() => {});
   }, []);
@@ -172,6 +174,25 @@ export function Sidebar() {
             <X size={18} />
           </button>
         </div>
+
+        {/* Usuário logado */}
+        {nomeUsuario && (
+          <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-[#B89968]/20 flex items-center justify-center flex-shrink-0">
+              <span className="text-[#B89968] font-semibold text-sm">
+                {nomeUsuario.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-white/90 text-sm font-medium truncate leading-tight">
+                {nomeUsuario}
+              </p>
+              <p className="text-white/40 text-xs mt-0.5">
+                {permissoes?.isAdmin ? "Administrador" : "Profissional"}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Navegação */}
         <nav className="flex-1 overflow-y-auto py-3 px-2">
