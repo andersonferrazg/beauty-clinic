@@ -306,6 +306,7 @@ export default function RelatorioFinanceiroPage() {
   // Projeção / futuros
   const [incluirFuturos, setIncluirFuturos] = useState(false);
   const [projecao, setProjecao] = useState<Lancamento[]>([]);
+  const [projecaoCarregando, setProjecaoCarregando] = useState(false);
 
   // Top serviços
   const [top5, setTop5] = useState<TopServico[]>([]);
@@ -336,10 +337,12 @@ export default function RelatorioFinanceiroPage() {
   }, [anoFc]);
 
   useEffect(() => {
-    if (!incluirFuturos) { setProjecao([]); return; }
+    if (!incluirFuturos) { setProjecao([]); setProjecaoCarregando(false); return; }
+    setProjecaoCarregando(true);
     fetch(`/api/relatorios/projecao?mes=${mes}`)
       .then(r => r.json())
-      .then(d => setProjecao(Array.isArray(d) ? d : []));
+      .then(d => setProjecao(Array.isArray(d) ? d : []))
+      .finally(() => setProjecaoCarregando(false));
   }, [mes, incluirFuturos]);
 
   useEffect(() => {
@@ -354,15 +357,17 @@ export default function RelatorioFinanceiroPage() {
   }, [mes, incluirFuturos]);
 
   // ── Cálculos ───────────────────────────────────────────────────────────────
-  const todasReceitas: Lancamento[] = [
-    ...lancamentos.filter(l => l.tipo === "RECEITA"),
-    ...(incluirFuturos ? projecao : []),
-  ];
-  const despesas = lancamentos.filter((l) => l.tipo === "DESPESA");
+  const receitasFinalizadas = lancamentos.filter(l => l.tipo === "RECEITA");
+  const despesas            = lancamentos.filter(l => l.tipo === "DESPESA");
 
-  const totalReceitas    = todasReceitas.reduce((s, l) => s + l.valor, 0);
-  const totalReceitasPago = todasReceitas.filter(l => l.pago).reduce((s, l) => s + l.valor, 0);
-  const totalProjetado   = incluirFuturos ? projecao.reduce((s, l) => s + l.valor, 0) : 0;
+  // projecao só é incluído quando toggle está ativo E o fetch já terminou
+  const projecaoAtiva = incluirFuturos && !projecaoCarregando ? projecao : [];
+  const todasReceitas: Lancamento[] = [...receitasFinalizadas, ...projecaoAtiva];
+
+  const totalReceitasFinalizadas = receitasFinalizadas.reduce((s, l) => s + l.valor, 0);
+  const totalProjetado           = projecaoAtiva.reduce((s, l) => s + l.valor, 0);
+  const totalReceitas            = totalReceitasFinalizadas + totalProjetado;
+  const totalReceitasPago        = receitasFinalizadas.filter(l => l.pago).reduce((s, l) => s + l.valor, 0);
 
   const CATEGORIAS_EXCLUIDAS = ["Comissões", "Gastos Casa"];
   const despesasOperacionais  = despesas.filter(l => !CATEGORIAS_EXCLUIDAS.includes(l.categoria ?? ""));
@@ -572,10 +577,15 @@ export default function RelatorioFinanceiroPage() {
       {/* Aviso de projeção */}
       {incluirFuturos && aba !== "anual" && (
         <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 mb-4">
-          <AlertCircle size={15} className="text-amber-500 flex-shrink-0" />
+          {projecaoCarregando
+            ? <Loader2 size={15} className="text-amber-500 flex-shrink-0 animate-spin" />
+            : <AlertCircle size={15} className="text-amber-500 flex-shrink-0" />
+          }
           <p className="text-xs text-amber-700">
-            <span className="font-semibold">Esta é apenas uma projeção</span> — inclui atendimentos agendados ainda não finalizados
-            {totalProjetado > 0 ? ` (${fmt(totalProjetado)} projetado)` : ""}.
+            {projecaoCarregando
+              ? "Calculando projeção…"
+              : <><span className="font-semibold">Esta é apenas uma projeção</span> — inclui atendimentos agendados ainda não finalizados{totalProjetado > 0 ? ` (${fmt(totalProjetado)} projetado)` : ""}.</>
+            }
           </p>
         </div>
       )}
