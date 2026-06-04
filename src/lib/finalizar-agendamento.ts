@@ -116,6 +116,20 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
           const config = parsearConfigCartao(configJson);
           taxaPercentual = taxaParaParcelas(config, agendamento.parcelas ?? 1);
         }
+      } else if (
+        agendamento.formaPagamento === "Cartão de Débito" ||
+        agendamento.formaPagamento === "Link de Pagamento"
+      ) {
+        // Débito e Link: profissional pode ter taxa própria (taxaDebito / taxaLink em configJsonCartao)
+        let profTaxaPropria: number | null = null;
+        if (agendamento.profissional.configJsonCartao) {
+          try {
+            const profConfig = JSON.parse(agendamento.profissional.configJsonCartao);
+            const chave = agendamento.formaPagamento === "Cartão de Débito" ? "taxaDebito" : "taxaLink";
+            if (typeof profConfig[chave] === "number") profTaxaPropria = profConfig[chave];
+          } catch { /* JSON inválido: ignorar */ }
+        }
+        taxaPercentual = profTaxaPropria !== null ? profTaxaPropria : formaPgto.percentualTaxa;
       } else if (formaPgto.percentualTaxa > 0) {
         taxaPercentual = formaPgto.percentualTaxa;
       }

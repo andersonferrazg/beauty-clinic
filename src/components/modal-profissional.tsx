@@ -45,9 +45,12 @@ type Permissoes = {
   acessarDespesas: boolean;
   acessarFinanceiro: boolean;
   verComissoesReceber: boolean;
+  verComissoesPagar: boolean;
+  marcarComissaoPaga: boolean;
   verPagamentosComissao: boolean;
   acessarProntuarios: boolean;
   acessarRelatorios: boolean;
+  acessarConfiguracoesTaxas: boolean;
 };
 
 const PERMISSOES_PADRAO: Permissoes = {
@@ -62,9 +65,12 @@ const PERMISSOES_PADRAO: Permissoes = {
   acessarDespesas: false,
   acessarFinanceiro: false,
   verComissoesReceber: false,
+  verComissoesPagar: false,
+  marcarComissaoPaga: false,
   verPagamentosComissao: false,
   acessarProntuarios: false,
   acessarRelatorios: false,
+  acessarConfiguracoesTaxas: false,
 };
 
 const PERMISSOES_LABELS: { key: keyof Permissoes; label: string; grupo: string }[] = [
@@ -79,9 +85,12 @@ const PERMISSOES_LABELS: { key: keyof Permissoes; label: string; grupo: string }
   { key: "acessarDespesas", label: "Acessar Despesas", grupo: "MÓDULOS" },
   { key: "acessarFinanceiro", label: "Acessar Financeiro", grupo: "MÓDULOS" },
   { key: "verComissoesReceber", label: "Ver Comissões a Receber", grupo: "MÓDULOS" },
+  { key: "verComissoesPagar", label: "Ver Comissões a Pagar", grupo: "MÓDULOS" },
+  { key: "marcarComissaoPaga", label: "Marcar Comissão como Paga/Recebida", grupo: "MÓDULOS" },
   { key: "verPagamentosComissao", label: "Ver Pagamentos de Comissão", grupo: "MÓDULOS" },
   { key: "acessarProntuarios", label: "Acessar Prontuários", grupo: "MÓDULOS" },
   { key: "acessarRelatorios", label: "Acessar Relatórios", grupo: "MÓDULOS" },
+  { key: "acessarConfiguracoesTaxas", label: "Configurar Taxas Próprias", grupo: "MÓDULOS" },
 ];
 
 function mascaraCpf(v: string) {
@@ -200,9 +209,12 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
             acessarDespesas: !!perm.acessarDespesas,
             acessarFinanceiro: !!perm.acessarFinanceiro,
             verComissoesReceber: !!perm.verComissoesReceber,
+            verComissoesPagar: !!(perm as Record<string, unknown>).verComissoesPagar,
+            marcarComissaoPaga: !!(perm as Record<string, unknown>).marcarComissaoPaga,
             verPagamentosComissao: !!perm.verPagamentosComissao,
             acessarProntuarios: !!perm.acessarProntuarios,
             acessarRelatorios: !!perm.acessarRelatorios,
+            acessarConfiguracoesTaxas: !!(perm as Record<string, unknown>).acessarConfiguracoesTaxas,
           });
         }
         if (p.profissionalTerceiro) setMostrarAvancado(true);

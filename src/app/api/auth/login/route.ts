@@ -44,9 +44,12 @@ export async function POST(req: NextRequest) {
           acessarDespesas: usuario.permissoes.acessarDespesas,
           acessarFinanceiro: usuario.permissoes.acessarFinanceiro,
           verComissoesReceber: usuario.permissoes.verComissoesReceber,
+          verComissoesPagar: (usuario.permissoes as Record<string, unknown>).verComissoesPagar === true,
+          marcarComissaoPaga: (usuario.permissoes as Record<string, unknown>).marcarComissaoPaga === true,
           verPagamentosComissao: usuario.permissoes.verPagamentosComissao,
           acessarProntuarios: usuario.permissoes.acessarProntuarios,
           acessarRelatorios: usuario.permissoes.acessarRelatorios,
+          acessarConfiguracoesTaxas: (usuario.permissoes as Record<string, unknown>).acessarConfiguracoesTaxas === true,
         }
       : PERMISSOES_VAZIAS;
 

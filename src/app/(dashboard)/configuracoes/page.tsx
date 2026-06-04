@@ -84,6 +84,10 @@ export default function ConfiguracoesPage() {
   const [profParcelamentoAberto, setProfParcelamentoAberto] = useState(false);
   const [profMaxParcelas, setProfMaxParcelas] = useState(12);
   const [profTaxas, setProfTaxas] = useState<TaxaParcela[]>([]);
+  const [profTaxaDebito, setProfTaxaDebito] = useState(0);
+  const [profTaxaLink, setProfTaxaLink] = useState(0);
+  const [rawProfTaxaDebito, setRawProfTaxaDebito] = useState("");
+  const [rawProfTaxaLink, setRawProfTaxaLink] = useState("");
   const [salvandoProfConfig, setSalvandoProfConfig] = useState(false);
   const [salvoProfConfigOk, setSalvoProfConfigOk] = useState(false);
 
@@ -168,6 +172,14 @@ export default function ConfiguracoesPage() {
                 const config = JSON.parse(data.configJsonCartao);
                 setProfMaxParcelas(config.maxParcelas ?? 12);
                 setProfTaxas(config.taxas ?? []);
+                if (typeof config.taxaDebito === "number") {
+                  setProfTaxaDebito(config.taxaDebito);
+                  setRawProfTaxaDebito(config.taxaDebito === 0 ? "" : String(config.taxaDebito));
+                }
+                if (typeof config.taxaLink === "number") {
+                  setProfTaxaLink(config.taxaLink);
+                  setRawProfTaxaLink(config.taxaLink === 0 ? "" : String(config.taxaLink));
+                }
               } catch {}
             }
           })
@@ -349,7 +361,12 @@ export default function ConfiguracoesPage() {
   async function salvarProfConfig() {
     setSalvandoProfConfig(true);
     try {
-      const configJsonCartao = JSON.stringify({ maxParcelas: profMaxParcelas, taxas: profTaxas });
+      const configJsonCartao = JSON.stringify({
+        maxParcelas: profMaxParcelas,
+        taxas: profTaxas,
+        taxaDebito: profTaxaDebito,
+        taxaLink: profTaxaLink,
+      });
       await fetch("/api/me/config-cartao", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -920,6 +937,78 @@ export default function ConfiguracoesPage() {
               </div>
             ))}
           </div>
+
+          {/* Taxas pessoais: Débito e Link */}
+          {(formas.some((f) => f.nome === "Cartão de Débito" && f.ativa) || formas.some((f) => f.nome === "Link de Pagamento" && f.ativa)) && (
+            <div className="border border-[#e8dcc4] rounded-xl bg-white p-4 space-y-3">
+              <p className="text-sm font-medium text-[#5a4530] flex items-center gap-2">
+                <CreditCard size={14} className="text-[#B89968]" />
+                Minhas taxas pessoais
+              </p>
+              <p className="text-xs text-[#9a7d50]">Configure taxas diferentes das da clínica para os seus atendimentos. Deixe em branco para usar a taxa da clínica.</p>
+              <div className="grid grid-cols-2 gap-3">
+                {formas.some((f) => f.nome === "Cartão de Débito" && f.ativa) && (
+                  <div>
+                    <label className="text-xs text-[#9a7d50] block mb-1">Cartão de Débito (%)</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={rawProfTaxaDebito}
+                        placeholder={formas.find((f) => f.nome === "Cartão de Débito")?.percentualTaxa.toString() ?? "0"}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                          setRawProfTaxaDebito(e.target.value);
+                          const num = parseFloat(e.target.value.replace(",", "."));
+                          if (!isNaN(num)) setProfTaxaDebito(num);
+                        }}
+                        onBlur={(e) => {
+                          const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                          setProfTaxaDebito(num);
+                          setRawProfTaxaDebito(num === 0 ? "" : (Number.isInteger(num) ? String(num) : num.toFixed(2)));
+                        }}
+                        className="w-full h-9 px-2 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                      />
+                      <span className="text-xs text-[#9a7d50]">%</span>
+                    </div>
+                  </div>
+                )}
+                {formas.some((f) => f.nome === "Link de Pagamento" && f.ativa) && (
+                  <div>
+                    <label className="text-xs text-[#9a7d50] block mb-1">Link de Pagamento (%)</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={rawProfTaxaLink}
+                        placeholder={formas.find((f) => f.nome === "Link de Pagamento")?.percentualTaxa.toString() ?? "0"}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                          setRawProfTaxaLink(e.target.value);
+                          const num = parseFloat(e.target.value.replace(",", "."));
+                          if (!isNaN(num)) setProfTaxaLink(num);
+                        }}
+                        onBlur={(e) => {
+                          const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                          setProfTaxaLink(num);
+                          setRawProfTaxaLink(num === 0 ? "" : (Number.isInteger(num) ? String(num) : num.toFixed(2)));
+                        }}
+                        className="w-full h-9 px-2 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                      />
+                      <span className="text-xs text-[#9a7d50]">%</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-1">
+                {salvoProfConfigOk && <span className="flex items-center gap-1 text-sm text-green-600"><Check size={14} />Salvo!</span>}
+                <Button onClick={salvarProfConfig} disabled={salvandoProfConfig} className="bg-[#B89968] hover:bg-[#9a7d50] text-white">
+                  {salvandoProfConfig ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+                  Salvar Minhas Taxas
+                </Button>
+              </div>
+            </div>
+          )}
 
           {formas.some((f) => f.nome === "Cartão de Crédito" && f.ativa) && (
             <div className="border border-[#e8dcc4] rounded-xl overflow-hidden">

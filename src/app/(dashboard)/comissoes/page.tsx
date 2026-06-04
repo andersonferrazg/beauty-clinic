@@ -220,6 +220,7 @@ export default function ComissoesPage() {
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [pagando, setPagando] = useState(false);
   const [editando, setEditando] = useState<Comissao | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -232,6 +233,9 @@ export default function ComissoesPage() {
   }
 
   useEffect(() => {
+    fetch("/api/me/sessao")
+      .then((r) => r.json())
+      .then((s) => setIsAdmin(s?.permissoes?.isAdmin ?? false));
     fetch("/api/profissionais").then((r) => r.json()).then(setProfissionais);
   }, []);
 
@@ -359,17 +363,19 @@ export default function ComissoesPage() {
             className="h-9 px-2 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-2 focus:ring-[#B89968]"
           />
         </div>
-        <div>
-          <label className="text-xs text-[#9a7d50] block mb-1">Profissional</label>
-          <select
-            value={profissionalId}
-            onChange={(e) => setProfissionalId(e.target.value)}
-            className="h-9 px-2 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] bg-white focus:outline-none focus:ring-2 focus:ring-[#B89968]"
-          >
-            <option value="">Todas</option>
-            {profissionais.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-          </select>
-        </div>
+        {isAdmin && (
+          <div>
+            <label className="text-xs text-[#9a7d50] block mb-1">Profissional</label>
+            <select
+              value={profissionalId}
+              onChange={(e) => setProfissionalId(e.target.value)}
+              className="h-9 px-2 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] bg-white focus:outline-none focus:ring-2 focus:ring-[#B89968]"
+            >
+              <option value="">Todas</option>
+              {profissionais.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label className="text-xs text-[#9a7d50] block mb-1">Status</label>
           <div className="flex gap-1">

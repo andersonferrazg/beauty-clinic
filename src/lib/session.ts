@@ -13,9 +13,12 @@ export type Permissoes = {
   acessarDespesas: boolean;
   acessarFinanceiro: boolean;
   verComissoesReceber: boolean;
+  verComissoesPagar: boolean;
+  marcarComissaoPaga: boolean;
   verPagamentosComissao: boolean;
   acessarProntuarios: boolean;
   acessarRelatorios: boolean;
+  acessarConfiguracoesTaxas: boolean;
 };
 
 export const PERMISSOES_VAZIAS: Permissoes = {
@@ -30,9 +33,12 @@ export const PERMISSOES_VAZIAS: Permissoes = {
   acessarDespesas: false,
   acessarFinanceiro: false,
   verComissoesReceber: false,
+  verComissoesPagar: false,
+  marcarComissaoPaga: false,
   verPagamentosComissao: false,
   acessarProntuarios: false,
   acessarRelatorios: false,
+  acessarConfiguracoesTaxas: false,
 };
 
 export type Sessao = {
