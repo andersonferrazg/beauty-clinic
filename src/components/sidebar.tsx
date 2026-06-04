@@ -229,19 +229,7 @@ export function Sidebar() {
         {/* Footer — Usuário + Logout */}
         <div className="px-2 pt-2 border-t border-white/10" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
           {nomeUsuario && (
-            <div className="flex items-center gap-2.5 px-3 py-2 mb-1">
-              <div className="w-7 h-7 rounded-full bg-[#B89968]/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-[#B89968] text-xs font-semibold">
-                  {nomeUsuario.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-white/70 text-xs font-medium truncate leading-tight">{nomeUsuario}</p>
-                <p className="text-white/30 text-[10px]">
-                  {permissoes?.isAdmin ? "Administrador" : "Profissional"}
-                </p>
-              </div>
-            </div>
+            <p className="px-3 pt-1 pb-0.5 text-white/50 text-xs truncate">{nomeUsuario}</p>
           )}
           <button
             onClick={sair}
