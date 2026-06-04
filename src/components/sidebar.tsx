@@ -81,6 +81,7 @@ export function Sidebar() {
   const [saindo, setSaindo] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [permissoes, setPermissoes] = useState<Permissoes | null>(null);
+  const [nomeUsuario, setNomeUsuario] = useState<string | null>(null);
   const [notifNaoLidas, setNotifNaoLidas] = useState(0);
 
   useEffect(() => {
@@ -93,8 +94,9 @@ export function Sidebar() {
   useEffect(() => {
     getSessaoCliente()
       .then((s: unknown) => {
-        const sessao = s as { permissoes?: Permissoes } | null;
+        const sessao = s as { permissoes?: Permissoes; nome?: string } | null;
         if (sessao?.permissoes) setPermissoes(sessao.permissoes);
+        if (sessao?.nome) setNomeUsuario(sessao.nome);
       })
       .catch(() => {});
   }, []);
@@ -224,8 +226,23 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer — Logout */}
+        {/* Footer — Usuário + Logout */}
         <div className="px-2 pt-2 border-t border-white/10" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+          {nomeUsuario && (
+            <div className="flex items-center gap-2.5 px-3 py-2 mb-1">
+              <div className="w-7 h-7 rounded-full bg-[#B89968]/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-[#B89968] text-xs font-semibold">
+                  {nomeUsuario.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-white/70 text-xs font-medium truncate leading-tight">{nomeUsuario}</p>
+                <p className="text-white/30 text-[10px]">
+                  {permissoes?.isAdmin ? "Administrador" : "Profissional"}
+                </p>
+              </div>
+            </div>
+          )}
           <button
             onClick={sair}
             disabled={saindo}
