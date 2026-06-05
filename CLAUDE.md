@@ -410,6 +410,7 @@ useEffect(() => {
 - Modal tem abas: **Dados** e **Histórico** (últimos 10 atendimentos)
 - **CPF com máscara automática** — formata para `000.000.000-00` ao digitar
 - Botão "Exportar" gera CSV com nome, telefone e aniversário
+- Redireciona para `/dashboard` se o usuário não tiver `acessarClientes`
 
 ### `/confirmacoes`
 - Página para envio manual de confirmações WhatsApp
@@ -420,6 +421,7 @@ useEffect(() => {
 ### `/servicos`
 - Lista agrupada por categoria
 - CRUD via `ModalServico` (nome, categoria com autocomplete, duração em pílulas, preço, cor, precoVariavel)
+- `ModalServico`: ao criar novo serviço, avisa em amarelo se existir serviço com nome parecido (normalização NFD + Levenshtein ≤ 2 para capturar typos e abreviações como "Lash lifth" × "Lash Lift")
 
 ### `/dashboard`
 - Página inicial após login
@@ -442,6 +444,8 @@ useEffect(() => {
 ### `/produtos`
 - Tabela com alertas visuais: estoque baixo (amarelo), vencendo em 30 dias (laranja), vencidos (vermelho)
 - Modal com 2 abas: **Dados** e **Movimentações** (histórico + registrar entrada/ajuste manual)
+- **Campo "Custo"** visível apenas para admin ou usuário com `acessarFinanceiro` — a API também stripa `precoCusto` da resposta para quem não tem permissão
+- Página redireciona para `/dashboard` se o usuário não tiver `acessarProdutos`
 
 ### `/financeiro`
 - Filtro por mês, toggle RECEITA / DESPESA, marcar como pago/não pago
@@ -452,10 +456,8 @@ useEffect(() => {
 - Visão mensal de todos os atendimentos com totais por dia
 
 ### `/comissoes`
-- Extrato por profissional × mês com filtros de status (pendente/pago/todos)
-- KPIs: total pendente, total pago, total selecionado
-- Edição individual (lápis): editar valor, percentual (recalcula automaticamente), status, data de pagamento
-- Seleção em lote + "Marcar como pago" → cria Lancamento DESPESA (CLINICA_PAGA) ou RECEITA (COLABORADORA_PAGA)
+- **Admin:** extrato por profissional × mês com filtros de status, seletor de profissional, KPIs (total pendente, total pago, total selecionado), checkboxes de seleção em lote, botão "Marcar como pago" → cria Lancamento DESPESA (CLINICA_PAGA) ou RECEITA (COLABORADORA_PAGA), edição individual (lápis)
+- **Profissional:** vê apenas as próprias comissões, sem seletor de profissional, sem checkboxes, sem botão "Marcar como pago" — só consulta e edição individual se tiver permissão `marcarComissaoPaga`
 
 ### `/gastos/clinica` e `/gastos/casa`
 - Planilha mensal de gastos fixos com filtro de mês, cards de totais (Total / Pago / A pagar)
@@ -474,7 +476,8 @@ useEffect(() => {
 - Editar: clique no template → botão Editar → editar nome + texto → Salvar
 - Preview com bolha do WhatsApp mostrando `{nome_clinica}` substituído
 - Excluir com confirmação
-- Variáveis disponíveis: `{nome_cliente}`, `{nome_clinica}`, `{data}`, `{hora}`, `{hora_fim}`, `{servico}`, `{profissional}`, `{valor_total}`
+- Variáveis disponíveis: `{nome_cliente}`, `{primeiro_nome}`, `{nome_clinica}`, `{data}`, `{dia_semana}`, `{data_curta}`, `{hora}`, `{hora_fim}`, `{servico}`, `{profissional}`, `{valor_total}`
+- 4 templates criados automaticamente via seed se o tenant ainda não tiver nenhum: Confirmação de Agendamento, Lembrete no Dia, Pós-Atendimento, Cancelamento
 - Templates são isolados por tenant (multi-tenant)
 
 ### `/relatorios/performance`
@@ -578,6 +581,7 @@ Todos os modais usam **overlay fixo** (não Radix Dialog) — `fixed inset-0 z-5
 
 ### `ModalServico`
 - Campos: nome, categoria (autocomplete), duração (pílulas), preço, cor, precoVariavel (toggle)
+- **Aviso de similaridade** (só na criação): carrega lista de serviços existentes ao abrir e compara o nome digitado em tempo real por normalização NFD + Levenshtein ≤ 2. Exibe aviso amarelo sem bloquear o salvamento.
 
 ### `ModalProfissional`
 - **Identificação:** nome, especialidade, registro profissional (CRM/CRBM/CRF), email de contato, telefone, cor (color picker)
@@ -670,6 +674,9 @@ Schema aplicado no Supabase via `npx prisma db push` apontando para o pooler.
 - **Multi-tenant:** isolamento por `tenantId` em todas as queries
 - **Soft delete:** dados nunca apagados fisicamente
 - **HTTPS:** habilitado automaticamente via `secure: process.env.NODE_ENV === "production"` no cookie
+- **Guards de página (client-side):** `/clientes`, `/produtos`, `/financeiro`, `/gastos/clinica`, `/gastos/casa` redirecionam para `/dashboard` via `useEffect` se o usuário não tiver a permissão correspondente (`acessarClientes`, `acessarProdutos`, `acessarFinanceiro`, `acessarDespesas`)
+- **Guards de API:** `GET /api/clientes` bloqueia listagem sem `acessarClientes`; `GET /api/produtos` stripa `precoCusto` para não-admin sem `acessarFinanceiro`; `POST /api/lancamentos` bloqueia criação de DESPESA sem `acessarDespesas`/`acessarFinanceiro`
+- **Sidebar dinâmico:** cada item de menu só aparece para usuários com a permissão correspondente; seções divisoras (ex: "Relatórios") só renderizam se houver pelo menos um item visível abaixo delas
 
 ---
 
@@ -832,6 +839,62 @@ Em `finalizar-agendamento.ts`, ao finalizar atendimento com Débito ou Link, o s
 | `src/app/(dashboard)/comissoes/page.tsx` | Busca `/api/me/sessao` no mount; oculta seletor de profissional para não-admin |
 | `src/app/(dashboard)/configuracoes/page.tsx` | Bloco "Minhas taxas pessoais" (Débito + Link) na seção do profissional; salva em `/api/me/config-cartao` |
 | `src/lib/finalizar-agendamento.ts` | Usa `taxaDebito`/`taxaLink` do `configJsonCartao` do profissional quando presente |
+
+---
+
+## Fase 13 — Auditoria de Segurança + Limpeza de Dados (CONCLUÍDA ✅)
+
+Sessão de junho/2026. Foco em fechar furos de isolamento descobertos quando Beatriz e Letícia começaram a testar o sistema em produção.
+
+### Guards de página e API
+
+Pages sensíveis agora verificam permissões no `useEffect` e redirecionam para `/dashboard` se o usuário não tiver acesso (ver seção "Segurança implementada" para lista completa).
+
+API routes bloqueiam ações não autorizadas: listagem de clientes, custo de produtos e criação de despesas exigem permissão explícita.
+
+### Sidebar — correções de visibilidade
+
+- **"Cobranças" renomeado para "Financeiro"** no menu lateral
+- **Seção "Relatórios"** só renderiza se o usuário tiver acesso a pelo menos um item abaixo dela — corrige o header órfão que aparecia para Beatriz/Letícia
+- Header mobile da `/agenda` ajustado com `pl-14 pr-3` — o botão hamburger não ficava mais coberto pelo header de ações
+
+### Comissões — isolamento visual
+
+Profissional vê: subtitle "Minhas comissões", somente as próprias entradas, KPI próprio. Sem seletor de profissional, sem checkboxes de lote, sem botão "Marcar como pago". Backend já isolava os dados desde antes; esta fase corrigiu a UI.
+
+### Limpeza de dados de produção
+
+**Deduplicação de serviços (99 → ~63 ativos):**
+- Rodada 1 — `prisma/dedup-servicos.ts`: inativou 32 duplicatas por normalização (NFD + lowercase + colapso de espaços); repontou vínculos de `ItemAgendamento` e `ItemOrcamento` para o serviço canônico
+- Rodada 2 — `prisma/merge-duplicatas-manuais.ts`: inativou 4 duplicatas com nomes com typos/abreviações ("Lash lifth" → "Lash Lift", "Remoção unha" → "Remoção de Unha", etc.)
+
+**Profissional teste removida:** "Dra. Lunna Bordin teste" removida do banco de produção junto com o usuário vinculado.
+
+**Permissões da Beatriz corrigidas:** `beatrizddos1408@gmail.com` — `acessarClientes` e `acessarProdutos` definidos como `false`.
+
+### Prevenção de novas duplicatas
+
+`ModalServico` — ao abrir para **criar**, carrega a lista de serviços existentes e compara o nome digitado em tempo real (NFD + Levenshtein ≤ 2). Exibe aviso amarelo sem bloquear o salvamento.
+
+### Arquivos alterados (Fase 13)
+| Arquivo | Mudança |
+|---|---|
+| `src/components/sidebar.tsx` | Renomear "Cobranças"→"Financeiro"; fix divisor "Relatórios" órfão |
+| `src/app/(dashboard)/agenda/page.tsx` | Header mobile com `pl-14 pr-3` (espaço para hamburger) |
+| `src/app/(dashboard)/produtos/page.tsx` | Guard de permissão + `podeVerCusto` + ocultar coluna e campo Custo |
+| `src/app/(dashboard)/clientes/page.tsx` | Guard → redirect se `!acessarClientes` |
+| `src/app/(dashboard)/financeiro/page.tsx` | Guard → redirect se `!acessarFinanceiro` |
+| `src/app/(dashboard)/gastos/clinica/page.tsx` | Guard → redirect se `!acessarDespesas` |
+| `src/app/(dashboard)/gastos/casa/page.tsx` | Guard → redirect se `!acessarDespesas` |
+| `src/app/(dashboard)/comissoes/page.tsx` | UI condicional: subtitle, KPI SELECIONADO, checkboxes, botão pagar |
+| `src/app/api/clientes/route.ts` | Block GET listing sem `acessarClientes` |
+| `src/app/api/produtos/route.ts` | Strip `precoCusto` para não-admin/não-financeiro |
+| `src/app/api/lancamentos/route.ts` | Block POST DESPESA sem permissão |
+| `src/components/modal-servico.tsx` | Aviso de similaridade ao criar serviço (NFD + Levenshtein) |
+| `prisma/dedup-servicos.ts` | Script de deduplicação automática (dry-run + `--apply`) |
+| `prisma/merge-duplicatas-manuais.ts` | Script de merge manual das 4 duplicatas restantes |
+| `prisma/fix-beatriz-permissions.ts` | Script para corrigir permissões da Beatriz em produção |
+| `prisma/remove-prof-teste.ts` | Script para remover profissional de teste em produção |
 
 ---
 
