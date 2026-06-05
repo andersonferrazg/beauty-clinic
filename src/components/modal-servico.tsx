@@ -40,6 +40,19 @@ const DURACOES = [
   { label: "4h", value: 240 },
 ];
 
+function normalizarNome(nome: string): string {
+  return nome.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ");
+}
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
 const CAMPOS_VAZIOS = {
   nome: "",
   categoria: "",
@@ -59,13 +72,26 @@ export function ModalServico({ aberto, onFechar, onSalvo, servicoId }: Props) {
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [erro, setErro] = useState("");
   const [mostrarCategorias, setMostrarCategorias] = useState(false);
+  const [servicosExistentes, setServicosExistentes] = useState<{ id: string; nome: string }[]>([]);
+  const [avisoSimilar, setAvisoSimilar] = useState<string | null>(null);
 
   useEffect(() => {
     if (!aberto) {
       setCampos(CAMPOS_VAZIOS);
       setErro("");
       setConfirmarExclusao(false);
+      setAvisoSimilar(null);
+      setServicosExistentes([]);
       return;
+    }
+    // Carrega lista de serviços existentes para checar similaridade (só na criação)
+    if (!servicoId) {
+      fetch("/api/servicos")
+        .then((r) => r.json())
+        .then((lista: { id: string; nome: string }[]) => {
+          if (Array.isArray(lista)) setServicosExistentes(lista);
+        })
+        .catch(() => {});
     }
     if (!servicoId) return;
 
@@ -86,6 +112,20 @@ export function ModalServico({ aberto, onFechar, onSalvo, servicoId }: Props) {
       })
       .finally(() => setCarregando(false));
   }, [aberto, servicoId]);
+
+  useEffect(() => {
+    if (ehEdicao || !campos.nome.trim() || servicosExistentes.length === 0) {
+      setAvisoSimilar(null);
+      return;
+    }
+    const normDigitado = normalizarNome(campos.nome);
+    if (normDigitado.length < 3) { setAvisoSimilar(null); return; }
+    const similar = servicosExistentes.find((s) => {
+      const normExistente = normalizarNome(s.nome);
+      return normExistente === normDigitado || levenshtein(normDigitado, normExistente) <= 2;
+    });
+    setAvisoSimilar(similar ? similar.nome : null);
+  }, [campos.nome, servicosExistentes, ehEdicao]);
 
   function set<K extends keyof typeof CAMPOS_VAZIOS>(campo: K, valor: typeof CAMPOS_VAZIOS[K]) {
     setCampos((prev) => ({ ...prev, [campo]: valor }));
@@ -161,6 +201,11 @@ export function ModalServico({ aberto, onFechar, onSalvo, servicoId }: Props) {
                   placeholder="Ex: Volume Brasileiro"
                   className="border-[#B89968]/30"
                 />
+                {avisoSimilar && (
+                  <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5">
+                    ⚠️ Já existe um serviço parecido: <strong>{avisoSimilar}</strong>. Verifique antes de criar.
+                  </p>
+                )}
               </div>
 
               {/* Categoria */}
