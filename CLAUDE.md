@@ -789,6 +789,52 @@ Filtro `l.pago` removido das despesas no Fluxo Diário. Agora todas as despesas 
 
 ---
 
+## Fase 10 — Isolamento de permissões + taxas pessoais (CONCLUÍDA ✅)
+
+Commit `00276a5` — junho/2026. Foco em fechar furos de isolamento descobertos quando Beatriz começou a testar o sistema.
+
+### Bugs corrigidos
+
+**A2 — /comissoes: profissional via seletor de "Todas"**
+O seletor "Profissional / Todas" aparecia para todos os usuários. Como o backend já forçava `where.profissionalId = sessao.profissionalId` para não-admin, os dados estavam corretos — mas a UI era confusa e expunha nomes de outras profissionais. Corrigido: o dropdown só renderiza quando `isAdmin === true`.
+
+O backend (`/api/comissoes`) já tinha o isolamento correto desde antes; a Fase 10 só ajustou o frontend.
+
+**A1 — Dashboard: dados financeiros da clínica não vazam mais**
+Já estava correto no backend (bloco `if (isAdmin)` controla todos os dados financeiros). Confirmado nos testes: Beatriz vê apenas Atendimentos Mês + Comissão Pendente, sem Receita/Despesa/Lucro da clínica.
+
+### Novas funcionalidades
+
+**C — Catálogo de permissões ampliado**
+Três novas flags adicionadas ao tipo `Permissoes` em `session.ts` e ao `ModalProfissional`:
+- `verComissoesPagar` — ver comissões na direção COLABORADORA_PAGA (profissional deve à clínica)
+- `marcarComissaoPaga` — marcar comissão como paga/recebida
+- `acessarConfiguracoesTaxas` — configurar taxas próprias de pagamento
+
+As flags estão no banco como Boolean? default false e são lidas no login com fallback `=== true` (compatível com registros antigos sem o campo no DB).
+
+**D — Taxas pessoais de Débito e Link para profissional**
+Em `/configuracoes` → Formas de Pagamento, profissionais não-admin agora veem um bloco "Minhas taxas pessoais" com inputs editáveis para Cartão de Débito (%) e Link de Pagamento (%), além do Cartão de Crédito parcelado já existente.
+
+Os valores ficam armazenados dentro do JSON `Profissional.configJsonCartao`:
+```json
+{ "maxParcelas": 12, "taxas": [...], "taxaDebito": 2.5, "taxaLink": 1.5 }
+```
+
+Em `finalizar-agendamento.ts`, ao finalizar atendimento com Débito ou Link, o sistema verifica se a profissional tem taxa própria configurada e usa ela; caso contrário, cai para a taxa global da clínica.
+
+### Arquivos alterados (Fase 10)
+| Arquivo | Mudança |
+|---|---|
+| `src/lib/session.ts` | + 3 novas flags no tipo `Permissoes` e `PERMISSOES_VAZIAS` |
+| `src/app/api/auth/login/route.ts` | Lê as novas flags do DB com fallback `=== true` |
+| `src/components/modal-profissional.tsx` | + 3 flags no tipo local + `PERMISSOES_LABELS` + leitura das flags ao editar profissional |
+| `src/app/(dashboard)/comissoes/page.tsx` | Busca `/api/me/sessao` no mount; oculta seletor de profissional para não-admin |
+| `src/app/(dashboard)/configuracoes/page.tsx` | Bloco "Minhas taxas pessoais" (Débito + Link) na seção do profissional; salva em `/api/me/config-cartao` |
+| `src/lib/finalizar-agendamento.ts` | Usa `taxaDebito`/`taxaLink` do `configJsonCartao` do profissional quando presente |
+
+---
+
 ## O que ainda NÃO foi construído
 
 ### Pendente para SaaS multi-tenant

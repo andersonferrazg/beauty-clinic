@@ -90,6 +90,10 @@ export default function ConfiguracoesPage() {
   const [rawProfTaxaLink, setRawProfTaxaLink] = useState("");
   const [salvandoProfConfig, setSalvandoProfConfig] = useState(false);
   const [salvoProfConfigOk, setSalvoProfConfigOk] = useState(false);
+  const [profParcelamentoLinkAberto, setProfParcelamentoLinkAberto] = useState(false);
+  const [profMaxParcelasLink, setProfMaxParcelasLink] = useState(12);
+  const [profTaxasLink, setProfTaxasLink] = useState<TaxaParcela[]>([]);
+  const [rawProfTaxasLink, setRawProfTaxasLink] = useState<Record<number, string>>({});
 
   useEffect(() => {
     async function carregar() {
@@ -180,6 +184,8 @@ export default function ConfiguracoesPage() {
                   setProfTaxaLink(config.taxaLink);
                   setRawProfTaxaLink(config.taxaLink === 0 ? "" : String(config.taxaLink));
                 }
+                if (typeof config.maxParcelasLink === "number") setProfMaxParcelasLink(config.maxParcelasLink);
+                if (Array.isArray(config.taxasLink)) setProfTaxasLink(config.taxasLink);
               } catch {}
             }
           })
@@ -358,6 +364,15 @@ export default function ConfiguracoesPage() {
     });
   }
 
+  function atualizarProfTaxaLinkParcela(parcelas: number, campo: string, valor: string | number) {
+    setProfTaxasLink((prev) => {
+      const idx = prev.findIndex((t) => t.parcelas === parcelas);
+      const base: TaxaParcela = { parcelas, taxaPct: 0, recebimento: "CONFORME_PARCELAS" };
+      if (idx === -1) return [...prev, { ...base, [campo]: valor }];
+      return prev.map((t, i) => (i === idx ? { ...t, [campo]: valor } : t));
+    });
+  }
+
   async function salvarProfConfig() {
     setSalvandoProfConfig(true);
     try {
@@ -366,6 +381,8 @@ export default function ConfiguracoesPage() {
         taxas: profTaxas,
         taxaDebito: profTaxaDebito,
         taxaLink: profTaxaLink,
+        maxParcelasLink: profMaxParcelasLink,
+        taxasLink: profTaxasLink,
       });
       await fetch("/api/me/config-cartao", {
         method: "PATCH",
@@ -925,91 +942,77 @@ export default function ConfiguracoesPage() {
 
       {/* Formas de Pagamento — profissional não-admin */}
       {secao === "pagamento" && !isAdmin && profissionalId && (
-        <div className="space-y-4">
-          <p className="text-xs text-[#9a7d50]">Formas de pagamento aceitas pela clínica:</p>
-          <div className="flex flex-wrap gap-2">
-            {formas.filter((f) => f.ativa).map((f) => (
-              <div key={f.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#e8dcc4] bg-white text-sm text-[#5a4530]">
-                <span>{f.nome}</span>
-                {f.percentualTaxa > 0 && (
-                  <span className="text-xs text-[#9a7d50]">({f.percentualTaxa}% taxa)</span>
-                )}
-              </div>
-            ))}
+        <div className="space-y-3">
+          <p className="text-xs text-[#9a7d50]">Configure taxas diferentes das da clínica para os seus atendimentos. Deixe em branco para usar a taxa padrão.</p>
+
+          {/* Tabela de formas */}
+          <div className="bg-white rounded-xl border border-[#e8dcc4] overflow-hidden shadow-sm">
+            <div className="grid grid-cols-[1fr_100px_auto] gap-2 px-4 py-2 bg-[#faf5ee] border-b border-[#e8dcc4] text-xs text-[#9a7d50] font-medium">
+              <span>Nome</span>
+              <span className="text-center">Minha Taxa %</span>
+              <span className="text-center">Ativa</span>
+            </div>
+            {formas.filter((f) => f.ativa).map((f) => {
+              const isDebito = f.nome === "Cartão de Débito";
+              const isLink = f.nome === "Link de Pagamento";
+              const isCredito = f.nome === "Cartão de Crédito";
+              const isEditavel = isDebito || isLink;
+              return (
+                <div key={f.id} className="grid grid-cols-[1fr_100px_auto] gap-2 items-center px-4 py-2.5 border-b border-[#e8dcc4] last:border-b-0">
+                  <span className="text-sm text-[#5a4530]">{f.nome}</span>
+                  <div className="flex items-center gap-1 justify-center">
+                    {isCredito ? (
+                      <span className="text-xs text-[#9a7d50] italic">por parcela ↓</span>
+                    ) : isEditavel ? (
+                      <>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={isDebito ? rawProfTaxaDebito : rawProfTaxaLink}
+                          placeholder={f.percentualTaxa > 0 ? String(f.percentualTaxa) : "0"}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (isDebito) {
+                              setRawProfTaxaDebito(raw);
+                              const num = parseFloat(raw.replace(",", "."));
+                              if (!isNaN(num)) setProfTaxaDebito(num);
+                            } else {
+                              setRawProfTaxaLink(raw);
+                              const num = parseFloat(raw.replace(",", "."));
+                              if (!isNaN(num)) setProfTaxaLink(num);
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                            const fmt = num === 0 ? "" : (Number.isInteger(num) ? String(num) : num.toFixed(2));
+                            if (isDebito) { setProfTaxaDebito(num); setRawProfTaxaDebito(fmt); }
+                            else { setProfTaxaLink(num); setRawProfTaxaLink(fmt); }
+                          }}
+                          className="w-full text-sm text-center text-[#5a4530] border border-[#e8dcc4] rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                        />
+                        <span className="text-xs text-[#9a7d50]">%</span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-[#9a7d50] text-center w-full">
+                        {f.percentualTaxa > 0 ? `${f.percentualTaxa}%` : "—"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex justify-center">
+                    <button
+                      disabled
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full cursor-not-allowed opacity-60 ${f.ativa ? "bg-[#B89968]" : "bg-gray-300"}`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ${f.ativa ? "translate-x-4" : "translate-x-0.5"}`} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Taxas pessoais: Débito e Link */}
-          {(formas.some((f) => f.nome === "Cartão de Débito" && f.ativa) || formas.some((f) => f.nome === "Link de Pagamento" && f.ativa)) && (
-            <div className="border border-[#e8dcc4] rounded-xl bg-white p-4 space-y-3">
-              <p className="text-sm font-medium text-[#5a4530] flex items-center gap-2">
-                <CreditCard size={14} className="text-[#B89968]" />
-                Minhas taxas pessoais
-              </p>
-              <p className="text-xs text-[#9a7d50]">Configure taxas diferentes das da clínica para os seus atendimentos. Deixe em branco para usar a taxa da clínica.</p>
-              <div className="grid grid-cols-2 gap-3">
-                {formas.some((f) => f.nome === "Cartão de Débito" && f.ativa) && (
-                  <div>
-                    <label className="text-xs text-[#9a7d50] block mb-1">Cartão de Débito (%)</label>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={rawProfTaxaDebito}
-                        placeholder={formas.find((f) => f.nome === "Cartão de Débito")?.percentualTaxa.toString() ?? "0"}
-                        onFocus={(e) => e.target.select()}
-                        onChange={(e) => {
-                          setRawProfTaxaDebito(e.target.value);
-                          const num = parseFloat(e.target.value.replace(",", "."));
-                          if (!isNaN(num)) setProfTaxaDebito(num);
-                        }}
-                        onBlur={(e) => {
-                          const num = parseFloat(e.target.value.replace(",", ".")) || 0;
-                          setProfTaxaDebito(num);
-                          setRawProfTaxaDebito(num === 0 ? "" : (Number.isInteger(num) ? String(num) : num.toFixed(2)));
-                        }}
-                        className="w-full h-9 px-2 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
-                      />
-                      <span className="text-xs text-[#9a7d50]">%</span>
-                    </div>
-                  </div>
-                )}
-                {formas.some((f) => f.nome === "Link de Pagamento" && f.ativa) && (
-                  <div>
-                    <label className="text-xs text-[#9a7d50] block mb-1">Link de Pagamento (%)</label>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={rawProfTaxaLink}
-                        placeholder={formas.find((f) => f.nome === "Link de Pagamento")?.percentualTaxa.toString() ?? "0"}
-                        onFocus={(e) => e.target.select()}
-                        onChange={(e) => {
-                          setRawProfTaxaLink(e.target.value);
-                          const num = parseFloat(e.target.value.replace(",", "."));
-                          if (!isNaN(num)) setProfTaxaLink(num);
-                        }}
-                        onBlur={(e) => {
-                          const num = parseFloat(e.target.value.replace(",", ".")) || 0;
-                          setProfTaxaLink(num);
-                          setRawProfTaxaLink(num === 0 ? "" : (Number.isInteger(num) ? String(num) : num.toFixed(2)));
-                        }}
-                        className="w-full h-9 px-2 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
-                      />
-                      <span className="text-xs text-[#9a7d50]">%</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-end gap-3 pt-1">
-                {salvoProfConfigOk && <span className="flex items-center gap-1 text-sm text-green-600"><Check size={14} />Salvo!</span>}
-                <Button onClick={salvarProfConfig} disabled={salvandoProfConfig} className="bg-[#B89968] hover:bg-[#9a7d50] text-white">
-                  {salvandoProfConfig ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
-                  Salvar Minhas Taxas
-                </Button>
-              </div>
-            </div>
-          )}
-
+          {/* Parcelamento Cartão de Crédito */}
           {formas.some((f) => f.nome === "Cartão de Crédito" && f.ativa) && (
             <div className="border border-[#e8dcc4] rounded-xl overflow-hidden">
               <button
@@ -1019,14 +1022,12 @@ export default function ConfiguracoesPage() {
               >
                 <span className="flex items-center gap-2">
                   <CreditCard size={14} className="text-[#B89968]" />
-                  Minhas taxas de parcelamento (Cartão de Crédito)
+                  Configurar parcelamento do Cartão de Crédito
                 </span>
                 <ChevronDown size={14} className={cn("transition-transform text-[#9a7d50]", profParcelamentoAberto && "rotate-180")} />
               </button>
-
               {profParcelamentoAberto && (
                 <div className="bg-white p-4 space-y-3 border-t border-[#e8dcc4]">
-                  <p className="text-xs text-[#9a7d50]">Configure taxas diferentes das da clínica para os seus atendimentos.</p>
                   <div className="flex items-center gap-3">
                     <Label className="text-xs text-[#9a7d50] whitespace-nowrap">Máximo de parcelas:</Label>
                     <select
@@ -1039,7 +1040,6 @@ export default function ConfiguracoesPage() {
                       ))}
                     </select>
                   </div>
-
                   <div className="rounded-xl border border-[#e8dcc4] overflow-hidden">
                     <div className="grid grid-cols-[80px_1fr_110px] gap-2 px-3 py-2 bg-[#faf5ee] text-xs font-semibold text-[#5a4530] border-b border-[#e8dcc4]">
                       <span>Parcelas</span>
@@ -1051,9 +1051,7 @@ export default function ConfiguracoesPage() {
                         const taxa = profTaxas.find((t) => t.parcelas === n) ?? { parcelas: n, taxaPct: 0, recebimento: "CONFORME_PARCELAS" };
                         return (
                           <div key={n} className="grid grid-cols-[80px_1fr_110px] gap-2 items-center px-3 py-2">
-                            <span className="text-sm font-medium text-[#3d2c1e]">
-                              {n === 1 ? "À Vista" : `${n}x`}
-                            </span>
+                            <span className="text-sm font-medium text-[#3d2c1e]">{n === 1 ? "À Vista" : `${n}x`}</span>
                             <select
                               value={taxa.recebimento}
                               onChange={(e) => atualizarProfTaxaParcela(n, "recebimento", e.target.value)}
@@ -1095,25 +1093,106 @@ export default function ConfiguracoesPage() {
                       })}
                     </div>
                   </div>
-                  <p className="text-[11px] text-[#9a7d50]">
-                    &quot;Conforme parcelas&quot; = 1ª em 30 dias, 2ª em 60 dias, 3ª em 90 dias...
-                  </p>
-
-                  <div className="flex items-center justify-end gap-3 pt-1">
-                    {salvoProfConfigOk && (
-                      <span className="flex items-center gap-1 text-sm text-green-600">
-                        <Check size={14} />Salvo!
-                      </span>
-                    )}
-                    <Button onClick={salvarProfConfig} disabled={salvandoProfConfig} className="bg-[#B89968] hover:bg-[#9a7d50] text-white">
-                      {salvandoProfConfig ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
-                      Salvar Minhas Taxas
-                    </Button>
-                  </div>
+                  <p className="text-[11px] text-[#9a7d50]">&quot;Conforme parcelas&quot; = 1ª em 30 dias, 2ª em 60 dias, 3ª em 90 dias...</p>
                 </div>
               )}
             </div>
           )}
+
+          {/* Parcelamento Link de Pagamento */}
+          {formas.some((f) => f.nome === "Link de Pagamento" && f.ativa) && (
+            <div className="border border-[#e8dcc4] rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setProfParcelamentoLinkAberto((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#faf5ee] text-sm font-medium text-[#5a4530] hover:bg-[#f0e8d5] transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <CreditCard size={14} className="text-[#B89968]" />
+                  Configurar parcelamento do Link de Pagamento
+                </span>
+                <ChevronDown size={14} className={cn("transition-transform text-[#9a7d50]", profParcelamentoLinkAberto && "rotate-180")} />
+              </button>
+              {profParcelamentoLinkAberto && (
+                <div className="bg-white p-4 space-y-3 border-t border-[#e8dcc4]">
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs text-[#9a7d50] whitespace-nowrap">Máximo de parcelas:</Label>
+                    <select
+                      value={profMaxParcelasLink}
+                      onChange={(e) => setProfMaxParcelasLink(Number(e.target.value))}
+                      className="border border-[#e8dcc4] rounded-lg px-2 py-1 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                    >
+                      {[6, 9, 12, 15, 18].map((n) => (
+                        <option key={n} value={n}>{n}x</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="rounded-xl border border-[#e8dcc4] overflow-hidden">
+                    <div className="grid grid-cols-[80px_1fr_110px] gap-2 px-3 py-2 bg-[#faf5ee] text-xs font-semibold text-[#5a4530] border-b border-[#e8dcc4]">
+                      <span>Parcelas</span>
+                      <span>Você recebe em</span>
+                      <span className="text-right">Taxa (%)</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-[#e8dcc4]">
+                      {Array.from({ length: profMaxParcelasLink }, (_, i) => i + 1).map((n) => {
+                        const taxa = profTaxasLink.find((t) => t.parcelas === n) ?? { parcelas: n, taxaPct: 0, recebimento: "CONFORME_PARCELAS" };
+                        return (
+                          <div key={n} className="grid grid-cols-[80px_1fr_110px] gap-2 items-center px-3 py-2">
+                            <span className="text-sm font-medium text-[#3d2c1e]">{n === 1 ? "À Vista" : `${n}x`}</span>
+                            <select
+                              value={taxa.recebimento}
+                              onChange={(e) => atualizarProfTaxaLinkParcela(n, "recebimento", e.target.value)}
+                              className="text-xs rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none bg-white"
+                            >
+                              <option value="CONFORME_PARCELAS">Conforme parcelas</option>
+                              <option value="HOJE">Hoje</option>
+                              <option value="1D">Amanhã (1 dia)</option>
+                              <option value="2D">2 dias</option>
+                              <option value="3D">3 dias</option>
+                              <option value="14D">14 dias</option>
+                              <option value="30D">30 dias</option>
+                              <option value="90D">90 dias</option>
+                            </select>
+                            <div className="flex items-center justify-end gap-1">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={rawProfTaxasLink[n] ?? (taxa.taxaPct === 0 ? "" : String(taxa.taxaPct))}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  setRawProfTaxasLink((prev) => ({ ...prev, [n]: raw }));
+                                  const num = parseFloat(raw.replace(",", "."));
+                                  if (!isNaN(num)) atualizarProfTaxaLinkParcela(n, "taxaPct", num);
+                                }}
+                                onBlur={(e) => {
+                                  const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                                  const fmt = Number.isInteger(num) ? String(num) : num.toFixed(2);
+                                  setRawProfTaxasLink((prev) => ({ ...prev, [n]: fmt }));
+                                  atualizarProfTaxaLinkParcela(n, "taxaPct", num);
+                                }}
+                                className="w-16 text-xs text-right rounded-md border border-[#e8dcc4] px-1.5 py-1.5 text-[#3d2c1e] focus:border-[#B89968] focus:outline-none"
+                              />
+                              <span className="text-xs text-[#9a7d50]">%</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#9a7d50]">&quot;Conforme parcelas&quot; = 1ª em 30 dias, 2ª em 60 dias, 3ª em 90 dias...</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-3 pt-1">
+            {salvoProfConfigOk && <span className="flex items-center gap-1 text-sm text-green-600"><Check size={14} />Salvo!</span>}
+            <Button onClick={salvarProfConfig} disabled={salvandoProfConfig} className="bg-[#B89968] hover:bg-[#9a7d50] text-white">
+              {salvandoProfConfig ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+              Salvar Minhas Taxas
+            </Button>
+          </div>
         </div>
       )}
 

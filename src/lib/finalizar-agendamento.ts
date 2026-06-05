@@ -116,20 +116,36 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
           const config = parsearConfigCartao(configJson);
           taxaPercentual = taxaParaParcelas(config, agendamento.parcelas ?? 1);
         }
-      } else if (
-        agendamento.formaPagamento === "Cartão de Débito" ||
-        agendamento.formaPagamento === "Link de Pagamento"
-      ) {
-        // Débito e Link: profissional pode ter taxa própria (taxaDebito / taxaLink em configJsonCartao)
+      } else if (agendamento.formaPagamento === "Cartão de Débito") {
         let profTaxaPropria: number | null = null;
         if (agendamento.profissional.configJsonCartao) {
           try {
             const profConfig = JSON.parse(agendamento.profissional.configJsonCartao);
-            const chave = agendamento.formaPagamento === "Cartão de Débito" ? "taxaDebito" : "taxaLink";
-            if (typeof profConfig[chave] === "number") profTaxaPropria = profConfig[chave];
+            if (typeof profConfig.taxaDebito === "number") profTaxaPropria = profConfig.taxaDebito;
           } catch { /* JSON inválido: ignorar */ }
         }
         taxaPercentual = profTaxaPropria !== null ? profTaxaPropria : formaPgto.percentualTaxa;
+      } else if (agendamento.formaPagamento === "Link de Pagamento") {
+        // Prioridade: parcelamento próprio da prof > taxa flat própria > parcelamento global > taxa global
+        let taxaResolvida: number | null = null;
+        if (agendamento.profissional.configJsonCartao) {
+          try {
+            const profConfig = JSON.parse(agendamento.profissional.configJsonCartao);
+            if (Array.isArray(profConfig.taxasLink) && profConfig.taxasLink.length > 0 && (agendamento.parcelas ?? 1) > 1) {
+              taxaResolvida = taxaParaParcelas({ maxParcelas: profConfig.maxParcelasLink ?? 12, taxas: profConfig.taxasLink }, agendamento.parcelas ?? 1);
+            } else if (typeof profConfig.taxaLink === "number") {
+              taxaResolvida = profConfig.taxaLink;
+            }
+          } catch { /* JSON inválido: ignorar */ }
+        }
+        if (taxaResolvida === null) {
+          if (formaPgto.configJson && (agendamento.parcelas ?? 1) > 1) {
+            taxaResolvida = taxaParaParcelas(parsearConfigCartao(formaPgto.configJson), agendamento.parcelas ?? 1);
+          } else {
+            taxaResolvida = formaPgto.percentualTaxa;
+          }
+        }
+        taxaPercentual = taxaResolvida;
       } else if (formaPgto.percentualTaxa > 0) {
         taxaPercentual = formaPgto.percentualTaxa;
       }
