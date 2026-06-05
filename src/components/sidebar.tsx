@@ -178,10 +178,15 @@ export function Sidebar() {
         {/* Navegação */}
         <nav className="flex-1 overflow-y-auto py-3 px-2">
           {navegacao
-            .filter((item) => {
+            .filter((item, idx, arr) => {
               if (!permissoes) return false;
-              if ("divisor" in item) return true;
-              return item.visivel(permissoes);
+              if (!("divisor" in item)) return item.visivel(permissoes);
+              // Divisor: só renderiza se houver ≥1 item visível antes do próximo divisor
+              for (let j = idx + 1; j < arr.length; j++) {
+                if ("divisor" in arr[j]) break;
+                if ((arr[j] as ItemNav).visivel(permissoes)) return true;
+              }
+              return false;
             })
             .map((item, i) => {
             if ("divisor" in item) {

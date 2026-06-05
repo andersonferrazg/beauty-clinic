@@ -340,7 +340,9 @@ export default function ComissoesPage() {
             <Wallet size={22} className="text-[#B89968]" />
             Comissões
           </h1>
-          <p className="text-sm text-[#9a7d50]">Extrato e pagamento de comissões por profissional</p>
+          <p className="text-sm text-[#9a7d50]">
+            {isAdmin ? "Extrato e pagamento de comissões por profissional" : "Minhas comissões"}
+          </p>
         </div>
         {!carregando && comissoes.length > 0 && (
           <button
@@ -413,13 +415,15 @@ export default function ComissoesPage() {
           </div>
           <p className="text-2xl font-semibold text-emerald-600">{fmt(totalPago)}</p>
         </div>
-        <div className="bg-white rounded-xl border border-[#e8dcc4] p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <DollarSign size={16} className="text-[#B89968]" />
-            <span className="text-xs text-[#9a7d50] uppercase tracking-wider">Selecionado</span>
+        {isAdmin && (
+          <div className="bg-white rounded-xl border border-[#e8dcc4] p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign size={16} className="text-[#B89968]" />
+              <span className="text-xs text-[#9a7d50] uppercase tracking-wider">Selecionado</span>
+            </div>
+            <p className="text-2xl font-semibold text-[#5a4530]">{fmt(totalSelecionado)}</p>
           </div>
-          <p className="text-2xl font-semibold text-[#5a4530]">{fmt(totalSelecionado)}</p>
-        </div>
+        )}
       </div>
 
       {/* Botão pagar em massa */}
