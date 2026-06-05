@@ -423,7 +423,7 @@ export default function ComissoesPage() {
       </div>
 
       {/* Botão pagar em massa */}
-      {selecionadas.size > 0 && (
+      {isAdmin && selecionadas.size > 0 && (
         <div className="mb-4 flex items-center justify-between bg-[#faf5ee] border border-[#B89968]/40 rounded-xl px-4 py-3">
           <span className="text-sm text-[#5a4530]">
             <strong>{selecionadas.size}</strong> comissão(ões) selecionada(s) — total {fmt(totalSelecionado)}
@@ -474,7 +474,7 @@ export default function ComissoesPage() {
                       </p>
                     </div>
                   </div>
-                  {pendentesProf.length > 0 && (
+                  {isAdmin && pendentesProf.length > 0 && (
                     <button
                       onClick={() => toggleProfissional(lista)}
                       className="text-xs text-[#B89968] hover:text-[#9a7d50] font-medium"
@@ -503,7 +503,7 @@ export default function ComissoesPage() {
                       {lista.map((c) => (
                         <tr key={c.id} className="border-t border-[#e8dcc4]/50 hover:bg-[#faf5ee]/40">
                           <td className="px-3 py-2">
-                            {!c.pago && (
+                            {isAdmin && !c.pago && (
                               <input
                                 type="checkbox"
                                 checked={selecionadas.has(c.id)}
@@ -544,13 +544,15 @@ export default function ComissoesPage() {
                             )}
                           </td>
                           <td className="px-3 py-2">
-                            <button
-                              onClick={() => setEditando(c)}
-                              className="text-[#9a7d50] hover:text-[#B89968] transition-colors"
-                              title="Editar comissão"
-                            >
-                              <Pencil size={14} />
-                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => setEditando(c)}
+                                className="text-[#9a7d50] hover:text-[#B89968] transition-colors"
+                                title="Editar comissão"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}

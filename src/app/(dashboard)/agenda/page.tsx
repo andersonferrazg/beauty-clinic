@@ -1080,7 +1080,7 @@ export default function AgendaPage() {
 
       {/* ── Header mobile unificado — ocupa o mesmo espaço do hamburger ── */}
       <div
-        className="fixed top-0 left-0 right-0 z-20 lg:hidden bg-[#faf8f4] border-b border-[#e8dcc4] flex items-center justify-end px-3 gap-1"
+        className="fixed top-0 left-0 right-0 z-20 lg:hidden bg-[#faf8f4] border-b border-[#e8dcc4] flex items-center justify-end pl-14 pr-3 gap-1"
         style={{ paddingTop: "var(--sat)", height: "var(--header-offset)" }}
       >
         {mostrarFiltro && (

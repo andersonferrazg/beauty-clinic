@@ -6,6 +6,12 @@ export async function GET(req: NextRequest) {
   const sessao = await exigirSessao();
   const busca = req.nextUrl.searchParams.get("q") ?? "";
   const todos = req.nextUrl.searchParams.has("todos");
+  const podeLista = sessao.permissoes.isAdmin || sessao.permissoes.acessarClientes;
+
+  // Listagem completa só para quem tem permissão; busca por nome (agenda) é sempre permitida
+  if (todos && !podeLista) {
+    return NextResponse.json([], { status: 200 });
+  }
 
   const clientes = await prisma.cliente.findMany({
     where: {

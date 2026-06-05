@@ -108,6 +108,9 @@ export default function DashboardPage() {
     comissoesPendentes, contasVencendo, aniversariantesMes,
     faturamentoPorProfissional, comissaoMesProfissional, atendimentosMes } = dados;
 
+  // Gastos Pessoal é separado e NÃO entra no resultado da clínica
+  const lucroClinica = (resumoMes?.receita ?? 0) - gastosClinicaMes;
+
   const maxReceita = faturamentoPorProfissional.length > 0
     ? Math.max(...faturamentoPorProfissional.map((p) => p.receita))
     : 1;
@@ -143,21 +146,21 @@ export default function DashboardPage() {
               </div>
               <span className="text-xs text-[#9a7d50] uppercase tracking-wider">Despesas mês</span>
             </div>
-            <p className="text-xl font-bold text-red-500">{fmt(gastosClinicaMes + gastosPessoalMes)}</p>
+            <p className="text-xl font-bold text-red-500">{fmt(gastosClinicaMes)}</p>
           </div>
 
           <div className="bg-white rounded-xl border border-[#e8dcc4] p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className={cn(
                 "w-8 h-8 rounded-lg flex items-center justify-center",
-                (resumoMes.receita - gastosClinicaMes - gastosPessoalMes) >= 0 ? "bg-[#faf5ee]" : "bg-red-100"
+                lucroClinica >= 0 ? "bg-[#faf5ee]" : "bg-red-100"
               )}>
-                <DollarSign size={16} className={(resumoMes.receita - gastosClinicaMes - gastosPessoalMes) >= 0 ? "text-[#B89968]" : "text-red-500"} />
+                <DollarSign size={16} className={lucroClinica >= 0 ? "text-[#B89968]" : "text-red-500"} />
               </div>
-              <span className="text-xs text-[#9a7d50] uppercase tracking-wider">Lucro mês</span>
+              <span className="text-xs text-[#9a7d50] uppercase tracking-wider">Lucro clínica</span>
             </div>
-            <p className={cn("text-xl font-bold", (resumoMes.receita - gastosClinicaMes - gastosPessoalMes) >= 0 ? "text-[#5a4530]" : "text-red-500")}>
-              {fmt(resumoMes.receita - gastosClinicaMes - gastosPessoalMes)}
+            <p className={cn("text-xl font-bold", lucroClinica >= 0 ? "text-[#5a4530]" : "text-red-500")}>
+              {fmt(lucroClinica)}
             </p>
           </div>
 
@@ -200,28 +203,28 @@ export default function DashboardPage() {
               </div>
               <span className="text-sm font-semibold text-red-500">- {fmt(gastosClinicaMes)}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Home size={14} className="text-red-400" />
-                <span className="text-sm text-[#9a7d50]">Gastos Pessoal</span>
-              </div>
-              <span className="text-sm font-semibold text-red-500">- {fmt(gastosPessoalMes)}</span>
-            </div>
             <div className="border-t border-[#e8dcc4] pt-2.5 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[#9a7d50]">Total de Gastos</span>
-                <span className="text-sm font-semibold text-red-500">- {fmt(gastosClinicaMes + gastosPessoalMes)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-[#5a4530]">Resultado Final</span>
+                <span className="text-sm font-semibold text-[#5a4530]">Resultado da Clínica</span>
                 <span className={cn(
                   "text-base font-bold",
-                  (resumoMes.receita - gastosClinicaMes - gastosPessoalMes) >= 0 ? "text-emerald-600" : "text-red-500"
+                  lucroClinica >= 0 ? "text-emerald-600" : "text-red-500"
                 )}>
-                  {fmt(resumoMes.receita - gastosClinicaMes - gastosPessoalMes)}
+                  {fmt(lucroClinica)}
                 </span>
               </div>
             </div>
+            {gastosPessoalMes > 0 && (
+              <div className="border-t border-dashed border-[#e8dcc4] pt-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Home size={14} className="text-[#9a7d50]" />
+                    <span className="text-xs text-[#9a7d50]">Gastos Pessoal (separado)</span>
+                  </div>
+                  <span className="text-xs text-[#9a7d50]">{fmt(gastosPessoalMes)}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

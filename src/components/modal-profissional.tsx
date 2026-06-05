@@ -60,17 +60,17 @@ const PERMISSOES_PADRAO: Permissoes = {
   verContatoCliente: true,
   verValoresServicos: true,
   acessarClientes: false,
-  acessarServicos: false,
+  acessarServicos: true,       // leitura dos serviços (custo é oculto para não-admin)
   acessarProdutos: false,
   acessarDespesas: false,
   acessarFinanceiro: false,
-  verComissoesReceber: false,
+  verComissoesReceber: true,   // vê só as próprias comissões, em modo leitura
   verComissoesPagar: false,
   marcarComissaoPaga: false,
   verPagamentosComissao: false,
   acessarProntuarios: false,
   acessarRelatorios: false,
-  acessarConfiguracoesTaxas: false,
+  acessarConfiguracoesTaxas: true, // pode configurar taxas próprias de cartão
 };
 
 const PERMISSOES_LABELS: { key: keyof Permissoes; label: string; grupo: string }[] = [

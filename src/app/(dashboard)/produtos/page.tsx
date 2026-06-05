@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,7 @@ import {
   History, ArrowDownCircle, ArrowUpCircle, SlidersHorizontal, CalendarX, Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getSessaoCliente } from "@/lib/sessao-cliente";
 
 type Produto = {
   id: string;
@@ -76,10 +78,10 @@ const CAMPOS_VAZIOS = {
 };
 
 function ModalProduto({
-  aberto, onFechar, onSalvo, produtoId, produto,
+  aberto, onFechar, onSalvo, produtoId, produto, podeVerCusto,
 }: {
   aberto: boolean; onFechar: () => void; onSalvo: () => void;
-  produtoId?: string; produto?: Produto;
+  produtoId?: string; produto?: Produto; podeVerCusto: boolean;
 }) {
   const ehEdicao = !!produtoId;
   const [aba, setAba] = useState<"dados" | "movs">("dados");
@@ -237,15 +239,17 @@ function ModalProduto({
               <Label className="text-xs text-[#9a7d50] mb-1 block">Categoria</Label>
               <Input value={campos.categoria} onChange={(e) => set("categoria", e.target.value)} placeholder="Ex: Insumos, Equipamentos..." className="border-[#B89968]/30" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className={cn("grid gap-3", podeVerCusto ? "grid-cols-2" : "grid-cols-1")}>
               <div>
                 <Label className="text-xs text-[#9a7d50] mb-1 block">Preço de venda (R$)</Label>
                 <Input type="number" value={campos.precoVenda} onChange={(e) => set("precoVenda", e.target.value)} placeholder="0,00" className="border-[#B89968]/30" />
               </div>
-              <div>
-                <Label className="text-xs text-[#9a7d50] mb-1 block">Custo (R$)</Label>
-                <Input type="number" value={campos.precoCusto} onChange={(e) => set("precoCusto", e.target.value)} placeholder="0,00" className="border-[#B89968]/30" />
-              </div>
+              {podeVerCusto && (
+                <div>
+                  <Label className="text-xs text-[#9a7d50] mb-1 block">Custo (R$)</Label>
+                  <Input type="number" value={campos.precoCusto} onChange={(e) => set("precoCusto", e.target.value)} placeholder="0,00" className="border-[#B89968]/30" />
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -445,11 +449,26 @@ function ModalProduto({
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function ProdutosPage() {
+  const router = useRouter();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [busca, setBusca] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | undefined>();
+  const [podeVerCusto, setPodeVerCusto] = useState(true);
+
+  useEffect(() => {
+    getSessaoCliente().then((s: unknown) => {
+      const sessao = s as { permissoes?: { isAdmin?: boolean; acessarProdutos?: boolean; acessarFinanceiro?: boolean } } | null;
+      if (sessao?.permissoes) {
+        if (!sessao.permissoes.isAdmin && !sessao.permissoes.acessarProdutos) {
+          router.replace("/dashboard");
+          return;
+        }
+        setPodeVerCusto(sessao.permissoes.isAdmin === true || sessao.permissoes.acessarFinanceiro === true);
+      }
+    }).catch(() => {});
+  }, [router]);
 
   async function carregar(q = "") {
     setCarregando(true);
@@ -466,14 +485,15 @@ export default function ProdutosPage() {
   }, [busca]);
 
   function exportarCSV() {
-    const linhas = [["Produto", "Categoria", "Estoque", "Estoque Mínimo", "Custo (R$)", "Venda (R$)", "Validade", "Patrimônio"]];
+    const cabecalho = ["Produto", "Categoria", "Estoque", "Estoque Mínimo", ...(podeVerCusto ? ["Custo (R$)"] : []), "Venda (R$)", "Validade", "Patrimônio"];
+    const linhas = [cabecalho];
     for (const p of produtos) {
       linhas.push([
         p.nome,
         p.categoria || "",
         p.qtdEstoque.toString(),
         p.qtdMinima.toString(),
-        p.precoCusto?.toFixed(2) || "",
+        ...(podeVerCusto ? [p.precoCusto?.toFixed(2) || ""] : []),
         p.precoVenda.toFixed(2),
         p.dataValidade ? new Date(p.dataValidade).toLocaleDateString("pt-BR") : "",
         p.patrimonio ? "Sim" : "Não",
@@ -605,7 +625,7 @@ export default function ProdutosPage() {
                       <th className="text-left px-4 py-2.5 text-[#9a7d50] font-medium">Produto</th>
                       <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium">Estoque</th>
                       <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium hidden sm:table-cell">Validade</th>
-                      <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium hidden md:table-cell">Custo</th>
+                      {podeVerCusto && <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium hidden md:table-cell">Custo</th>}
                       <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium hidden md:table-cell">Venda</th>
                     </tr>
                   </thead>
@@ -655,9 +675,11 @@ export default function ProdutosPage() {
                               <span className="text-xs text-[#9a7d50]/50">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-right text-[#9a7d50] text-sm hidden md:table-cell">
-                            {p.precoCusto ? `R$ ${p.precoCusto.toFixed(2).replace(".", ",")}` : "—"}
-                          </td>
+                          {podeVerCusto && (
+                            <td className="px-4 py-3 text-right text-[#9a7d50] text-sm hidden md:table-cell">
+                              {p.precoCusto ? `R$ ${p.precoCusto.toFixed(2).replace(".", ",")}` : "—"}
+                            </td>
+                          )}
                           <td className="px-4 py-3 text-right text-[#5a4530] font-semibold text-sm hidden md:table-cell">
                             {p.precoVenda > 0 ? `R$ ${p.precoVenda.toFixed(2).replace(".", ",")}` : "—"}
                           </td>
@@ -678,6 +700,7 @@ export default function ProdutosPage() {
         onSalvo={() => carregar(busca)}
         produtoId={produtoSelecionado?.id}
         produto={produtoSelecionado}
+        podeVerCusto={podeVerCusto}
       />
     </div>
   );

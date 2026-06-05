@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Loader2, TrendingUp, TrendingDown, DollarSign, X, Trash2, Check, LineChart, Wallet, Building2, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getSessaoCliente } from "@/lib/sessao-cliente";
 
 type Lancamento = {
   id: string;
@@ -241,6 +243,7 @@ type FluxoCaixa = {
 };
 
 export default function FinanceiroPage() {
+  const router = useRouter();
   const [aba, setAba] = useState<"lancamentos" | "clinica" | "casa" | "fluxo">("lancamentos");
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -251,6 +254,15 @@ export default function FinanceiroPage() {
   const [fluxo, setFluxo] = useState<FluxoCaixa | null>(null);
   const [diasFluxo, setDiasFluxo] = useState<30 | 60 | 90>(30);
   const [carregandoFluxo, setCarregandoFluxo] = useState(false);
+
+  useEffect(() => {
+    getSessaoCliente().then((s: unknown) => {
+      const sessao = s as { permissoes?: { isAdmin?: boolean; acessarFinanceiro?: boolean } } | null;
+      if (sessao?.permissoes && !sessao.permissoes.isAdmin && !sessao.permissoes.acessarFinanceiro) {
+        router.replace("/dashboard");
+      }
+    }).catch(() => {});
+  }, [router]);
 
   async function carregar() {
     setCarregando(true);

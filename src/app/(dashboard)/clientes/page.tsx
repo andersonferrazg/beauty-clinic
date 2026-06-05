@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalCliente } from "@/components/modal-cliente";
 import { Search, Plus, Phone, Calendar, Loader2, Download } from "lucide-react";
+import { getSessaoCliente } from "@/lib/sessao-cliente";
 
 function formatarTelefone(tel: string | null): string {
   if (!tel) return "";
@@ -23,12 +25,22 @@ type Cliente = {
 };
 
 export default function ClientesPage() {
+  const router = useRouter();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busca, setBusca] = useState("");
   const [carregando, setCarregando] = useState(true);
 
   const [modalAberto, setModalAberto] = useState(false);
   const [clienteSelecionado, setClienteSelecionado] = useState<string | undefined>();
+
+  useEffect(() => {
+    getSessaoCliente().then((s: unknown) => {
+      const sessao = s as { permissoes?: { isAdmin?: boolean; acessarClientes?: boolean } } | null;
+      if (sessao?.permissoes && !sessao.permissoes.isAdmin && !sessao.permissoes.acessarClientes) {
+        router.replace("/dashboard");
+      }
+    }).catch(() => {});
+  }, [router]);
 
   async function carregar(q = "") {
     setCarregando(true);

@@ -6,6 +6,7 @@ export async function GET(req: NextRequest) {
   const sessao = await exigirSessao();
   const busca = req.nextUrl.searchParams.get("q") ?? "";
   const injetavel = req.nextUrl.searchParams.get("injetavel") === "true";
+  const verCusto = sessao.permissoes.isAdmin || sessao.permissoes.acessarFinanceiro;
 
   const produtos = await prisma.produto.findMany({
     where: {
@@ -18,6 +19,9 @@ export async function GET(req: NextRequest) {
     orderBy: { nome: "asc" },
   });
 
+  if (!verCusto) {
+    return NextResponse.json(produtos.map(({ precoCusto: _c, ...p }) => p));
+  }
   return NextResponse.json(produtos);
 }
 

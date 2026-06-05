@@ -70,13 +70,15 @@ function ModalConta({
 
   async function salvar() {
     if (!descricao.trim()) { setErro("Descrição obrigatória."); return; }
+    const valorNum = parseFloat(valor.replace(",", "."));
+    if (!valor.trim() || isNaN(valorNum) || valorNum <= 0) { setErro("Valor obrigatório e deve ser maior que zero."); return; }
     setSalvando(true);
     setErro("");
     const body = {
       tipo: "DESPESA",
       categoria,
       descricao: descricao.trim(),
-      valor: parseFloat(valor) || 0,
+      valor: valorNum,
       vencimento: vencimento || null,
       pago,
       pagoEm: pagoEm ? new Date(pagoEm + "T12:00:00").toISOString() : (pago ? new Date().toISOString() : null),

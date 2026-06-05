@@ -56,6 +56,11 @@ export async function POST(req: NextRequest) {
   const sessao = await exigirSessao();
   const body = await req.json();
 
+  // Gastos (DESPESA) só podem ser criados por quem tem permissão
+  if (body.tipo === "DESPESA" && !temPermissao(sessao, "acessarDespesas") && !temPermissao(sessao, "acessarFinanceiro")) {
+    return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
+  }
+
   const lancamento = await prisma.lancamento.create({
     data: {
       tenantId: sessao.tenantId,
