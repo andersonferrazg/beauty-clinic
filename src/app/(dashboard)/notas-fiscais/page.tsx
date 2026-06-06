@@ -34,7 +34,15 @@ type Dados = {
 
 type Periodo = "mes_atual" | "mes_passado" | "semana_atual" | "hoje" | "personalizado";
 
-const FORMAS = ["Dinheiro", "PIX", "Crédito", "Débito", "Link", "Cheque", "Cortesia"];
+const FORMAS = [
+  { label: "Dinheiro",  valor: "Dinheiro" },
+  { label: "PIX",       valor: "PIX" },
+  { label: "Crédito",   valor: "Cartão de Crédito" },
+  { label: "Débito",    valor: "Cartão de Débito" },
+  { label: "Link",      valor: "Link de Pagamento" },
+  { label: "Cheque",    valor: "Cheque" },
+  { label: "Cortesia",  valor: "Cortesia" },
+];
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
@@ -132,8 +140,8 @@ export default function NotasFiscaisPage() {
     fetch("/api/profissionais").then((r) => r.json()).then((list: Profissional[]) => {
       setProfissionais(list.filter((p) => p));
     });
-    fetch("/api/configuracoes").then((r) => r.json()).then((cfg: { urlNFSe?: string }) => {
-      setUrlNFSe(cfg.urlNFSe || null);
+    fetch("/api/configuracoes").then((r) => r.json()).then((cfg: { config?: { urlNFSe?: string } }) => {
+      setUrlNFSe(cfg.config?.urlNFSe || null);
     });
   }, [guardOk]);
 
@@ -157,9 +165,9 @@ export default function NotasFiscaisPage() {
 
   useEffect(() => { buscarDados(); }, [buscarDados]);
 
-  function toggleForma(f: string) {
+  function toggleForma(valor: string) {
     setFormasSelecionadas((prev) =>
-      prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]
+      prev.includes(valor) ? prev.filter((x) => x !== valor) : [...prev, valor]
     );
   }
 
@@ -364,16 +372,16 @@ export default function NotasFiscaisPage() {
           <div className="flex flex-wrap gap-2">
             {FORMAS.map((f) => (
               <button
-                key={f}
-                onClick={() => toggleForma(f)}
+                key={f.valor}
+                onClick={() => toggleForma(f.valor)}
                 className={cn(
                   "px-3 py-1 rounded-full text-sm font-medium border transition-colors",
-                  formasSelecionadas.includes(f)
+                  formasSelecionadas.includes(f.valor)
                     ? "bg-[#B89968] text-white border-[#B89968]"
                     : "bg-white text-[#5a4530] border-[#e8dcc4] hover:bg-[#faf5ee]"
                 )}
               >
-                {f}
+                {f.label}
               </button>
             ))}
             {formasSelecionadas.length > 0 && (
@@ -411,13 +419,15 @@ export default function NotasFiscaisPage() {
             <div className="space-y-0.5 mt-1">
               {Object.entries(breakdown)
                 .sort(([, a], [, b]) => b.valor - a.valor)
-                .slice(0, 3)
-                .map(([forma, v]) => (
-                  <div key={forma} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-[#9a7d50] truncate">{forma}</span>
-                    <span className="text-xs font-medium text-[#5a4530] whitespace-nowrap">{fmt(v.valor)}</span>
-                  </div>
-                ))}
+                .map(([forma, v]) => {
+                  const label = FORMAS.find((f) => f.valor === forma)?.label ?? forma;
+                  return (
+                    <div key={forma} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-[#9a7d50] truncate">{label}</span>
+                      <span className="text-xs font-medium text-[#5a4530] whitespace-nowrap">{fmt(v.valor)}</span>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         </div>
