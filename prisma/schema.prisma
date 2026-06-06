@@ -41,6 +41,8 @@ model Tenant {
   mensagensPredefinidas MensagemPredefinida[]
   notificacoes         NotificacaoSistema[]
   formasPagamento      FormaPagamento[]
+  fornecedores         Fornecedor[]
+  comprasEstoque       CompraEstoque[]
 
   @@map("tenants")
 }
@@ -360,6 +362,7 @@ model Produto {
   itensAgendamento     ItemAgendamento[]
   itensOrcamento       ItemOrcamento[]
   servicosConsumidores Servico[]             @relation("ServicoConsome")
+  itensCompra          ItemCompra[]
 
   @@map("produtos")
 }
@@ -505,6 +508,54 @@ model MovimentacaoEstoque {
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("movimentacoes_estoque")
+}
+
+model Fornecedor {
+  id       String  @id @default(cuid())
+  tenantId String
+  nome     String
+  contato  String?
+  ativo    Boolean @default(true)
+  criadoEm DateTime @default(now())
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  compras CompraEstoque[]
+
+  @@map("fornecedores")
+}
+
+model CompraEstoque {
+  id             String    @id @default(cuid())
+  tenantId       String
+  fornecedorId   String?
+  descricao      String?
+  dataCompra     DateTime
+  dataPagamento  DateTime?
+  formaPagamento String?
+  valorTotal     Float
+  desconto       Float     @default(0)
+  totalLiquido   Float
+  criadoEm       DateTime  @default(now())
+
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fornecedor Fornecedor?  @relation(fields: [fornecedorId], references: [id])
+  itens      ItemCompra[]
+
+  @@index([tenantId, dataCompra])
+  @@map("compras_estoque")
+}
+
+model ItemCompra {
+  id            String @id @default(cuid())
+  compraId      String
+  produtoId     String
+  quantidade    Int
+  custoUnitario Float
+
+  compra  CompraEstoque @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  produto Produto       @relation(fields: [produtoId], references: [id])
+
+  @@map("itens_compra")
 }
 
 // â”€â”€â”€ OrÃ§amentos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

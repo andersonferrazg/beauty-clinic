@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,12 @@ import { Label } from "@/components/ui/label";
 import {
   Search, Plus, Loader2, Package, AlertTriangle, X, Trash2,
   History, ArrowDownCircle, ArrowUpCircle, SlidersHorizontal, CalendarX, Download,
+  ShoppingCart, Truck, Edit2, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSessaoCliente } from "@/lib/sessao-cliente";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Produto = {
   id: string;
@@ -28,6 +31,46 @@ type Produto = {
   corMarcacao?: string | null;
 };
 
+type Fornecedor = {
+  id: string;
+  nome: string;
+  contato: string | null;
+};
+
+type ItemCompraAPI = {
+  id: string;
+  produtoId: string;
+  quantidade: number;
+  custoUnitario: number;
+  produto: { id: string; nome: string; unidadeMedida: string | null };
+};
+
+type CompraEstoque = {
+  id: string;
+  descricao: string | null;
+  dataCompra: string;
+  dataPagamento: string | null;
+  formaPagamento: string | null;
+  valorTotal: number;
+  desconto: number;
+  totalLiquido: number;
+  criadoEm: string;
+  fornecedor: { id: string; nome: string } | null;
+  itens: ItemCompraAPI[];
+};
+
+type Movimentacao = {
+  id: string;
+  tipo: string;
+  quantidade: number;
+  motivo: string | null;
+  custoUnitario: number | null;
+  criadoEm: string;
+  agendamento: { inicio: string; cliente: { nome: string } | null } | null;
+};
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const CORES_MARCACAO = [
   { hex: "#A78BFA", nome: "Roxo" },
   { hex: "#F472B6", nome: "Rosa" },
@@ -44,15 +87,12 @@ const UNIDADES = [
   { v: "un", label: "un (unidade contável)" },
 ];
 
-type Movimentacao = {
-  id: string;
-  tipo: string;
-  quantidade: number;
-  motivo: string | null;
-  custoUnitario: number | null;
-  criadoEm: string;
-  agendamento: { inicio: string; cliente: { nome: string } | null } | null;
-};
+const FORMAS_COMPRA = [
+  "Dinheiro", "PIX", "Cartão de Crédito", "Cartão de Débito",
+  "Link de Pagamento", "Cheque", "Transferência", "Boleto", "A Prazo",
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function toInputDate(iso: string | null) {
   if (!iso) return "";
@@ -70,7 +110,17 @@ function statusValidade(dataValidade: string | null): "vencido" | "alerta" | "ok
   return "ok";
 }
 
-// ─── Modal de Produto (Dados + Movimentações) ────────────────────────────────
+function dataHoje() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function mesAtual() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// ─── Modal de Produto ─────────────────────────────────────────────────────────
 
 const CAMPOS_VAZIOS = {
   nome: "", categoria: "", precoVenda: "", precoCusto: "", comissaoPercentual: "",
@@ -91,7 +141,6 @@ function ModalProduto({
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [erro, setErro] = useState("");
 
-  // Movimentações
   const [movs, setMovs] = useState<Movimentacao[]>([]);
   const [carregandoMovs, setCarregandoMovs] = useState(false);
   const [tipoEntrada, setTipoEntrada] = useState<"ENTRADA" | "AJUSTE">("ENTRADA");
@@ -180,12 +229,9 @@ function ModalProduto({
       });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.erro ?? "Erro"); }
       setQtdEntrada(""); setMotivoEntrada(""); setCustoEntrada("");
-      // Recarrega movimentações e produto
-      const [movsNovos] = await Promise.all([
-        fetch(`/api/movimentacoes-estoque?produtoId=${produtoId}`).then((r) => r.json()),
-      ]);
+      const movsNovos = await fetch(`/api/movimentacoes-estoque?produtoId=${produtoId}`).then((r) => r.json());
       setMovs(movsNovos);
-      onSalvo(); // atualiza estoque na lista
+      onSalvo();
     } catch (e) {
       setErroMov(e instanceof Error ? e.message : "Erro ao registrar");
     } finally {
@@ -205,7 +251,6 @@ function ModalProduto({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onFechar} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden max-h-[90dvh]">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8dcc4]">
           <h2 className="text-lg font-serif font-semibold text-[#5a4530]">
             {ehEdicao ? campos.nome || "Editar Produto" : "Novo Produto"}
@@ -213,7 +258,6 @@ function ModalProduto({
           <button onClick={onFechar} className="text-[#9a7d50] hover:text-[#5a4530]"><X size={20} /></button>
         </div>
 
-        {/* Abas — só em edição, Movimentações apenas se podeMovimentar */}
         {ehEdicao && (
           <div className="flex border-b border-[#e8dcc4] px-5">
             {(["dados", ...(podeMovimentar ? ["movs"] : [])] as ("dados" | "movs")[]).map((a) => (
@@ -231,7 +275,6 @@ function ModalProduto({
           </div>
         )}
 
-        {/* Aba Dados */}
         {aba === "dados" && (
           <div className="p-5 space-y-4 overflow-y-auto flex-1">
             <div>
@@ -258,10 +301,7 @@ function ModalProduto({
               <div>
                 <Label className="text-xs text-[#9a7d50] mb-1 block">Comissão por produto (%)</Label>
                 <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
+                  type="number" min="0" max="100" step="0.1"
                   value={campos.comissaoPercentual}
                   onChange={(e) => set("comissaoPercentual", e.target.value)}
                   placeholder="Deixe vazio para usar a taxa da profissional"
@@ -294,15 +334,9 @@ function ModalProduto({
               <span className="text-sm text-[#5a4530]">É patrimônio (equipamento/bem durável)</span>
             </label>
 
-            {/* ─── Planejador de Injetáveis ─────────────────────────────── */}
             <div className="pt-3 border-t border-[#e8dcc4]">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={campos.ehInjetavel}
-                  onChange={(e) => set("ehInjetavel", e.target.checked)}
-                  className="accent-[#B89968]"
-                />
+                <input type="checkbox" checked={campos.ehInjetavel} onChange={(e) => set("ehInjetavel", e.target.checked)} className="accent-[#B89968]" />
                 <span className="text-sm text-[#5a4530]">
                   É injetável <span className="text-xs text-[#9a7d50]">(aparece no planejador visual da ficha de planejamento)</span>
                 </span>
@@ -354,10 +388,8 @@ function ModalProduto({
           </div>
         )}
 
-        {/* Aba Movimentações */}
         {aba === "movs" && (
           <div className="flex-1 overflow-y-auto">
-            {/* Formulário de entrada */}
             <div className="p-4 border-b border-[#e8dcc4] bg-[#faf5ee]/50 space-y-3">
               <p className="text-xs font-semibold text-[#9a7d50] uppercase tracking-wider">Registrar movimentação</p>
               <div className="flex gap-2">
@@ -402,7 +434,6 @@ function ModalProduto({
               </Button>
             </div>
 
-            {/* Histórico */}
             <div className="p-4">
               <p className="text-xs font-semibold text-[#9a7d50] uppercase tracking-wider mb-3">Histórico</p>
               {carregandoMovs ? (
@@ -439,7 +470,6 @@ function ModalProduto({
           </div>
         )}
 
-        {/* Footer */}
         <div className="px-5 py-4 border-t border-[#e8dcc4] flex items-center gap-2">
           {ehEdicao && aba === "dados" && !confirmarExclusao && (
             <button onClick={() => setConfirmarExclusao(true)} className="text-red-400 hover:text-red-600 mr-auto"><Trash2 size={16} /></button>
@@ -465,10 +495,287 @@ function ModalProduto({
   );
 }
 
-// ─── Página principal ─────────────────────────────────────────────────────────
+// ─── Modal Nova Compra ────────────────────────────────────────────────────────
+
+type LinhaItem = { tempId: string; produtoId: string; quantidade: string; custoUnitario: string };
+
+function novaLinha(): LinhaItem {
+  return { tempId: Math.random().toString(36).slice(2), produtoId: "", quantidade: "1", custoUnitario: "" };
+}
+
+function ModalNovaCompra({
+  aberto, onFechar, onSalva, produtos, fornecedores, onFornecedorCriado,
+}: {
+  aberto: boolean; onFechar: () => void; onSalva: () => void;
+  produtos: Produto[]; fornecedores: Fornecedor[]; onFornecedorCriado: (f: Fornecedor) => void;
+}) {
+  const [fornecedorId, setFornecedorId] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [dataCompra, setDataCompra] = useState(dataHoje);
+  const [dataPagamento, setDataPagamento] = useState("");
+  const [formaPagamento, setFormaPagamento] = useState("");
+  const [itens, setItens] = useState<LinhaItem[]>(() => [novaLinha()]);
+  const [desconto, setDesconto] = useState("0");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [novoFornNome, setNovoFornNome] = useState("");
+  const [novoFornContato, setNovoFornContato] = useState("");
+  const [showNovoForn, setShowNovoForn] = useState(false);
+  const [criandoForn, setCriandoForn] = useState(false);
+
+  useEffect(() => {
+    if (!aberto) {
+      setFornecedorId(""); setDescricao(""); setDataPagamento(""); setFormaPagamento("");
+      setItens([novaLinha()]); setDesconto("0"); setErro("");
+      setShowNovoForn(false); setNovoFornNome(""); setNovoFornContato("");
+      setDataCompra(dataHoje());
+    }
+  }, [aberto]);
+
+  const valorTotal = itens.reduce((s, i) => s + (parseFloat(i.quantidade) || 0) * (parseFloat(i.custoUnitario) || 0), 0);
+  const descontoVal = parseFloat(desconto) || 0;
+  const totalLiquido = Math.max(0, Math.round((valorTotal - descontoVal) * 100) / 100);
+
+  function setItemField(tempId: string, field: keyof LinhaItem, valor: string) {
+    setItens((prev) => prev.map((i) => i.tempId === tempId ? { ...i, [field]: valor } : i));
+  }
+
+  async function criarFornecedor() {
+    if (!novoFornNome.trim()) return;
+    setCriandoForn(true);
+    try {
+      const r = await fetch("/api/fornecedores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: novoFornNome.trim(), contato: novoFornContato || null }),
+      });
+      if (r.ok) {
+        const f: Fornecedor = await r.json();
+        onFornecedorCriado(f);
+        setFornecedorId(f.id);
+        setShowNovoForn(false); setNovoFornNome(""); setNovoFornContato("");
+      }
+    } finally { setCriandoForn(false); }
+  }
+
+  async function salvar() {
+    if (!dataCompra) { setErro("Data da compra é obrigatória."); return; }
+    const itensValidos = itens.filter((i) => i.produtoId && parseFloat(i.quantidade) > 0 && parseFloat(i.custoUnitario) >= 0);
+    if (itensValidos.length === 0) { setErro("Adicione pelo menos 1 item com produto e quantidade."); return; }
+    setSalvando(true); setErro("");
+    try {
+      const r = await fetch("/api/compras-estoque", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fornecedorId: fornecedorId || null,
+          descricao: descricao || null,
+          dataCompra,
+          dataPagamento: dataPagamento || null,
+          formaPagamento: formaPagamento || null,
+          itens: itensValidos.map((i) => ({
+            produtoId: i.produtoId,
+            quantidade: parseFloat(i.quantidade),
+            custoUnitario: parseFloat(i.custoUnitario),
+          })),
+          desconto: descontoVal,
+        }),
+      });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { erro?: string }).erro ?? "Erro"); }
+      onSalva(); onFechar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally { setSalvando(false); }
+  }
+
+  if (!aberto) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onFechar} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[90dvh]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8dcc4] flex-shrink-0">
+          <h2 className="text-lg font-serif font-semibold text-[#5a4530] flex items-center gap-2">
+            <ShoppingCart size={18} className="text-[#B89968]" /> Nova Compra de Estoque
+          </h2>
+          <button onClick={onFechar} className="text-[#9a7d50] hover:text-[#5a4530]"><X size={20} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-[#9a7d50] mb-1 block">Fornecedor</Label>
+              <div className="flex gap-2">
+                <select
+                  value={fornecedorId}
+                  onChange={(e) => { setFornecedorId(e.target.value); setShowNovoForn(false); }}
+                  className="flex-1 h-9 px-3 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] bg-white focus:outline-none focus:ring-2 focus:ring-[#B89968]"
+                >
+                  <option value="">— Sem fornecedor —</option>
+                  {fornecedores.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowNovoForn((v) => !v)}
+                  title="Novo fornecedor"
+                  className="w-9 h-9 flex items-center justify-center rounded-md border border-[#B89968]/30 text-[#9a7d50] hover:bg-[#faf5ee]"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+              {showNovoForn && (
+                <div className="mt-2 p-3 bg-[#faf5ee] rounded-lg border border-[#e8dcc4] space-y-2">
+                  <Input
+                    value={novoFornNome} onChange={(e) => setNovoFornNome(e.target.value)}
+                    placeholder="Nome do fornecedor *" className="border-[#B89968]/30 h-8 text-sm"
+                  />
+                  <Input
+                    value={novoFornContato} onChange={(e) => setNovoFornContato(e.target.value)}
+                    placeholder="Contato (telefone / e-mail)" className="border-[#B89968]/30 h-8 text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={criarFornecedor} disabled={criandoForn || !novoFornNome.trim()} className="bg-[#B89968] hover:bg-[#9a7d50] text-white h-7 text-xs">
+                      {criandoForn ? <Loader2 size={12} className="animate-spin mr-1" /> : null} Criar
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setShowNovoForn(false)} className="h-7 text-xs">Cancelar</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div>
+              <Label className="text-xs text-[#9a7d50] mb-1 block">Data da Compra *</Label>
+              <input
+                type="date" value={dataCompra} onChange={(e) => setDataCompra(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-2 focus:ring-[#B89968]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-[#9a7d50] mb-1 block">Data de Pagamento</Label>
+              <input
+                type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-2 focus:ring-[#B89968]"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-[#9a7d50] mb-1 block">Forma de Pagamento</Label>
+              <select
+                value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] bg-white focus:outline-none focus:ring-2 focus:ring-[#B89968]"
+              >
+                <option value="">—</option>
+                {FORMAS_COMPRA.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs text-[#9a7d50] mb-1 block">Descrição / Nota Fiscal</Label>
+            <Input
+              value={descricao} onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Ex: NF-e 1234, pedido mensal..." className="border-[#B89968]/30"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-xs text-[#9a7d50] uppercase tracking-wider font-semibold">Itens *</Label>
+              <button type="button" onClick={() => setItens((p) => [...p, novaLinha()])} className="flex items-center gap-1 text-xs text-[#B89968] hover:text-[#9a7d50]">
+                <Plus size={12} /> Adicionar item
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div className="hidden sm:grid grid-cols-[1fr_64px_112px_24px] gap-2 px-1">
+                <span className="text-xs text-[#9a7d50]">Produto</span>
+                <span className="text-xs text-[#9a7d50] text-center">Qtd</span>
+                <span className="text-xs text-[#9a7d50] text-right">Custo unit. (R$)</span>
+                <span />
+              </div>
+              {itens.map((linha) => (
+                <div key={linha.tempId} className="flex gap-2 items-center">
+                  <select
+                    value={linha.produtoId}
+                    onChange={(e) => setItemField(linha.tempId, "produtoId", e.target.value)}
+                    className="flex-1 h-8 px-2 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] bg-white focus:outline-none focus:ring-1 focus:ring-[#B89968] min-w-0"
+                  >
+                    <option value="">Selecione o produto…</option>
+                    {produtos.filter((p) => !p.patrimonio).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nome}{p.unidadeMedida && p.unidadeMedida !== "unidade" ? ` (${p.unidadeMedida})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number" min="1" step="1"
+                    value={linha.quantidade}
+                    onChange={(e) => setItemField(linha.tempId, "quantidade", e.target.value)}
+                    placeholder="Qtd"
+                    className="w-16 h-8 px-2 rounded-md border border-[#B89968]/30 text-sm text-center text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                  />
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={linha.custoUnitario}
+                    onChange={(e) => setItemField(linha.tempId, "custoUnitario", e.target.value)}
+                    placeholder="0,00"
+                    className="w-28 h-8 px-2 rounded-md border border-[#B89968]/30 text-sm text-right text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                  />
+                  {itens.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setItens((p) => p.filter((i) => i.tempId !== linha.tempId))}
+                      className="text-red-400 hover:text-red-600 flex-shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-[#e8dcc4] flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <Label className="text-xs text-[#9a7d50] mb-1 block">Desconto (R$)</Label>
+              <Input
+                type="number" min="0" step="0.01"
+                value={desconto} onChange={(e) => setDesconto(e.target.value)}
+                placeholder="0,00" className="border-[#B89968]/30 w-32"
+              />
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-[#9a7d50]">Subtotal: {valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+              {descontoVal > 0 && (
+                <p className="text-xs text-[#9a7d50]">Desconto: −{descontoVal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+              )}
+              <p className="text-lg font-semibold text-[#5a4530]">
+                Total: {totalLiquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </p>
+            </div>
+          </div>
+
+          {erro && <p className="text-sm text-red-500">{erro}</p>}
+        </div>
+
+        <div className="px-5 py-4 border-t border-[#e8dcc4] flex justify-end gap-2 flex-shrink-0">
+          <Button variant="ghost" size="sm" onClick={onFechar}>Cancelar</Button>
+          <Button size="sm" onClick={salvar} disabled={salvando} className="bg-[#B89968] hover:bg-[#9a7d50] text-white">
+            {salvando ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+            Registrar Compra
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Página Principal ─────────────────────────────────────────────────────────
 
 export default function ProdutosPage() {
   const router = useRouter();
+
+  // Produtos
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [busca, setBusca] = useState("");
   const [carregando, setCarregando] = useState(true);
@@ -476,6 +783,25 @@ export default function ProdutosPage() {
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | undefined>();
   const [podeVerCusto, setPodeVerCusto] = useState(true);
   const [podeMovimentar, setPodeMovimentar] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Tabs
+  const [abaPage, setAbaPage] = useState<"produtos" | "compras">("produtos");
+
+  // Compras
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [compras, setCompras] = useState<CompraEstoque[]>([]);
+  const [carregandoCompras, setCarregandoCompras] = useState(false);
+  const [mesFiltro, setMesFiltro] = useState(mesAtual);
+  const [modalCompraAberto, setModalCompraAberto] = useState(false);
+  const [expandida, setExpandida] = useState<Set<string>>(new Set());
+
+  // Fornecedores management
+  const [showFornecedoresSection, setShowFornecedoresSection] = useState(false);
+  const [editandoForn, setEditandoForn] = useState<string | null>(null);
+  const [editFornNome, setEditFornNome] = useState("");
+  const [editFornContato, setEditFornContato] = useState("");
+  const [salvandoForn, setSalvandoForn] = useState(false);
 
   useEffect(() => {
     getSessaoCliente().then((s: unknown) => {
@@ -485,6 +811,7 @@ export default function ProdutosPage() {
           router.replace("/dashboard");
           return;
         }
+        setIsAdmin(sessao.permissoes.isAdmin === true);
         setPodeVerCusto(sessao.permissoes.isAdmin === true || sessao.permissoes.acessarFinanceiro === true);
         setPodeMovimentar(sessao.permissoes.isAdmin === true || sessao.permissoes.movimentarEstoque === true);
       }
@@ -499,21 +826,34 @@ export default function ProdutosPage() {
     setCarregando(false);
   }
 
-  useEffect(() => { carregar(); }, []);
+  async function carregarFornecedores() {
+    const r = await fetch("/api/fornecedores");
+    if (r.ok) setFornecedores(await r.json());
+  }
+
+  async function carregarCompras() {
+    setCarregandoCompras(true);
+    const r = await fetch(`/api/compras-estoque?mes=${mesFiltro}`);
+    if (r.ok) setCompras(await r.json());
+    setCarregandoCompras(false);
+  }
+
+  useEffect(() => { carregar(); carregarFornecedores(); }, []);
   useEffect(() => {
     const t = setTimeout(() => carregar(busca), 300);
     return () => clearTimeout(t);
   }, [busca]);
+  useEffect(() => {
+    if (abaPage === "compras") carregarCompras();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abaPage, mesFiltro]);
 
   function exportarCSV() {
     const cabecalho = ["Produto", "Categoria", "Estoque", "Estoque Mínimo", ...(podeVerCusto ? ["Custo (R$)"] : []), "Venda (R$)", "Validade", "Patrimônio"];
     const linhas = [cabecalho];
     for (const p of produtos) {
       linhas.push([
-        p.nome,
-        p.categoria || "",
-        p.qtdEstoque.toString(),
-        p.qtdMinima.toString(),
+        p.nome, p.categoria || "", p.qtdEstoque.toString(), p.qtdMinima.toString(),
         ...(podeVerCusto ? [p.precoCusto?.toFixed(2) || ""] : []),
         p.precoVenda.toFixed(2),
         p.dataValidade ? new Date(p.dataValidade).toLocaleDateString("pt-BR") : "",
@@ -526,6 +866,32 @@ export default function ProdutosPage() {
     const a = document.createElement("a");
     a.href = url; a.download = "produtos-estoque.csv"; a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function salvarFornecedor(id: string) {
+    if (!editFornNome.trim()) return;
+    setSalvandoForn(true);
+    await fetch(`/api/fornecedores/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome: editFornNome.trim(), contato: editFornContato || null }),
+    });
+    await carregarFornecedores();
+    setEditandoForn(null);
+    setSalvandoForn(false);
+  }
+
+  async function excluirFornecedor(id: string) {
+    await fetch(`/api/fornecedores/${id}`, { method: "DELETE" });
+    setFornecedores((prev) => prev.filter((f) => f.id !== id));
+  }
+
+  function toggleExpand(id: string) {
+    setExpandida((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   }
 
   function abrirNovo() { setProdutoSelecionado(undefined); setModalAberto(true); }
@@ -542,201 +908,425 @@ export default function ProdutosPage() {
   const vencidos = produtos.filter((p) => statusValidade(p.dataValidade) === "vencido");
   const vencendo = produtos.filter((p) => statusValidade(p.dataValidade) === "alerta");
 
+  const totalCompras = compras.reduce((s, c) => s + c.totalLiquido, 0);
+
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-serif font-semibold text-[#5a4530]">Produtos & Estoque</h1>
           <p className="text-sm text-[#9a7d50] mt-1">
-            {carregando ? "Carregando..." : `${produtos.length} produto(s) cadastrado(s)`}
+            {abaPage === "produtos"
+              ? carregando ? "Carregando..." : `${produtos.length} produto(s) cadastrado(s)`
+              : carregandoCompras ? "Carregando..." : `${compras.length} compra(s) no período`
+            }
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {!carregando && produtos.length > 0 && (
-            <button
-              onClick={exportarCSV}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#B89968]/30 text-sm text-[#5a4530] hover:bg-[#faf5ee] transition-colors"
-            >
-              <Download size={14} /> Exportar
-            </button>
+          {abaPage === "produtos" && (
+            <>
+              {!carregando && produtos.length > 0 && (
+                <button
+                  onClick={exportarCSV}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#B89968]/30 text-sm text-[#5a4530] hover:bg-[#faf5ee] transition-colors"
+                >
+                  <Download size={14} /> Exportar
+                </button>
+              )}
+              <Button onClick={abrirNovo} className="bg-[#B89968] hover:bg-[#9a7d50] text-white gap-1.5">
+                <Plus size={16} /> Novo Produto
+              </Button>
+            </>
           )}
-          <Button onClick={abrirNovo} className="bg-[#B89968] hover:bg-[#9a7d50] text-white gap-1.5">
-            <Plus size={16} /> Novo Produto
-          </Button>
+          {abaPage === "compras" && (podeMovimentar || isAdmin) && (
+            <Button onClick={() => setModalCompraAberto(true)} className="bg-[#B89968] hover:bg-[#9a7d50] text-white gap-1.5">
+              <Plus size={16} /> Nova Compra
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* KPI: Patrimônio total — só admin */}
-      {podeVerCusto && !carregando && produtos.length > 0 && (() => {
-        const patrimônio = produtos.reduce((s, p) => s + ((p.precoCusto ?? 0) * p.qtdEstoque), 0);
-        const comCusto = produtos.filter((p) => p.precoCusto != null).length;
-        return (
-          <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="bg-white rounded-xl border border-[#e8dcc4] px-4 py-3">
-              <p className="text-xs text-[#9a7d50] font-medium">Total de produtos</p>
-              <p className="text-xl font-semibold text-[#5a4530] mt-0.5">{produtos.length}</p>
-              <p className="text-xs text-[#9a7d50]">{comCusto} com custo cadastrado</p>
-            </div>
-            <div className="bg-white rounded-xl border border-[#e8dcc4] px-4 py-3">
-              <p className="text-xs text-[#9a7d50] font-medium">Patrimônio em estoque</p>
-              <p className="text-xl font-semibold text-[#5a4530] mt-0.5">
-                {patrimônio.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-              </p>
-              <p className="text-xs text-[#9a7d50]">custo × qtd em estoque</p>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Alerta: estoque baixo */}
-      {semEstoque.length > 0 && (
-        <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={16} className="text-amber-600" />
-            <p className="text-sm font-medium text-amber-800">Estoque baixo ou esgotado ({semEstoque.length})</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {semEstoque.map((p) => (
-              <button key={p.id} onClick={() => abrirEdicao(p)} className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full hover:bg-amber-200">
-                {p.nome}: {p.qtdEstoque} unid.
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Alerta: vencidos */}
-      {vencidos.length > 0 && (
-        <div className="mb-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <CalendarX size={16} className="text-red-600" />
-            <p className="text-sm font-medium text-red-800">Produtos vencidos ({vencidos.length})</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {vencidos.map((p) => (
-              <button key={p.id} onClick={() => abrirEdicao(p)} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full hover:bg-red-200">
-                {p.nome} · venceu {new Date(p.dataValidade!).toLocaleDateString("pt-BR")}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Alerta: vencendo em 30 dias */}
-      {vencendo.length > 0 && (
-        <div className="mb-3 bg-orange-50 border border-orange-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={16} className="text-orange-500" />
-            <p className="text-sm font-medium text-orange-800">Vencendo em até 30 dias ({vencendo.length})</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {vencendo.map((p) => (
-              <button key={p.id} onClick={() => abrirEdicao(p)} className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full hover:bg-orange-200">
-                {p.nome} · {new Date(p.dataValidade!).toLocaleDateString("pt-BR")}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9a7d50]" />
-          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto..." className="pl-9 border-[#B89968]/30" />
-        </div>
-      </div>
-
-      {carregando ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 size={24} className="animate-spin text-[#B89968]" />
-        </div>
-      ) : produtos.length === 0 ? (
-        <div className="text-center py-20 text-[#9a7d50]">
-          <Package size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="text-base mb-1">Nenhum produto cadastrado.</p>
-          <p className="text-sm">Clique em &quot;Novo Produto&quot; para adicionar ao estoque.</p>
-        </div>
-      ) : (
-        <div className="space-y-5">
-          {Object.entries(grupos).map(([categoria, itens]) => (
-            <div key={categoria}>
-              <h2 className="text-xs font-semibold text-[#9a7d50] uppercase tracking-wider mb-2 px-1">{categoria}</h2>
-              <div className="bg-white rounded-xl border border-[#e8dcc4] overflow-hidden shadow-sm">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-[#faf5ee] border-b border-[#e8dcc4]">
-                      <th className="text-left px-4 py-2.5 text-[#9a7d50] font-medium">Produto</th>
-                      <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium">Estoque</th>
-                      <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium hidden sm:table-cell">Validade</th>
-                      {podeVerCusto && <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium hidden md:table-cell">Custo</th>}
-                      <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium hidden md:table-cell">Venda</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itens.map((p, i) => {
-                      const estoqueAlerta = !p.patrimonio && p.qtdEstoque <= p.qtdMinima;
-                      const sv = statusValidade(p.dataValidade);
-                      return (
-                        <tr
-                          key={p.id}
-                          onClick={() => abrirEdicao(p)}
-                          className={cn(
-                            "border-b border-[#e8dcc4] hover:bg-[#faf5ee] cursor-pointer transition-colors",
-                            i === itens.length - 1 ? "border-b-0" : ""
-                          )}
-                        >
-                          <td className="px-4 py-3">
-                            <span className="font-medium text-[#5a4530]">{p.nome}</span>
-                            {p.patrimonio && <span className="ml-2 text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">patrimônio</span>}
-                            {p.ehInjetavel && (
-                              <span
-                                className="ml-2 text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1"
-                                style={{ backgroundColor: `${p.corMarcacao}20`, color: p.corMarcacao ?? "#A78BFA" }}
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.corMarcacao ?? "#A78BFA" }} />
-                                injetável · {p.unidadeMedida}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <span className={cn("text-sm font-medium", estoqueAlerta ? "text-red-500" : "text-[#5a4530]")}>
-                              {p.qtdEstoque}
-                              {estoqueAlerta && <AlertTriangle size={12} className="inline ml-1 text-red-400" />}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right hidden sm:table-cell">
-                            {p.dataValidade ? (
-                              <span className={cn(
-                                "text-xs px-2 py-0.5 rounded-full font-medium",
-                                sv === "vencido" ? "bg-red-100 text-red-700" :
-                                sv === "alerta" ? "bg-orange-100 text-orange-700" :
-                                "bg-emerald-50 text-emerald-700"
-                              )}>
-                                {new Date(p.dataValidade).toLocaleDateString("pt-BR")}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-[#9a7d50]/50">—</span>
-                            )}
-                          </td>
-                          {podeVerCusto && (
-                            <td className="px-4 py-3 text-right text-[#9a7d50] text-sm hidden md:table-cell">
-                              {p.precoCusto ? `R$ ${p.precoCusto.toFixed(2).replace(".", ",")}` : "—"}
-                            </td>
-                          )}
-                          <td className="px-4 py-3 text-right text-[#5a4530] font-semibold text-sm hidden md:table-cell">
-                            {p.precoVenda > 0 ? `R$ ${p.precoVenda.toFixed(2).replace(".", ",")}` : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+      {/* Tabs */}
+      {(podeMovimentar || isAdmin) && (
+        <div className="flex border-b border-[#e8dcc4] mb-5">
+          {([
+            { v: "produtos" as const, label: "Produtos", icon: <Package size={14} /> },
+            { v: "compras" as const, label: "Compras de Estoque", icon: <ShoppingCart size={14} /> },
+          ]).map((tab) => (
+            <button
+              key={tab.v}
+              onClick={() => setAbaPage(tab.v)}
+              className={cn(
+                "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px flex items-center gap-1.5 transition-colors",
+                abaPage === tab.v
+                  ? "border-[#B89968] text-[#B89968]"
+                  : "border-transparent text-[#9a7d50] hover:text-[#5a4530]"
+              )}
+            >
+              {tab.icon} {tab.label}
+            </button>
           ))}
         </div>
       )}
 
+      {/* ── Aba Produtos ───────────────────────────────────────────────────── */}
+      {abaPage === "produtos" && (
+        <>
+          {podeVerCusto && !carregando && produtos.length > 0 && (() => {
+            const patrimonio = produtos.reduce((s, p) => s + ((p.precoCusto ?? 0) * p.qtdEstoque), 0);
+            const comCusto = produtos.filter((p) => p.precoCusto != null).length;
+            return (
+              <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="bg-white rounded-xl border border-[#e8dcc4] px-4 py-3">
+                  <p className="text-xs text-[#9a7d50] font-medium">Total de produtos</p>
+                  <p className="text-xl font-semibold text-[#5a4530] mt-0.5">{produtos.length}</p>
+                  <p className="text-xs text-[#9a7d50]">{comCusto} com custo cadastrado</p>
+                </div>
+                <div className="bg-white rounded-xl border border-[#e8dcc4] px-4 py-3">
+                  <p className="text-xs text-[#9a7d50] font-medium">Patrimônio em estoque</p>
+                  <p className="text-xl font-semibold text-[#5a4530] mt-0.5">
+                    {patrimonio.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
+                  <p className="text-xs text-[#9a7d50]">custo × qtd em estoque</p>
+                </div>
+              </div>
+            );
+          })()}
+
+          {semEstoque.length > 0 && (
+            <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle size={16} className="text-amber-600" />
+                <p className="text-sm font-medium text-amber-800">Estoque baixo ou esgotado ({semEstoque.length})</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {semEstoque.map((p) => (
+                  <button key={p.id} onClick={() => abrirEdicao(p)} className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full hover:bg-amber-200">
+                    {p.nome}: {p.qtdEstoque} unid.
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {vencidos.length > 0 && (
+            <div className="mb-3 bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarX size={16} className="text-red-600" />
+                <p className="text-sm font-medium text-red-800">Produtos vencidos ({vencidos.length})</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {vencidos.map((p) => (
+                  <button key={p.id} onClick={() => abrirEdicao(p)} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full hover:bg-red-200">
+                    {p.nome} · venceu {new Date(p.dataValidade!).toLocaleDateString("pt-BR")}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {vencendo.length > 0 && (
+            <div className="mb-3 bg-orange-50 border border-orange-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle size={16} className="text-orange-500" />
+                <p className="text-sm font-medium text-orange-800">Vencendo em até 30 dias ({vencendo.length})</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {vencendo.map((p) => (
+                  <button key={p.id} onClick={() => abrirEdicao(p)} className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full hover:bg-orange-200">
+                    {p.nome} · {new Date(p.dataValidade!).toLocaleDateString("pt-BR")}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 mb-5">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9a7d50]" />
+              <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto..." className="pl-9 border-[#B89968]/30" />
+            </div>
+          </div>
+
+          {carregando ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={24} className="animate-spin text-[#B89968]" />
+            </div>
+          ) : produtos.length === 0 ? (
+            <div className="text-center py-20 text-[#9a7d50]">
+              <Package size={40} className="mx-auto mb-3 opacity-30" />
+              <p className="text-base mb-1">Nenhum produto cadastrado.</p>
+              <p className="text-sm">Clique em &quot;Novo Produto&quot; para adicionar ao estoque.</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {Object.entries(grupos).map(([categoria, itens]) => (
+                <div key={categoria}>
+                  <h2 className="text-xs font-semibold text-[#9a7d50] uppercase tracking-wider mb-2 px-1">{categoria}</h2>
+                  <div className="bg-white rounded-xl border border-[#e8dcc4] overflow-hidden shadow-sm">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-[#faf5ee] border-b border-[#e8dcc4]">
+                          <th className="text-left px-4 py-2.5 text-[#9a7d50] font-medium">Produto</th>
+                          <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium">Estoque</th>
+                          <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium hidden sm:table-cell">Validade</th>
+                          {podeVerCusto && <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium hidden md:table-cell">Custo</th>}
+                          <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium hidden md:table-cell">Venda</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {itens.map((p, i) => {
+                          const estoqueAlerta = !p.patrimonio && p.qtdEstoque <= p.qtdMinima;
+                          const sv = statusValidade(p.dataValidade);
+                          return (
+                            <tr
+                              key={p.id}
+                              onClick={() => abrirEdicao(p)}
+                              className={cn(
+                                "border-b border-[#e8dcc4] hover:bg-[#faf5ee] cursor-pointer transition-colors",
+                                i === itens.length - 1 ? "border-b-0" : ""
+                              )}
+                            >
+                              <td className="px-4 py-3">
+                                <span className="font-medium text-[#5a4530]">{p.nome}</span>
+                                {p.patrimonio && <span className="ml-2 text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">patrimônio</span>}
+                                {p.ehInjetavel && (
+                                  <span
+                                    className="ml-2 text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1"
+                                    style={{ backgroundColor: `${p.corMarcacao}20`, color: p.corMarcacao ?? "#A78BFA" }}
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.corMarcacao ?? "#A78BFA" }} />
+                                    injetável · {p.unidadeMedida}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <span className={cn("text-sm font-medium", estoqueAlerta ? "text-red-500" : "text-[#5a4530]")}>
+                                  {p.qtdEstoque}
+                                  {estoqueAlerta && <AlertTriangle size={12} className="inline ml-1 text-red-400" />}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right hidden sm:table-cell">
+                                {p.dataValidade ? (
+                                  <span className={cn(
+                                    "text-xs px-2 py-0.5 rounded-full font-medium",
+                                    sv === "vencido" ? "bg-red-100 text-red-700" :
+                                    sv === "alerta" ? "bg-orange-100 text-orange-700" :
+                                    "bg-emerald-50 text-emerald-700"
+                                  )}>
+                                    {new Date(p.dataValidade).toLocaleDateString("pt-BR")}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-[#9a7d50]/50">—</span>
+                                )}
+                              </td>
+                              {podeVerCusto && (
+                                <td className="px-4 py-3 text-right text-[#9a7d50] text-sm hidden md:table-cell">
+                                  {p.precoCusto ? `R$ ${p.precoCusto.toFixed(2).replace(".", ",")}` : "—"}
+                                </td>
+                              )}
+                              <td className="px-4 py-3 text-right text-[#5a4530] font-semibold text-sm hidden md:table-cell">
+                                {p.precoVenda > 0 ? `R$ ${p.precoVenda.toFixed(2).replace(".", ",")}` : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Aba Compras de Estoque ────────────────────────────────────────── */}
+      {abaPage === "compras" && (
+        <>
+          {/* Filtro de mês + KPI */}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div>
+              <label className="text-xs text-[#9a7d50] block mb-1">Mês</label>
+              <input
+                type="month"
+                value={mesFiltro}
+                onChange={(e) => setMesFiltro(e.target.value)}
+                className="h-9 px-3 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-2 focus:ring-[#B89968]"
+              />
+            </div>
+            {!carregandoCompras && compras.length > 0 && (
+              <div className="bg-white rounded-xl border border-[#e8dcc4] px-4 py-2 flex items-center gap-3">
+                <div>
+                  <p className="text-xs text-[#9a7d50]">Total do período</p>
+                  <p className="text-base font-semibold text-[#5a4530]">
+                    {totalCompras.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
+                </div>
+                <div className="w-px h-8 bg-[#e8dcc4]" />
+                <div>
+                  <p className="text-xs text-[#9a7d50]">Compras</p>
+                  <p className="text-base font-semibold text-[#5a4530]">{compras.length}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Lista de compras */}
+          {carregandoCompras ? (
+            <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin text-[#B89968]" /></div>
+          ) : compras.length === 0 ? (
+            <div className="text-center py-16 text-[#9a7d50]">
+              <ShoppingCart size={36} className="mx-auto mb-3 opacity-30" />
+              <p className="text-base mb-1">Nenhuma compra registrada neste período.</p>
+              <p className="text-sm">Clique em &quot;Nova Compra&quot; para registrar uma entrada de estoque.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-[#e8dcc4] overflow-hidden shadow-sm mb-6">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-[#faf5ee] border-b border-[#e8dcc4]">
+                    <th className="text-left px-4 py-2.5 text-[#9a7d50] font-medium">Data</th>
+                    <th className="text-left px-4 py-2.5 text-[#9a7d50] font-medium hidden sm:table-cell">Fornecedor</th>
+                    <th className="text-left px-4 py-2.5 text-[#9a7d50] font-medium hidden md:table-cell">Descrição</th>
+                    <th className="text-center px-4 py-2.5 text-[#9a7d50] font-medium hidden sm:table-cell">Itens</th>
+                    <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium">Total</th>
+                    <th className="px-2 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {compras.map((c, idx) => (
+                    <React.Fragment key={c.id}>
+                      <tr
+                        onClick={() => toggleExpand(c.id)}
+                        className={cn(
+                          "border-b border-[#e8dcc4] hover:bg-[#faf5ee] cursor-pointer transition-colors",
+                          idx === compras.length - 1 && !expandida.has(c.id) ? "border-b-0" : ""
+                        )}
+                      >
+                        <td className="px-4 py-3 text-[#5a4530]">
+                          <p className="font-medium">{new Date(c.dataCompra).toLocaleDateString("pt-BR")}</p>
+                          {c.formaPagamento && <p className="text-xs text-[#9a7d50]">{c.formaPagamento}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-[#5a4530] hidden sm:table-cell">
+                          {c.fornecedor ? (
+                            <span className="flex items-center gap-1"><Truck size={13} className="text-[#B89968]" />{c.fornecedor.nome}</span>
+                          ) : (
+                            <span className="text-[#9a7d50]/50">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-[#9a7d50] hidden md:table-cell text-sm truncate max-w-[180px]">
+                          {c.descricao || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-center hidden sm:table-cell">
+                          <span className="text-xs bg-[#faf5ee] text-[#9a7d50] border border-[#e8dcc4] px-2 py-0.5 rounded-full">
+                            {c.itens.length} {c.itens.length === 1 ? "item" : "itens"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-[#5a4530]">
+                          {c.totalLiquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          {c.desconto > 0 && (
+                            <p className="text-xs text-emerald-600 font-normal">−{c.desconto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} desc.</p>
+                          )}
+                        </td>
+                        <td className="px-2 py-3 text-[#9a7d50]">
+                          {expandida.has(c.id) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </td>
+                      </tr>
+                      {expandida.has(c.id) && (
+                        <tr className={cn("bg-[#faf5ee]/60 border-b border-[#e8dcc4]", idx === compras.length - 1 ? "border-b-0" : "")}>
+                          <td colSpan={6} className="px-4 pb-3 pt-1">
+                            <div className="space-y-1">
+                              {c.itens.map((item) => (
+                                <div key={item.id} className="flex items-center gap-2 text-sm text-[#5a4530]">
+                                  <ArrowDownCircle size={12} className="text-emerald-500 flex-shrink-0" />
+                                  <span className="font-medium">{item.produto.nome}</span>
+                                  {item.produto.unidadeMedida && item.produto.unidadeMedida !== "unidade" && (
+                                    <span className="text-xs text-[#9a7d50]">({item.produto.unidadeMedida})</span>
+                                  )}
+                                  <span className="text-[#9a7d50]">× {item.quantidade}</span>
+                                  <span className="text-[#9a7d50]">@ R$ {item.custoUnitario.toFixed(2).replace(".", ",")}/un</span>
+                                  <span className="ml-auto font-medium">
+                                    {(item.quantidade * item.custoUnitario).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Seção de Fornecedores — admin only */}
+          {isAdmin && (
+            <div className="bg-white rounded-xl border border-[#e8dcc4] overflow-hidden">
+              <button
+                onClick={() => setShowFornecedoresSection((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#faf5ee] transition-colors"
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-[#5a4530]">
+                  <Truck size={15} className="text-[#B89968]" />
+                  Fornecedores ({fornecedores.length} cadastrado{fornecedores.length !== 1 ? "s" : ""})
+                </span>
+                {showFornecedoresSection ? <ChevronUp size={15} className="text-[#9a7d50]" /> : <ChevronDown size={15} className="text-[#9a7d50]" />}
+              </button>
+
+              {showFornecedoresSection && (
+                <div className="border-t border-[#e8dcc4] p-4 space-y-2">
+                  {fornecedores.length === 0 && (
+                    <p className="text-sm text-[#9a7d50] text-center py-2">Nenhum fornecedor cadastrado.</p>
+                  )}
+                  {fornecedores.map((f) => (
+                    <div key={f.id}>
+                      {editandoForn === f.id ? (
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            value={editFornNome} onChange={(e) => setEditFornNome(e.target.value)}
+                            className="border-[#B89968]/30 h-8 text-sm flex-1"
+                          />
+                          <Input
+                            value={editFornContato} onChange={(e) => setEditFornContato(e.target.value)}
+                            placeholder="Contato" className="border-[#B89968]/30 h-8 text-sm w-40"
+                          />
+                          <Button size="sm" onClick={() => salvarFornecedor(f.id)} disabled={salvandoForn} className="bg-[#B89968] hover:bg-[#9a7d50] text-white h-8 text-xs">
+                            {salvandoForn ? <Loader2 size={12} className="animate-spin" /> : "Salvar"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditandoForn(null)} className="h-8 text-xs">Cancelar</Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 py-1 px-1 rounded hover:bg-[#faf5ee] group">
+                          <span className="flex-1 text-sm text-[#5a4530]">{f.nome}</span>
+                          {f.contato && <span className="text-xs text-[#9a7d50]">{f.contato}</span>}
+                          <button
+                            onClick={() => { setEditandoForn(f.id); setEditFornNome(f.nome); setEditFornContato(f.contato ?? ""); }}
+                            className="opacity-0 group-hover:opacity-100 text-[#9a7d50] hover:text-[#5a4530] p-1 transition-opacity"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            onClick={() => excluirFornecedor(f.id)}
+                            className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1 transition-opacity"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Modais */}
       <ModalProduto
         aberto={modalAberto}
         onFechar={() => setModalAberto(false)}
@@ -745,6 +1335,14 @@ export default function ProdutosPage() {
         produto={produtoSelecionado}
         podeVerCusto={podeVerCusto}
         podeMovimentar={podeMovimentar}
+      />
+      <ModalNovaCompra
+        aberto={modalCompraAberto}
+        onFechar={() => setModalCompraAberto(false)}
+        onSalva={() => { carregarCompras(); carregar(busca); }}
+        produtos={produtos}
+        fornecedores={fornecedores}
+        onFornecedorCriado={(f) => setFornecedores((prev) => [...prev, f])}
       />
     </div>
   );
