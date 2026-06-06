@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import {
   Search, Plus, Loader2, Package, AlertTriangle, X, Trash2,
   History, ArrowDownCircle, ArrowUpCircle, SlidersHorizontal, CalendarX, Download,
-  ShoppingCart, Truck, Edit2, ChevronDown, ChevronUp,
+  ShoppingCart, Truck, Edit2, ChevronDown, ChevronUp, Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSessaoCliente } from "@/lib/sessao-cliente";
@@ -57,6 +57,27 @@ type CompraEstoque = {
   criadoEm: string;
   fornecedor: { id: string; nome: string } | null;
   itens: ItemCompraAPI[];
+};
+
+type ItemVendaAPI = {
+  id: string;
+  produtoId: string;
+  quantidade: number;
+  precoUnitario: number;
+  produto: { id: string; nome: string; unidadeMedida: string | null };
+};
+
+type VendaAvulsa = {
+  id: string;
+  descricao: string | null;
+  dataVenda: string;
+  formaPagamento: string | null;
+  valorTotal: number;
+  desconto: number;
+  totalLiquido: number;
+  criadoEm: string;
+  cliente: { id: string; nome: string } | null;
+  itens: ItemVendaAPI[];
 };
 
 type Movimentacao = {
@@ -770,6 +791,251 @@ function ModalNovaCompra({
   );
 }
 
+// ─── Modal Nova Venda Avulsa ──────────────────────────────────────────────────
+
+type LinhaVenda = { tempId: string; produtoId: string; quantidade: string; precoUnitario: string };
+
+function novaLinhaVenda(): LinhaVenda {
+  return { tempId: Math.random().toString(36).slice(2), produtoId: "", quantidade: "1", precoUnitario: "" };
+}
+
+function ModalNovaVenda({
+  aberto, onFechar, onSalva, produtos,
+}: {
+  aberto: boolean; onFechar: () => void; onSalva: () => void;
+  produtos: Produto[];
+}) {
+  const [clienteBusca, setClienteBusca] = useState("");
+  const [clienteId, setClienteId] = useState("");
+  const [clienteNome, setClienteNome] = useState("");
+  const [clientes, setClientes] = useState<{ id: string; nome: string; telefone1: string | null }[]>([]);
+  const [buscandoClientes, setBuscandoClientes] = useState(false);
+  const [descricao, setDescricao] = useState("");
+  const [dataVenda, setDataVenda] = useState(dataHoje);
+  const [formaPagamento, setFormaPagamento] = useState("");
+  const [itens, setItens] = useState<LinhaVenda[]>(() => [novaLinhaVenda()]);
+  const [desconto, setDesconto] = useState("0");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    if (!aberto) {
+      setClienteBusca(""); setClienteId(""); setClienteNome(""); setClientes([]);
+      setDescricao(""); setDataVenda(dataHoje()); setFormaPagamento("");
+      setItens([novaLinhaVenda()]); setDesconto("0"); setErro("");
+    }
+  }, [aberto]);
+
+  useEffect(() => {
+    if (!clienteBusca.trim() || clienteId) { setClientes([]); return; }
+    const t = setTimeout(async () => {
+      setBuscandoClientes(true);
+      const r = await fetch(`/api/clientes?q=${encodeURIComponent(clienteBusca)}`);
+      if (r.ok) setClientes(await r.json());
+      setBuscandoClientes(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [clienteBusca, clienteId]);
+
+  const valorTotal = itens.reduce((s, i) => s + (parseFloat(i.quantidade) || 0) * (parseFloat(i.precoUnitario) || 0), 0);
+  const descontoVal = parseFloat(desconto) || 0;
+  const totalLiquido = Math.max(0, Math.round((valorTotal - descontoVal) * 100) / 100);
+
+  function setItemField(tempId: string, field: keyof LinhaVenda, valor: string) {
+    setItens((prev) => prev.map((i) => i.tempId === tempId ? { ...i, [field]: valor } : i));
+  }
+
+  function selecionarProduto(tempId: string, produtoId: string) {
+    const p = produtos.find((pr) => pr.id === produtoId);
+    setItens((prev) => prev.map((i) =>
+      i.tempId === tempId
+        ? { ...i, produtoId, precoUnitario: p ? p.precoVenda.toString() : i.precoUnitario }
+        : i
+    ));
+  }
+
+  async function salvar() {
+    if (!dataVenda) { setErro("Data da venda é obrigatória."); return; }
+    const itensValidos = itens.filter((i) => i.produtoId && parseFloat(i.quantidade) > 0);
+    if (itensValidos.length === 0) { setErro("Adicione pelo menos 1 item com produto e quantidade."); return; }
+    setSalvando(true); setErro("");
+    try {
+      const r = await fetch("/api/vendas-avulsas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clienteId: clienteId || null,
+          descricao: descricao || null,
+          dataVenda,
+          formaPagamento: formaPagamento || null,
+          itens: itensValidos.map((i) => ({
+            produtoId: i.produtoId,
+            quantidade: parseFloat(i.quantidade),
+            precoUnitario: parseFloat(i.precoUnitario) || 0,
+          })),
+          desconto: descontoVal,
+        }),
+      });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { erro?: string }).erro ?? "Erro"); }
+      onSalva(); onFechar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally { setSalvando(false); }
+  }
+
+  if (!aberto) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onFechar} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[90dvh]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8dcc4] flex-shrink-0">
+          <h2 className="text-lg font-serif font-semibold text-[#5a4530] flex items-center gap-2">
+            <Tag size={18} className="text-[#B89968]" /> Nova Venda Avulsa
+          </h2>
+          <button onClick={onFechar} className="text-[#9a7d50] hover:text-[#5a4530]"><X size={20} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-4">
+          {/* Cliente */}
+          <div>
+            <Label className="text-xs text-[#9a7d50] mb-1 block">Cliente (opcional)</Label>
+            {clienteId ? (
+              <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-[#B89968]/30 bg-[#faf5ee]">
+                <span className="flex-1 text-sm text-[#5a4530]">{clienteNome}</span>
+                <button onClick={() => { setClienteId(""); setClienteNome(""); setClienteBusca(""); }} className="text-[#9a7d50] hover:text-[#5a4530]"><X size={14} /></button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Input
+                  value={clienteBusca} onChange={(e) => setClienteBusca(e.target.value)}
+                  placeholder="Buscar cliente pelo nome…" className="border-[#B89968]/30"
+                />
+                {buscandoClientes && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[#9a7d50]" />}
+                {clientes.length > 0 && (
+                  <div className="absolute z-10 w-full bg-white border border-[#e8dcc4] rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                    {clientes.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => { setClienteId(c.id); setClienteNome(c.nome); setClienteBusca(""); setClientes([]); }}
+                        className="w-full text-left px-3 py-2 text-sm text-[#5a4530] hover:bg-[#faf5ee] border-b border-[#e8dcc4] last:border-0"
+                      >
+                        {c.nome}
+                        {c.telefone1 && <span className="text-xs text-[#9a7d50] ml-2">{c.telefone1}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-[#9a7d50] mb-1 block">Data da Venda *</Label>
+              <input
+                type="date" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-2 focus:ring-[#B89968]"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-[#9a7d50] mb-1 block">Forma de Pagamento</Label>
+              <select
+                value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] bg-white focus:outline-none focus:ring-2 focus:ring-[#B89968]"
+              >
+                <option value="">—</option>
+                {FORMAS_COMPRA.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs text-[#9a7d50] mb-1 block">Descrição / Observação</Label>
+            <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex: Cremes vendidos após consulta…" className="border-[#B89968]/30" />
+          </div>
+
+          {/* Itens */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-xs text-[#9a7d50] uppercase tracking-wider font-semibold">Itens *</Label>
+              <button type="button" onClick={() => setItens((p) => [...p, novaLinhaVenda()])} className="flex items-center gap-1 text-xs text-[#B89968] hover:text-[#9a7d50]">
+                <Plus size={12} /> Adicionar item
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div className="hidden sm:grid grid-cols-[1fr_64px_112px_24px] gap-2 px-1">
+                <span className="text-xs text-[#9a7d50]">Produto</span>
+                <span className="text-xs text-[#9a7d50] text-center">Qtd</span>
+                <span className="text-xs text-[#9a7d50] text-right">Preço unit. (R$)</span>
+                <span />
+              </div>
+              {itens.map((linha) => (
+                <div key={linha.tempId} className="flex gap-2 items-center">
+                  <select
+                    value={linha.produtoId}
+                    onChange={(e) => selecionarProduto(linha.tempId, e.target.value)}
+                    className="flex-1 h-8 px-2 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] bg-white focus:outline-none focus:ring-1 focus:ring-[#B89968] min-w-0"
+                  >
+                    <option value="">Selecione o produto…</option>
+                    {produtos.filter((p) => !p.patrimonio).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nome}{p.unidadeMedida && p.unidadeMedida !== "unidade" ? ` (${p.unidadeMedida})` : ""}
+                        {" — "}R$ {p.precoVenda.toFixed(2).replace(".", ",")}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number" min="1" step="1"
+                    value={linha.quantidade}
+                    onChange={(e) => setItemField(linha.tempId, "quantidade", e.target.value)}
+                    placeholder="Qtd"
+                    className="w-16 h-8 px-2 rounded-md border border-[#B89968]/30 text-sm text-center text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                  />
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={linha.precoUnitario}
+                    onChange={(e) => setItemField(linha.tempId, "precoUnitario", e.target.value)}
+                    placeholder="0,00"
+                    className="w-28 h-8 px-2 rounded-md border border-[#B89968]/30 text-sm text-right text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968]"
+                  />
+                  {itens.length > 1 && (
+                    <button type="button" onClick={() => setItens((p) => p.filter((i) => i.tempId !== linha.tempId))} className="text-red-400 hover:text-red-600 flex-shrink-0">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-[#e8dcc4] flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <Label className="text-xs text-[#9a7d50] mb-1 block">Desconto (R$)</Label>
+              <Input type="number" min="0" step="0.01" value={desconto} onChange={(e) => setDesconto(e.target.value)} placeholder="0,00" className="border-[#B89968]/30 w-32" />
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-[#9a7d50]">Subtotal: {valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+              {descontoVal > 0 && <p className="text-xs text-[#9a7d50]">Desconto: −{descontoVal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>}
+              <p className="text-lg font-semibold text-[#5a4530]">Total: {totalLiquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+            </div>
+          </div>
+
+          {erro && <p className="text-sm text-red-500">{erro}</p>}
+        </div>
+
+        <div className="px-5 py-4 border-t border-[#e8dcc4] flex justify-end gap-2 flex-shrink-0">
+          <Button variant="ghost" size="sm" onClick={onFechar}>Cancelar</Button>
+          <Button size="sm" onClick={salvar} disabled={salvando} className="bg-[#B89968] hover:bg-[#9a7d50] text-white">
+            {salvando ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+            Registrar Venda
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Página Principal ─────────────────────────────────────────────────────────
 
 export default function ProdutosPage() {
@@ -786,7 +1052,7 @@ export default function ProdutosPage() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Tabs
-  const [abaPage, setAbaPage] = useState<"produtos" | "compras">("produtos");
+  const [abaPage, setAbaPage] = useState<"produtos" | "compras" | "vendas">("produtos");
 
   // Compras
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
@@ -795,6 +1061,13 @@ export default function ProdutosPage() {
   const [mesFiltro, setMesFiltro] = useState(mesAtual);
   const [modalCompraAberto, setModalCompraAberto] = useState(false);
   const [expandida, setExpandida] = useState<Set<string>>(new Set());
+
+  // Vendas avulsas
+  const [vendas, setVendas] = useState<VendaAvulsa[]>([]);
+  const [carregandoVendas, setCarregandoVendas] = useState(false);
+  const [mesFiltroVendas, setMesFiltroVendas] = useState(mesAtual);
+  const [modalVendaAberto, setModalVendaAberto] = useState(false);
+  const [expandidaVenda, setExpandidaVenda] = useState<Set<string>>(new Set());
 
   // Fornecedores management
   const [showFornecedoresSection, setShowFornecedoresSection] = useState(false);
@@ -838,6 +1111,13 @@ export default function ProdutosPage() {
     setCarregandoCompras(false);
   }
 
+  async function carregarVendas() {
+    setCarregandoVendas(true);
+    const r = await fetch(`/api/vendas-avulsas?mes=${mesFiltroVendas}`);
+    if (r.ok) setVendas(await r.json());
+    setCarregandoVendas(false);
+  }
+
   useEffect(() => { carregar(); carregarFornecedores(); }, []);
   useEffect(() => {
     const t = setTimeout(() => carregar(busca), 300);
@@ -847,6 +1127,10 @@ export default function ProdutosPage() {
     if (abaPage === "compras") carregarCompras();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [abaPage, mesFiltro]);
+  useEffect(() => {
+    if (abaPage === "vendas") carregarVendas();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abaPage, mesFiltroVendas]);
 
   function exportarCSV() {
     const cabecalho = ["Produto", "Categoria", "Estoque", "Estoque Mínimo", ...(podeVerCusto ? ["Custo (R$)"] : []), "Venda (R$)", "Validade", "Patrimônio"];
@@ -919,7 +1203,9 @@ export default function ProdutosPage() {
           <p className="text-sm text-[#9a7d50] mt-1">
             {abaPage === "produtos"
               ? carregando ? "Carregando..." : `${produtos.length} produto(s) cadastrado(s)`
-              : carregandoCompras ? "Carregando..." : `${compras.length} compra(s) no período`
+              : abaPage === "compras"
+              ? carregandoCompras ? "Carregando..." : `${compras.length} compra(s) no período`
+              : carregandoVendas ? "Carregando..." : `${vendas.length} venda(s) no período`
             }
           </p>
         </div>
@@ -944,6 +1230,11 @@ export default function ProdutosPage() {
               <Plus size={16} /> Nova Compra
             </Button>
           )}
+          {abaPage === "vendas" && (podeMovimentar || isAdmin) && (
+            <Button onClick={() => setModalVendaAberto(true)} className="bg-[#B89968] hover:bg-[#9a7d50] text-white gap-1.5">
+              <Plus size={16} /> Nova Venda
+            </Button>
+          )}
         </div>
       </div>
 
@@ -952,7 +1243,8 @@ export default function ProdutosPage() {
         <div className="flex border-b border-[#e8dcc4] mb-5">
           {([
             { v: "produtos" as const, label: "Produtos", icon: <Package size={14} /> },
-            { v: "compras" as const, label: "Compras de Estoque", icon: <ShoppingCart size={14} /> },
+            { v: "compras" as const, label: "Compras", icon: <ShoppingCart size={14} /> },
+            { v: "vendas" as const, label: "Vendas Avulsas", icon: <Tag size={14} /> },
           ]).map((tab) => (
             <button
               key={tab.v}
@@ -1326,6 +1618,123 @@ export default function ProdutosPage() {
         </>
       )}
 
+      {/* ── Aba Vendas Avulsas ────────────────────────────────────────── */}
+      {abaPage === "vendas" && (
+        <>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div>
+              <label className="text-xs text-[#9a7d50] block mb-1">Mês</label>
+              <input
+                type="month"
+                value={mesFiltroVendas}
+                onChange={(e) => setMesFiltroVendas(e.target.value)}
+                className="h-9 px-3 rounded-md border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-2 focus:ring-[#B89968]"
+              />
+            </div>
+            {!carregandoVendas && vendas.length > 0 && (
+              <div className="bg-white rounded-xl border border-[#e8dcc4] px-4 py-2 flex items-center gap-3">
+                <div>
+                  <p className="text-xs text-[#9a7d50]">Total do período</p>
+                  <p className="text-base font-semibold text-[#5a4530]">
+                    {vendas.reduce((s, v) => s + v.totalLiquido, 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
+                </div>
+                <div className="w-px h-8 bg-[#e8dcc4]" />
+                <div>
+                  <p className="text-xs text-[#9a7d50]">Vendas</p>
+                  <p className="text-base font-semibold text-[#5a4530]">{vendas.length}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {carregandoVendas ? (
+            <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin text-[#B89968]" /></div>
+          ) : vendas.length === 0 ? (
+            <div className="text-center py-16 text-[#9a7d50]">
+              <Tag size={36} className="mx-auto mb-3 opacity-30" />
+              <p className="text-base mb-1">Nenhuma venda avulsa neste período.</p>
+              <p className="text-sm">Clique em &quot;Nova Venda&quot; para registrar a venda de um produto sem agendamento.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-[#e8dcc4] overflow-hidden shadow-sm">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-[#faf5ee] border-b border-[#e8dcc4]">
+                    <th className="text-left px-4 py-2.5 text-[#9a7d50] font-medium">Data</th>
+                    <th className="text-left px-4 py-2.5 text-[#9a7d50] font-medium hidden sm:table-cell">Cliente</th>
+                    <th className="text-left px-4 py-2.5 text-[#9a7d50] font-medium hidden md:table-cell">Descrição</th>
+                    <th className="text-center px-4 py-2.5 text-[#9a7d50] font-medium hidden sm:table-cell">Itens</th>
+                    <th className="text-right px-4 py-2.5 text-[#9a7d50] font-medium">Total</th>
+                    <th className="px-2 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendas.map((v, idx) => (
+                    <React.Fragment key={v.id}>
+                      <tr
+                        onClick={() => setExpandidaVenda((prev) => { const next = new Set(prev); if (next.has(v.id)) next.delete(v.id); else next.add(v.id); return next; })}
+                        className={cn(
+                          "border-b border-[#e8dcc4] hover:bg-[#faf5ee] cursor-pointer transition-colors",
+                          idx === vendas.length - 1 && !expandidaVenda.has(v.id) ? "border-b-0" : ""
+                        )}
+                      >
+                        <td className="px-4 py-3 text-[#5a4530]">
+                          <p className="font-medium">{new Date(v.dataVenda).toLocaleDateString("pt-BR")}</p>
+                          {v.formaPagamento && <p className="text-xs text-[#9a7d50]">{v.formaPagamento}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-[#5a4530] hidden sm:table-cell">
+                          {v.cliente?.nome ?? <span className="text-[#9a7d50]/50">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-[#9a7d50] hidden md:table-cell text-sm truncate max-w-[180px]">
+                          {v.descricao || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-center hidden sm:table-cell">
+                          <span className="text-xs bg-[#faf5ee] text-[#9a7d50] border border-[#e8dcc4] px-2 py-0.5 rounded-full">
+                            {v.itens.length} {v.itens.length === 1 ? "item" : "itens"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-[#5a4530]">
+                          {v.totalLiquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          {v.desconto > 0 && (
+                            <p className="text-xs text-emerald-600 font-normal">−{v.desconto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} desc.</p>
+                          )}
+                        </td>
+                        <td className="px-2 py-3 text-[#9a7d50]">
+                          {expandidaVenda.has(v.id) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </td>
+                      </tr>
+                      {expandidaVenda.has(v.id) && (
+                        <tr className={cn("bg-[#faf5ee]/60 border-b border-[#e8dcc4]", idx === vendas.length - 1 ? "border-b-0" : "")}>
+                          <td colSpan={6} className="px-4 pb-3 pt-1">
+                            <div className="space-y-1">
+                              {v.itens.map((item) => (
+                                <div key={item.id} className="flex items-center gap-2 text-sm text-[#5a4530]">
+                                  <ArrowUpCircle size={12} className="text-red-400 flex-shrink-0" />
+                                  <span className="font-medium">{item.produto.nome}</span>
+                                  {item.produto.unidadeMedida && item.produto.unidadeMedida !== "unidade" && (
+                                    <span className="text-xs text-[#9a7d50]">({item.produto.unidadeMedida})</span>
+                                  )}
+                                  <span className="text-[#9a7d50]">× {item.quantidade}</span>
+                                  <span className="text-[#9a7d50]">@ R$ {item.precoUnitario.toFixed(2).replace(".", ",")}/un</span>
+                                  <span className="ml-auto font-medium">
+                                    {(item.quantidade * item.precoUnitario).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Modais */}
       <ModalProduto
         aberto={modalAberto}
@@ -1343,6 +1752,12 @@ export default function ProdutosPage() {
         produtos={produtos}
         fornecedores={fornecedores}
         onFornecedorCriado={(f) => setFornecedores((prev) => [...prev, f])}
+      />
+      <ModalNovaVenda
+        aberto={modalVendaAberto}
+        onFechar={() => setModalVendaAberto(false)}
+        onSalva={() => { carregarVendas(); carregar(busca); }}
+        produtos={produtos}
       />
     </div>
   );

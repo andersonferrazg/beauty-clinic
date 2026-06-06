@@ -43,6 +43,7 @@ model Tenant {
   formasPagamento      FormaPagamento[]
   fornecedores         Fornecedor[]
   comprasEstoque       CompraEstoque[]
+  vendasAvulsas        VendaAvulsa[]
 
   @@map("tenants")
 }
@@ -191,11 +192,12 @@ model Cliente {
   ativo            Boolean  @default(true)
   criadoEm        DateTime @default(now())
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  agendamentos Agendamento[]
-  prontuario   Prontuario?
-  orcamentos   Orcamento[]
-  leads        Lead[]
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agendamentos  Agendamento[]
+  prontuario    Prontuario?
+  orcamentos    Orcamento[]
+  leads         Lead[]
+  vendasAvulsas VendaAvulsa[]
 
   @@index([tenantId, telefone1])
   @@index([tenantId, cpf])
@@ -363,6 +365,7 @@ model Produto {
   itensOrcamento       ItemOrcamento[]
   servicosConsumidores Servico[]             @relation("ServicoConsome")
   itensCompra          ItemCompra[]
+  itensVendaAvulsa     ItemVendaAvulsa[]
 
   @@map("produtos")
 }
@@ -389,6 +392,7 @@ model Lancamento {
 
   tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   agendamento         Agendamento?         @relation("AgendamentoReceita")
+  vendaAvulsa         VendaAvulsa?         @relation("VendaAvulsaReceita")
   comissoesOrigem     ComissaoLancamento[] @relation("ReceitaOrigem")
   comissoesLiquidadas ComissaoLancamento[] @relation("DespesaPagamento")
 
@@ -739,4 +743,41 @@ model NotificacaoSistema {
 
   @@index([tenantId, lida])
   @@map("notificacoes_sistema")
+}
+
+// ─── Vendas Avulsas (venda de produto sem agendamento) ────────────────────────
+
+model VendaAvulsa {
+  id             String    @id @default(cuid())
+  tenantId       String
+  clienteId      String?
+  descricao      String?
+  dataVenda      DateTime
+  formaPagamento String?
+  valorTotal     Float
+  desconto       Float     @default(0)
+  totalLiquido   Float
+  lancamentoId   String?   @unique
+  criadoEm       DateTime  @default(now())
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cliente    Cliente?        @relation(fields: [clienteId], references: [id])
+  lancamento Lancamento?     @relation("VendaAvulsaReceita", fields: [lancamentoId], references: [id])
+  itens      ItemVendaAvulsa[]
+
+  @@index([tenantId, dataVenda])
+  @@map("vendas_avulsas")
+}
+
+model ItemVendaAvulsa {
+  id            String @id @default(cuid())
+  vendaId       String
+  produtoId     String
+  quantidade    Int
+  precoUnitario Float
+
+  venda   VendaAvulsa @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  produto Produto     @relation(fields: [produtoId], references: [id])
+
+  @@map("itens_venda_avulsa")
 }
