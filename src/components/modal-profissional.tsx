@@ -52,6 +52,7 @@ type Permissoes = {
   acessarRelatorios: boolean;
   acessarConfiguracoesTaxas: boolean;
   acessarNotasFiscais: boolean;
+  movimentarEstoque: boolean;
 };
 
 const PERMISSOES_PADRAO: Permissoes = {
@@ -73,6 +74,7 @@ const PERMISSOES_PADRAO: Permissoes = {
   acessarRelatorios: false,
   acessarConfiguracoesTaxas: true, // pode configurar taxas próprias de cartão
   acessarNotasFiscais: false,
+  movimentarEstoque: false,
 };
 
 const PERMISSOES_LABELS: { key: keyof Permissoes; label: string; grupo: string }[] = [
@@ -94,6 +96,7 @@ const PERMISSOES_LABELS: { key: keyof Permissoes; label: string; grupo: string }
   { key: "acessarRelatorios", label: "Acessar Relatórios", grupo: "MÓDULOS" },
   { key: "acessarConfiguracoesTaxas", label: "Configurar Taxas Próprias", grupo: "MÓDULOS" },
   { key: "acessarNotasFiscais", label: "Acessar Notas Fiscais", grupo: "MÓDULOS" },
+  { key: "movimentarEstoque", label: "Movimentar Estoque", grupo: "MÓDULOS" },
 ];
 
 function mascaraCpf(v: string) {
@@ -219,6 +222,7 @@ export function ModalProfissional({ aberto, onFechar, onSalvo, profissionalId }:
             acessarRelatorios: !!perm.acessarRelatorios,
             acessarConfiguracoesTaxas: !!(perm as Record<string, unknown>).acessarConfiguracoesTaxas,
             acessarNotasFiscais: !!(perm as Record<string, unknown>).acessarNotasFiscais,
+            movimentarEstoque: !!(perm as Record<string, unknown>).movimentarEstoque,
           });
         }
         if (p.profissionalTerceiro) setMostrarAvancado(true);

@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
           acessarRelatorios: usuario.permissoes.acessarRelatorios,
           acessarConfiguracoesTaxas: (usuario.permissoes as Record<string, unknown>).acessarConfiguracoesTaxas === true,
           acessarNotasFiscais: (usuario.permissoes as Record<string, unknown>).acessarNotasFiscais === true,
+          movimentarEstoque: (usuario.permissoes as Record<string, unknown>).movimentarEstoque === true,
         }
       : PERMISSOES_VAZIAS;
 

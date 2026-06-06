@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Multi-tenant ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Multi-tenant â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Tenant {
   id          String   @id @default(cuid())
@@ -66,7 +66,7 @@ model TenantConfig {
   @@map("tenant_configs")
 }
 
-// ─── Usuários ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ UsuÃ¡rios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Usuario {
   id             String   @id @default(cuid())
@@ -105,6 +105,7 @@ model UsuarioPermissao {
   acessarProntuarios        Boolean @default(false)
   acessarRelatorios         Boolean @default(false)
   acessarNotasFiscais       Boolean @default(false)
+  movimentarEstoque         Boolean @default(false)
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
@@ -124,7 +125,7 @@ model LogAcesso {
   @@map("logs_acesso")
 }
 
-// ─── Profissionais ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Profissionais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Profissional {
   id             String           @id @default(cuid())
@@ -149,7 +150,7 @@ model Profissional {
   possuiAgenda              Boolean @default(true)
   profissionalTerceiro      Boolean @default(false)
   agendamentoOnlineAtivo    Boolean @default(false)
-  configJsonCartao          String? // JSON config de parcelamento próprio (sobrepõe o global da clínica)
+  configJsonCartao          String? // JSON config de parcelamento prÃ³prio (sobrepÃµe o global da clÃ­nica)
   emailNotificacoes         String?
   ativo              Boolean @default(true)
   criadoEm        DateTime         @default(now())
@@ -169,7 +170,7 @@ model Profissional {
   @@map("profissionais")
 }
 
-// ─── Clientes ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Clientes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Cliente {
   id               String   @id @default(cuid())
@@ -200,7 +201,7 @@ model Cliente {
   @@map("clientes")
 }
 
-// ─── Serviços ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ ServiÃ§os â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Servico {
   id           String   @id @default(cuid())
@@ -227,7 +228,7 @@ model Servico {
   @@map("servicos")
 }
 
-// ─── Agendamentos ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Agendamentos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model StatusAgenda {
   id              String  @id @default(cuid())
@@ -314,7 +315,7 @@ model Bloqueio {
   @@map("bloqueios")
 }
 
-// ─── WhatsApp ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ WhatsApp â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model MensagemWpp {
   id            String    @id @default(cuid())
@@ -334,7 +335,7 @@ model MensagemWpp {
   @@map("mensagens_wpp")
 }
 
-// ─── Produtos ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Produtos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Produto {
   id            String   @id @default(cuid())
@@ -362,7 +363,7 @@ model Produto {
   @@map("produtos")
 }
 
-// ─── Financeiro ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Financeiro â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Lancamento {
   id              String    @id @default(cuid())
@@ -370,7 +371,7 @@ model Lancamento {
   tipo            String    // RECEITA | DESPESA
   categoria       String?
   descricao       String
-  valor           Float     // líquido (após taxa, se houver); igual ao bruto quando sem taxa
+  valor           Float     // lÃ­quido (apÃ³s taxa, se houver); igual ao bruto quando sem taxa
   valorBruto      Float?    // valor original antes da taxa (null = sem taxa)
   taxa            Float?    // R$ absoluto de taxa descontada
   percentualTaxa  Float?    // % aplicado
@@ -409,7 +410,7 @@ model Despesa {
   @@map("despesas")
 }
 
-// ─── Prontuários (Fase 2) ─────────────────────────────────────────────────────
+// â”€â”€â”€ ProntuÃ¡rios (Fase 2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Prontuario {
   id        String   @id @default(cuid())
@@ -430,7 +431,7 @@ model Procedimento {
   prontuarioId          String
   profissionalId        String
   data                  DateTime
-  tipo                  String   // Botox | Preenchimento Lábios | Rinomodelação | Harmonização | Outro
+  tipo                  String   // Botox | Preenchimento LÃ¡bios | RinomodelaÃ§Ã£o | HarmonizaÃ§Ã£o | Outro
   descricao             String?
   produtosUsados        String?
   anamnese              String?  // JSON serializado com respostas
@@ -461,19 +462,19 @@ model Foto {
   @@map("fotos")
 }
 
-// ─── Comissões e Estoque (Fase 3) ─────────────────────────────────────────────
+// â”€â”€â”€ ComissÃµes e Estoque (Fase 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model ComissaoLancamento {
   id                    String    @id @default(cuid())
   tenantId              String
-  lancamentoId          String    // RECEITA que originou a comissão
+  lancamentoId          String    // RECEITA que originou a comissÃ£o
   profissionalId        String
   valorBase             Float     // valor do atendimento que serviu de base
   percentual            Float?    // % aplicado (null se SALARIO_FIXO/INTEGRAL)
   valorComissao         Float     // resultado a pagar para a profissional
   pago                  Boolean   @default(false)
   pagoEm                DateTime?
-  lancamentoPagamentoId String?   // DESPESA criada ao pagar a comissão
+  lancamentoPagamentoId String?   // DESPESA criada ao pagar a comissÃ£o
   direcaoComissao       String    @default("CLINICA_PAGA")
   criadoEm              DateTime  @default(now())
 
@@ -505,7 +506,7 @@ model MovimentacaoEstoque {
   @@map("movimentacoes_estoque")
 }
 
-// ─── Orçamentos ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ OrÃ§amentos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Orcamento {
   id             String   @id @default(cuid())
@@ -561,7 +562,7 @@ model InteracaoOrcamento {
   @@map("interacoes_orcamento")
 }
 
-// ─── CRM / Pipeline de Leads ─────────────────────────────────────────────────
+// â”€â”€â”€ CRM / Pipeline de Leads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Lead {
   id               String   @id @default(cuid())
@@ -614,18 +615,18 @@ model MensagemPredefinida {
   @@map("mensagens_predefinidas")
 }
 
-// ─── Disponibilidade dos Profissionais (Agendamento Online) ───────────────────
+// â”€â”€â”€ Disponibilidade dos Profissionais (Agendamento Online) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model DisponibilidadeProfissional {
   id             String @id @default(cuid())
   tenantId       String
   profissionalId String
-  diaSemana      Int    // 0=domingo, 1=segunda, 2=terça, 3=quarta, 4=quinta, 5=sexta, 6=sábado
+  diaSemana      Int    // 0=domingo, 1=segunda, 2=terÃ§a, 3=quarta, 4=quinta, 5=sexta, 6=sÃ¡bado
   horaInicio     Int    // ex: 9 representa 09:00
   horaFim        Int    // ex: 18 representa 18:00
 
-  horaInicio2    Int?   // início do 2º período (ex: tarde)
-  horaFim2       Int?   // fim do 2º período
+  horaInicio2    Int?   // inÃ­cio do 2Âº perÃ­odo (ex: tarde)
+  horaFim2       Int?   // fim do 2Âº perÃ­odo
 
   profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
 
@@ -638,7 +639,7 @@ model DisponibilidadeData {
   id             String   @id @default(cuid())
   tenantId       String
   profissionalId String
-  data           DateTime // data específica (armazenada como meio-dia UTC)
+  data           DateTime // data especÃ­fica (armazenada como meio-dia UTC)
   tipo           String   // "DISPONIVEL" | "BLOQUEADO"
   horaInicio     Int?
   horaFim        Int?
@@ -652,7 +653,7 @@ model DisponibilidadeData {
   @@map("disponibilidades_data")
 }
 
-// ─── Formas de Pagamento ──────────────────────────────────────────────────────
+// â”€â”€â”€ Formas de Pagamento â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model FormaPagamento {
   id             String  @id @default(cuid())
@@ -661,7 +662,7 @@ model FormaPagamento {
   percentualTaxa Float   @default(0)
   ativa          Boolean @default(true)
   ordem          Int     @default(0)
-  configJson     String? // JSON config de parcelamento (só Cartão de Crédito)
+  configJson     String? // JSON config de parcelamento (sÃ³ CartÃ£o de CrÃ©dito)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -670,7 +671,7 @@ model FormaPagamento {
   @@map("formas_pagamento")
 }
 
-// ─── Notificações do Sistema (Agendamento Online) ─────────────────────────────
+// â”€â”€â”€ NotificaÃ§Ãµes do Sistema (Agendamento Online) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model NotificacaoSistema {
   id           String   @id @default(cuid())

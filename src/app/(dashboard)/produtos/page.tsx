@@ -78,10 +78,10 @@ const CAMPOS_VAZIOS = {
 };
 
 function ModalProduto({
-  aberto, onFechar, onSalvo, produtoId, produto, podeVerCusto,
+  aberto, onFechar, onSalvo, produtoId, produto, podeVerCusto, podeMovimentar,
 }: {
   aberto: boolean; onFechar: () => void; onSalvo: () => void;
-  produtoId?: string; produto?: Produto; podeVerCusto: boolean;
+  produtoId?: string; produto?: Produto; podeVerCusto: boolean; podeMovimentar: boolean;
 }) {
   const ehEdicao = !!produtoId;
   const [aba, setAba] = useState<"dados" | "movs">("dados");
@@ -210,10 +210,10 @@ function ModalProduto({
           <button onClick={onFechar} className="text-[#9a7d50] hover:text-[#5a4530]"><X size={20} /></button>
         </div>
 
-        {/* Abas — só em edição */}
+        {/* Abas — só em edição, Movimentações apenas se podeMovimentar */}
         {ehEdicao && (
           <div className="flex border-b border-[#e8dcc4] px-5">
-            {(["dados", "movs"] as const).map((a) => (
+            {(["dados", ...(podeMovimentar ? ["movs"] : [])] as ("dados" | "movs")[]).map((a) => (
               <button
                 key={a}
                 onClick={() => setAba(a)}
@@ -456,16 +456,18 @@ export default function ProdutosPage() {
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | undefined>();
   const [podeVerCusto, setPodeVerCusto] = useState(true);
+  const [podeMovimentar, setPodeMovimentar] = useState(false);
 
   useEffect(() => {
     getSessaoCliente().then((s: unknown) => {
-      const sessao = s as { permissoes?: { isAdmin?: boolean; acessarProdutos?: boolean; acessarFinanceiro?: boolean } } | null;
+      const sessao = s as { permissoes?: { isAdmin?: boolean; acessarProdutos?: boolean; acessarFinanceiro?: boolean; movimentarEstoque?: boolean } } | null;
       if (sessao?.permissoes) {
         if (!sessao.permissoes.isAdmin && !sessao.permissoes.acessarProdutos) {
           router.replace("/dashboard");
           return;
         }
         setPodeVerCusto(sessao.permissoes.isAdmin === true || sessao.permissoes.acessarFinanceiro === true);
+        setPodeMovimentar(sessao.permissoes.isAdmin === true || sessao.permissoes.movimentarEstoque === true);
       }
     }).catch(() => {});
   }, [router]);
@@ -701,6 +703,7 @@ export default function ProdutosPage() {
         produtoId={produtoSelecionado?.id}
         produto={produtoSelecionado}
         podeVerCusto={podeVerCusto}
+        podeMovimentar={podeMovimentar}
       />
     </div>
   );
