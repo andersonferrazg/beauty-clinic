@@ -547,6 +547,28 @@ export default function ProdutosPage() {
         </div>
       </div>
 
+      {/* KPI: Patrimônio total — só admin */}
+      {podeVerCusto && !carregando && produtos.length > 0 && (() => {
+        const patrimônio = produtos.reduce((s, p) => s + ((p.precoCusto ?? 0) * p.qtdEstoque), 0);
+        const comCusto = produtos.filter((p) => p.precoCusto != null).length;
+        return (
+          <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="bg-white rounded-xl border border-[#e8dcc4] px-4 py-3">
+              <p className="text-xs text-[#9a7d50] font-medium">Total de produtos</p>
+              <p className="text-xl font-semibold text-[#5a4530] mt-0.5">{produtos.length}</p>
+              <p className="text-xs text-[#9a7d50]">{comCusto} com custo cadastrado</p>
+            </div>
+            <div className="bg-white rounded-xl border border-[#e8dcc4] px-4 py-3">
+              <p className="text-xs text-[#9a7d50] font-medium">Patrimônio em estoque</p>
+              <p className="text-xl font-semibold text-[#5a4530] mt-0.5">
+                {patrimônio.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </p>
+              <p className="text-xs text-[#9a7d50]">custo × qtd em estoque</p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Alerta: estoque baixo */}
       {semEstoque.length > 0 && (
         <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
