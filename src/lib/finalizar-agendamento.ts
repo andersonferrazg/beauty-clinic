@@ -18,7 +18,12 @@ export async function processarStatusAgendamento(
   const agendamento = await prisma.agendamento.findFirst({
     where: { id: agendamentoId, tenantId },
     include: {
-      itens: { include: { servico: true, produto: true } },
+      itens: {
+        include: {
+          servico: true,
+          produto: { select: { id: true, nome: true, comissaoPercentual: true } },
+        },
+      },
       profissional: {
       select: {
         id: true,
@@ -63,7 +68,7 @@ type AgendamentoComItens = Awaited<ReturnType<typeof prisma.agendamento.findFirs
     preco: number;
     quantidade: number;
     servico: { id: string; nome: string; produtoConsumidoId: string | null; qtdConsumida: number | null } | null;
-    produto: { id: string; nome: string } | null;
+    produto: { id: string; nome: string; comissaoPercentual: number | null } | null;
   }>;
   profissional: {
     id: string;
@@ -185,6 +190,10 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
 
       // Base para comissão: bruto ou líquido conforme configuração da profissional
       const prof = agendamento.profissional;
+      // Fator de liquidez: se comissaoSobre=LIQUIDO, reduz proporcionalmente
+      const liquidFactor = valorBruto > 0 && prof.comissaoSobre === "LIQUIDO"
+        ? valorLiquido / valorBruto
+        : 1;
       const baseComissao = prof.comissaoSobre === "LIQUIDO" ? valorLiquido : valorBruto;
 
       let valorComissao = 0;
@@ -197,8 +206,22 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
         (prof.tipoComissao === "PERCENTUAL" || prof.tipoComissao === "MISTO") &&
         prof.percentualComissao
       ) {
-        valorComissao = baseComissao * (prof.percentualComissao / 100);
-        percentualUsado = prof.percentualComissao;
+        // Calcula comissão por item: produto com taxa própria usa ela; demais usam taxa da profissional
+        const temTaxaEspecifica = agendamento.itens.some(
+          (it) => it.produto?.comissaoPercentual != null,
+        );
+        if (temTaxaEspecifica) {
+          let soma = 0;
+          for (const item of agendamento.itens) {
+            const taxa = item.produto?.comissaoPercentual ?? prof.percentualComissao ?? 0;
+            soma += item.preco * item.quantidade * (taxa / 100) * liquidFactor;
+          }
+          valorComissao = Math.round(soma * 100) / 100;
+          percentualUsado = null; // misto — não há um único percentual
+        } else {
+          valorComissao = baseComissao * (prof.percentualComissao / 100);
+          percentualUsado = prof.percentualComissao;
+        }
       }
       // SALARIO_FIXO não gera comissão por atendimento
 

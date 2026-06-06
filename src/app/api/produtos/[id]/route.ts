@@ -14,6 +14,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       categoria: body.categoria ?? null,
       precoVenda: body.precoVenda != null ? Number(body.precoVenda) : 0,
       precoCusto: body.precoCusto != null ? Number(body.precoCusto) : null,
+      comissaoPercentual: body.comissaoPercentual != null ? Number(body.comissaoPercentual) : null,
       qtdEstoque: body.qtdEstoque != null ? Number(body.qtdEstoque) : 0,
       qtdMinima: body.qtdMinima != null ? Number(body.qtdMinima) : 0,
       patrimonio: body.patrimonio ?? false,

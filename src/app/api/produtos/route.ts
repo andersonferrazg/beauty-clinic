@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
   });
 
   if (!verCusto) {
-    return NextResponse.json(produtos.map(({ precoCusto: _c, ...p }) => p));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return NextResponse.json(produtos.map(({ precoCusto: _c, comissaoPercentual: _cp, ...p }) => p));
   }
   return NextResponse.json(produtos);
 }
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
       categoria: body.categoria ?? null,
       precoVenda: body.precoVenda ? Number(body.precoVenda) : 0,
       precoCusto: body.precoCusto ? Number(body.precoCusto) : null,
+      comissaoPercentual: body.comissaoPercentual ? Number(body.comissaoPercentual) : null,
       qtdEstoque: body.qtdEstoque ? Number(body.qtdEstoque) : 0,
       qtdMinima: body.qtdMinima ? Number(body.qtdMinima) : 0,
       patrimonio: body.patrimonio ?? false,

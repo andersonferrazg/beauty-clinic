@@ -18,6 +18,7 @@ type Produto = {
   categoria: string | null;
   precoVenda: number;
   precoCusto: number | null;
+  comissaoPercentual: number | null;
   qtdEstoque: number;
   qtdMinima: number;
   patrimonio: boolean;
@@ -72,7 +73,7 @@ function statusValidade(dataValidade: string | null): "vencido" | "alerta" | "ok
 // ─── Modal de Produto (Dados + Movimentações) ────────────────────────────────
 
 const CAMPOS_VAZIOS = {
-  nome: "", categoria: "", precoVenda: "", precoCusto: "",
+  nome: "", categoria: "", precoVenda: "", precoCusto: "", comissaoPercentual: "",
   qtdEstoque: "0", qtdMinima: "0", patrimonio: false, dataValidade: "",
   ehInjetavel: false, unidadeMedida: "unidade", corMarcacao: "#A78BFA",
 };
@@ -110,6 +111,7 @@ function ModalProduto({
       setCampos({
         nome: produto.nome, categoria: produto.categoria ?? "",
         precoVenda: produto.precoVenda.toString(), precoCusto: produto.precoCusto?.toString() ?? "",
+        comissaoPercentual: produto.comissaoPercentual?.toString() ?? "",
         qtdEstoque: produto.qtdEstoque.toString(), qtdMinima: produto.qtdMinima.toString(),
         patrimonio: produto.patrimonio, dataValidade: toInputDate(produto.dataValidade),
         ehInjetavel: produto.ehInjetavel ?? false,
@@ -138,6 +140,7 @@ function ModalProduto({
       nome: campos.nome.trim(), categoria: campos.categoria || null,
       precoVenda: parseFloat(campos.precoVenda) || 0,
       precoCusto: campos.precoCusto ? parseFloat(campos.precoCusto) : null,
+      comissaoPercentual: campos.comissaoPercentual ? parseFloat(campos.comissaoPercentual) : null,
       qtdEstoque: parseInt(campos.qtdEstoque) || 0,
       qtdMinima: parseInt(campos.qtdMinima) || 0,
       patrimonio: campos.patrimonio,
@@ -251,6 +254,22 @@ function ModalProduto({
                 </div>
               )}
             </div>
+            {podeVerCusto && (
+              <div>
+                <Label className="text-xs text-[#9a7d50] mb-1 block">Comissão por produto (%)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={campos.comissaoPercentual}
+                  onChange={(e) => set("comissaoPercentual", e.target.value)}
+                  placeholder="Deixe vazio para usar a taxa da profissional"
+                  className="border-[#B89968]/30"
+                />
+                <p className="text-[10px] text-[#9a7d50] mt-1">Quando preenchido, substitui o % de comissão da profissional para este produto.</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-[#9a7d50] mb-1 block">Estoque atual</Label>
