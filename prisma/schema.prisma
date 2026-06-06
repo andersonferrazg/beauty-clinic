@@ -104,6 +104,7 @@ model UsuarioPermissao {
   verPagamentosComissao     Boolean @default(false)
   acessarProntuarios        Boolean @default(false)
   acessarRelatorios         Boolean @default(false)
+  acessarNotasFiscais       Boolean @default(false)
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
@@ -263,6 +264,8 @@ model Agendamento {
   dataRealizado         DateTime?
   lancamentoId          String?   @unique
   origem                String?   // "manual" | "online"
+  nfEmitida             Boolean   @default(false)
+  nfEmitidaEm           DateTime?
   criadoEm             DateTime  @default(now())
   atualizadoEm         DateTime  @updatedAt
 
@@ -278,6 +281,7 @@ model Agendamento {
 
   @@index([tenantId, inicio])
   @@index([tenantId, profissionalId, inicio])
+  @@index([tenantId, dataRealizado])
   @@map("agendamentos")
 }
 

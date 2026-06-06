@@ -19,6 +19,7 @@ export type Permissoes = {
   acessarProntuarios: boolean;
   acessarRelatorios: boolean;
   acessarConfiguracoesTaxas: boolean;
+  acessarNotasFiscais: boolean;
 };
 
 export const PERMISSOES_VAZIAS: Permissoes = {
@@ -39,6 +40,7 @@ export const PERMISSOES_VAZIAS: Permissoes = {
   acessarProntuarios: false,
   acessarRelatorios: false,
   acessarConfiguracoesTaxas: false,
+  acessarNotasFiscais: false,
 };
 
 export type Sessao = {
