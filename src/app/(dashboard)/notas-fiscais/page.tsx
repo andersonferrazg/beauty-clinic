@@ -23,7 +23,7 @@ type AtendimentoNF = {
   nfEmitidaEm: string | null;
 };
 
-type Totais = { valor: number; count: number; emitidas: number };
+type Totais = { valor: number; count: number; emitidas: number; valorEmitidas: number };
 type BreakdownFormas = Record<string, { valor: number; count: number }>;
 
 type Dados = {
@@ -406,8 +406,8 @@ export default function NotasFiscaisPage() {
           </div>
           <div className="bg-white rounded-xl border border-[#e8dcc4] p-4">
             <p className="text-xs text-[#9a7d50] font-medium mb-1">Notas emitidas</p>
-            <p className="text-lg font-semibold text-emerald-600">{totais.emitidas}</p>
-            <p className="text-xs text-[#9a7d50]">de {totais.count} no total</p>
+            <p className="text-lg font-semibold text-emerald-600">{fmt(totais.valorEmitidas)}</p>
+            <p className="text-xs text-[#9a7d50]">{totais.emitidas} de {totais.count} emitidas</p>
           </div>
           <div className="bg-white rounded-xl border border-[#e8dcc4] p-4">
             <p className="text-xs text-[#9a7d50] font-medium mb-1">A emitir</p>

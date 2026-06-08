@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
   // Calcula totais e breakdown
   let totalValor = 0;
   let totalEmitidas = 0;
+  let valorEmitidas = 0;
   const breakdownFormas: Record<string, { valor: number; count: number }> = {};
 
   const linhas = atendimentos.map((a) => {
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
     const forma = a.formaPagamento ?? a.lancamento?.formaPagamento ?? "—";
 
     totalValor += valor;
-    if (a.nfEmitida) totalEmitidas++;
+    if (a.nfEmitida) { totalEmitidas++; valorEmitidas += valor; }
     if (!breakdownFormas[forma]) breakdownFormas[forma] = { valor: 0, count: 0 };
     breakdownFormas[forma].valor += valor;
     breakdownFormas[forma].count++;
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     atendimentos: linhas,
-    totais: { valor: totalValor, count: linhas.length, emitidas: totalEmitidas },
+    totais: { valor: totalValor, count: linhas.length, emitidas: totalEmitidas, valorEmitidas },
     breakdownFormas,
   });
 }
