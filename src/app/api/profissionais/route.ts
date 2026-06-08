@@ -15,9 +15,14 @@ const PERMISSOES_KEYS = [
   "acessarDespesas",
   "acessarFinanceiro",
   "verComissoesReceber",
+  "verComissoesPagar",
+  "marcarComissaoPaga",
   "verPagamentosComissao",
   "acessarProntuarios",
   "acessarRelatorios",
+  "acessarConfiguracoesTaxas",
+  "acessarNotasFiscais",
+  "movimentarEstoque",
 ] as const;
 
 type PermissaoKey = (typeof PERMISSOES_KEYS)[number];
@@ -36,9 +41,14 @@ function montarPermissoes(input: PermissoesInput | undefined) {
     acessarDespesas: false,
     acessarFinanceiro: false,
     verComissoesReceber: false,
+    verComissoesPagar: false,
+    marcarComissaoPaga: false,
     verPagamentosComissao: false,
     acessarProntuarios: false,
     acessarRelatorios: false,
+    acessarConfiguracoesTaxas: false,
+    acessarNotasFiscais: false,
+    movimentarEstoque: false,
   };
   if (!input) return base;
   for (const k of PERMISSOES_KEYS) {

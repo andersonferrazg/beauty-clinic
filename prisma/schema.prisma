@@ -104,9 +104,12 @@ model UsuarioPermissao {
   acessarDespesas           Boolean @default(false)
   acessarFinanceiro         Boolean @default(false)
   verComissoesReceber       Boolean @default(false)
+  verComissoesPagar         Boolean @default(false)
+  marcarComissaoPaga        Boolean @default(false)
   verPagamentosComissao     Boolean @default(false)
   acessarProntuarios        Boolean @default(false)
   acessarRelatorios         Boolean @default(false)
+  acessarConfiguracoesTaxas Boolean @default(false)
   acessarNotasFiscais       Boolean @default(false)
   movimentarEstoque         Boolean @default(false)
 
