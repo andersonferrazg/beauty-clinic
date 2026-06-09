@@ -3,10 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
-const LIMIAR = 80; // pixels para acionar o reload
+const LIMIAR = 80;
+
+// Detecta se algum modal/overlay está aberto na tela.
+// Todos os modais do sistema usam className="fixed inset-0 z-50 ..."
+function temModalAberto(): boolean {
+  return document.querySelectorAll(".fixed.inset-0").length > 0;
+}
 
 export function PullToRefresh() {
-  const [arrasto, setArrasto] = useState(0); // 0–LIMIAR
+  const [arrasto, setArrasto] = useState(0);
   const [recarregando, setRecarregando] = useState(false);
   const inicioY = useRef<number | null>(null);
   const arrastando = useRef(false);
@@ -19,8 +25,9 @@ export function PullToRefresh() {
     function onTouchStart(e: TouchEvent) {
       const main = getMain();
       if (!main) return;
-      // Só ativa se o scroll do main está no topo
       if (main.scrollTop > 2) return;
+      // Não ativar se há modal/overlay aberto
+      if (temModalAberto()) return;
       inicioY.current = e.touches[0].clientY;
       arrastando.current = false;
     }
@@ -30,15 +37,16 @@ export function PullToRefresh() {
       const main = getMain();
       if (!main || main.scrollTop > 2) { inicioY.current = null; return; }
 
+      // Cancela se um modal foi aberto durante o arrasto
+      if (temModalAberto()) { inicioY.current = null; setArrasto(0); return; }
+
       const delta = e.touches[0].clientY - inicioY.current;
       if (delta <= 0) { inicioY.current = null; return; }
 
       arrastando.current = true;
-      // Resistência: movimento real é menor que o dedo
       const progresso = Math.min(delta * 0.5, LIMIAR);
       setArrasto(progresso);
 
-      // Previne scroll nativo enquanto está arrastando para baixo
       if (delta > 8) e.preventDefault();
     }
 
