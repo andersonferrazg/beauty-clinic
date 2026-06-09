@@ -468,7 +468,7 @@ export default function ConfiguracoesPage() {
           <div>
             <Label className="text-xs text-[#9a7d50] mb-1 block">Link do sistema de Nota Fiscal</Label>
             <Input value={urlNFSe} onChange={(e) => setUrlNFSe(e.target.value)} placeholder="https://..." className="border-[#B89968]/30" />
-            <p className="text-xs text-[#9a7d50] mt-1">Ex: Florianópolis usa <span className="font-mono">e-gov.betha.com.br/e-nota</span></p>
+            <p className="text-xs text-[#9a7d50] mt-1">Ex: Dourados usa <span className="font-mono">e-gov.betha.com.br/e-nota</span></p>
           </div>
         </div>
       )}

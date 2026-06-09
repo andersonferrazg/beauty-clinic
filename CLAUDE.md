@@ -917,7 +917,7 @@ Profissional vê: subtitle "Minhas comissões", somente as próprias entradas, K
 
 ## Contexto do negócio
 
-**Clínica:** LB Beauty Clinic — Florianópolis/SC
+**Clínica:** LB Beauty Clinic — R. Toshinobu Katayama, 225 - Sala 03 - Centro, Dourados/MS, 79806-030
 
 **Profissionais:**
 | Nome | Área | Serviços principais |

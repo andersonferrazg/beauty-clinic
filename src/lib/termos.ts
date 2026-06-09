@@ -363,7 +363,7 @@ CLÁUSULA 6 — PROTEÇÃO DE DADOS (LGPD)
 Os dados pessoais e de saúde da CONTRATANTE são coletados e tratados em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), sendo utilizados exclusivamente para fins de atendimento e registro de saúde.
 
 CLÁUSULA 7 — FORO
-Fica eleito o foro da comarca de Florianópolis/SC para dirimir quaisquer questões oriundas do presente contrato.
+Fica eleito o foro da comarca de Dourados/MS para dirimir quaisquer questões oriundas do presente contrato.
 
 Declaro ter lido e compreendido todas as cláusulas deste contrato, concordando integralmente com seus termos.`,
   },
