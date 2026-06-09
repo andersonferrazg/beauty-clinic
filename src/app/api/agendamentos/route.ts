@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
           servico: { select: { id: true, nome: true, cor: true, duracaoMin: true } },
         },
       },
+      pagamentos: true,
     },
     orderBy: { inicio: "asc" },
   });
@@ -76,7 +77,12 @@ export async function POST(req: NextRequest) {
     itens, // [{ servicoId, preco }]
     tipo,  // "agendamento" | "bloqueio"
     motivoBloqueio,
+    pagamentos, // [{ formaPagamento, valor, parcelas }] — multi-pagamento
   } = body;
+
+  // Normaliza forma de pagamento: se veio array de splits, usa o primeiro como campo simples (retrocompat)
+  const formaPrincipal = pagamentos?.length ? pagamentos[0].formaPagamento : (formaPagamento || null);
+  const parcelasPrincipal = pagamentos?.length ? (pagamentos[0].parcelas ?? 1) : (parcelas ? Number(parcelas) : 1);
 
   // Agendamento normal
   const agendamento = await prisma.agendamento.create({
@@ -89,15 +95,24 @@ export async function POST(req: NextRequest) {
       fim: new Date(fim),
       corCustom: corCustom || null,
       observacao: observacao || motivoBloqueio || null,
-      formaPagamento: formaPagamento || null,
+      formaPagamento: formaPrincipal,
       valorTotal: valorTotal || null,
-      parcelas: parcelas ? Number(parcelas) : 1,
+      parcelas: parcelasPrincipal,
       itens: itens?.length
         ? {
             create: itens.map((item: { servicoId: string; preco: number }) => ({
               servicoId: item.servicoId,
               preco: item.preco,
               quantidade: 1,
+            })),
+          }
+        : undefined,
+      pagamentos: pagamentos?.length
+        ? {
+            create: pagamentos.map((p: { formaPagamento: string; valor: number; parcelas?: number }) => ({
+              formaPagamento: p.formaPagamento,
+              valor: p.valor,
+              parcelas: p.parcelas ?? 1,
             })),
           }
         : undefined,

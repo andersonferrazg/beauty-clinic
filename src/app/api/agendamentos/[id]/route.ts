@@ -14,6 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       profissional: true,
       status: true,
       itens: { include: { servico: true } },
+      pagamentos: true,
     },
   });
 
@@ -43,6 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     confirmacaoManualPendente,
     nfEmitida,
     nfEmitidaEm,
+    pagamentos, // [{ formaPagamento, valor, parcelas }] — multi-pagamento
   } = body;
 
   // tipo é ignorado; motivoBloqueio vai para observacao (igual ao POST)
@@ -78,6 +80,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             },
           }
         : {}),
+      ...(pagamentos !== undefined
+        ? {
+            pagamentos: {
+              deleteMany: {},
+              create: pagamentos.map((p: { formaPagamento: string; valor: number; parcelas?: number }) => ({
+                formaPagamento: p.formaPagamento,
+                valor: p.valor,
+                parcelas: p.parcelas ?? 1,
+              })),
+            },
+          }
+        : {}),
+      // Se vieram splits, atualiza forma principal com o primeiro split
+      ...(pagamentos?.length
+        ? { formaPagamento: pagamentos[0].formaPagamento, parcelas: pagamentos[0].parcelas ?? 1 }
+        : {}),
     },
     include: {
       cliente: { select: { id: true, nome: true } },
@@ -106,14 +124,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       status: true,
       itens: { include: { servico: true } },
       lancamento: true,
+      pagamentos: true,
     },
   });
 
-  // Se formaPagamento mudou e o agendamento já tem lançamento, sincroniza o lançamento
-  if (formaPagamento !== undefined && atualizado?.lancamentoId) {
+  // Se pagamento mudou e o agendamento já tem lançamento, sincroniza o lançamento
+  if ((formaPagamento !== undefined || pagamentos !== undefined) && atualizado?.lancamentoId) {
+    const novaFormaLanc = pagamentos?.length
+      ? (pagamentos.length > 1 ? "Misto" : pagamentos[0].formaPagamento)
+      : (formaPagamento || null);
     await prisma.lancamento.update({
       where: { id: atualizado.lancamentoId },
-      data: { formaPagamento: formaPagamento || null },
+      data: { formaPagamento: novaFormaLanc },
     });
   }
 

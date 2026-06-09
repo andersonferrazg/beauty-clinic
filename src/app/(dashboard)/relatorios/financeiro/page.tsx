@@ -20,6 +20,7 @@ type Lancamento = {
   vencimento: string | null;
   criadoEm: string;
   projetado?: boolean;
+  pagamentos?: { formaPagamento: string; valor: number }[];
 };
 
 type Comissao = {
@@ -384,8 +385,24 @@ export default function RelatorioFinanceiroPage() {
 
   // Breakdown de formas de pagamento (usa apenas receitas PAGAS — projetos sem pago=true não contam)
   const receitasPagas = todasReceitas.filter(l => l.pago);
+
+  // Para lancamentos "Misto", expande os splits para calcular o breakdown correto
+  function valorPorForma(lancamentos: Lancamento[], forma: string): number {
+    return lancamentos.reduce((soma, l) => {
+      if (l.formaPagamento === "Misto" && l.pagamentos?.length) {
+        return soma + l.pagamentos.filter(p => p.formaPagamento === forma).reduce((s, p) => {
+          // Calcula a proporção do split em relação ao total bruto do lancamento
+          const totalSplits = l.pagamentos!.reduce((t, sp) => t + sp.valor, 0);
+          const proporcao = totalSplits > 0 ? p.valor / totalSplits : 0;
+          return s + l.valor * proporcao;
+        }, 0);
+      }
+      return soma + (l.formaPagamento === forma ? l.valor : 0);
+    }, 0);
+  }
+
   const breakdownFormas = FORMAS_BREAKDOWN.map(({ key, label, Icon }) => {
-    const valor = receitasPagas.filter(l => l.formaPagamento === key).reduce((s, l) => s + l.valor, 0);
+    const valor = valorPorForma(receitasPagas, key);
     const pct   = totalReceitasPago > 0 ? (valor / totalReceitasPago) * 100 : 0;
     return { label, valor, pct, Icon, semForma: false };
   });

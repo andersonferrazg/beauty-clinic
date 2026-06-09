@@ -133,6 +133,9 @@ export function ModalAgendamento({
   const [motivoBloqueio, setMotivoBloqueio] = useState("");
   const [diaInteiro, setDiaInteiro] = useState(false);
   const [horaFimBloqueio, setHoraFimBloqueio] = useState("10:00");
+  type SplitPagamento = { formaPagamento: string; valor: number; parcelas: number };
+  const [pagamentos, setPagamentos] = useState<SplitPagamento[]>([]);
+  // legado — mantido para compatibilidade com bloqueios e edições antigas sem splits
   const [formaPagamento, setFormaPagamento] = useState("");
   const [parcelas, setParcelas] = useState(1);
   const [itens, setItens] = useState<ItemServico[]>([]);
@@ -246,7 +249,16 @@ export function ModalAgendamento({
         setDataStr(dataParaLocalStr(d));
         setHoraStr(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
         setObservacao(ag.observacao ?? "");
-        setFormaPagamento(ag.formaPagamento ?? "");
+        if (ag.pagamentos?.length) {
+          setPagamentos(ag.pagamentos.map((p: { formaPagamento: string; valor: number; parcelas: number }) => ({
+            formaPagamento: p.formaPagamento,
+            valor: p.valor,
+            parcelas: p.parcelas ?? 1,
+          })));
+          setFormaPagamento(ag.pagamentos[0].formaPagamento);
+        } else {
+          setFormaPagamento(ag.formaPagamento ?? "");
+        }
         setParcelas(ag.parcelas ?? 1);
         setMotivoBloqueio(ag.motivoBloqueio ?? "");
         setItens(
@@ -282,6 +294,7 @@ export function ModalAgendamento({
       setHoraFimBloqueio("10:00");
       setFormaPagamento("");
       setParcelas(1);
+      setPagamentos([]);
       setCorCustom("");
       setErro("");
       setMaisOpcoes(false);
@@ -372,10 +385,19 @@ export function ModalAgendamento({
     if (tipo === "agendamento" && itens.length === 0) { setErro("Adicione pelo menos um serviço."); return; }
     // Forma de pagamento obrigatória ao finalizar
     const statusFinalizado = statusOpcoes.find((s) => s.nome === "Finalizado");
-    if (tipo === "agendamento" && statusId && statusFinalizado && statusId === statusFinalizado.id && !formaPagamento) {
+    const temPagamento = pagamentos.length > 0 ? pagamentos.some(p => p.formaPagamento) : !!formaPagamento;
+    if (tipo === "agendamento" && statusId && statusFinalizado && statusId === statusFinalizado.id && !temPagamento) {
       setErroPagamento(true);
       setErro("Selecione a forma de pagamento para finalizar o atendimento.");
       return;
+    }
+    // Validar que soma dos splits bate com o total (tolerância de R$0,01)
+    if (pagamentos.length > 1) {
+      const somaSplits = pagamentos.reduce((s, p) => s + (p.valor || 0), 0);
+      if (Math.abs(somaSplits - totalServicos) > 0.01) {
+        setErro(`A soma das formas de pagamento (R$ ${somaSplits.toFixed(2).replace(".", ",")}) não bate com o total (R$ ${totalServicos.toFixed(2).replace(".", ",")}).`);
+        return;
+      }
     }
     setErroPagamento(false);
     setErro("");
@@ -403,8 +425,9 @@ export function ModalAgendamento({
           corCustom: corCustom || null,
           observacao: tipo === "agendamento" ? observacao : null,
           motivoBloqueio: tipo === "bloqueio" ? motivoBloqueio : null,
-          formaPagamento: formaPagamento || null,
-          parcelas: (formaPagamento === "Cartão de Crédito" || formaPagamento === "Link de Pagamento") ? parcelas : 1,
+          formaPagamento: pagamentos.length === 1 ? pagamentos[0].formaPagamento : (formaPagamento || null),
+          parcelas: pagamentos.length === 1 ? (pagamentos[0].parcelas ?? 1) : ((formaPagamento === "Cartão de Crédito" || formaPagamento === "Link de Pagamento") ? parcelas : 1),
+          pagamentos: pagamentos.length > 0 ? pagamentos : undefined,
           valorTotal: totalServicos || null,
           itens: tipo === "agendamento"
             ? itens.filter((i) => i.tipo === "servico").map(({ servicoId, preco }) => ({ servicoId, preco }))
@@ -436,7 +459,8 @@ export function ModalAgendamento({
 
   const statusFinalizadoObj = statusOpcoes.find((s) => s.nome === "Finalizado");
   const exigePagamento = tipo === "agendamento" && !!statusFinalizadoObj && statusId === statusFinalizadoObj.id;
-  const pagamentoFaltando = exigePagamento && !formaPagamento;
+  const temQualquerPagamento = pagamentos.length > 0 ? pagamentos.some(p => p.formaPagamento) : !!formaPagamento;
+  const pagamentoFaltando = exigePagamento && !temQualquerPagamento;
 
   if (!aberto) return null;
 
@@ -880,124 +904,232 @@ export function ModalAgendamento({
             </div>
           )}
 
-          {/* Forma de Pagamento — sempre visível */}
+          {/* Forma de Pagamento — multi-split */}
           {tipo === "agendamento" && formasPgto.length > 0 && (
             <div className={cn("space-y-2", pagamentoFaltando && "rounded-lg border border-red-300 bg-red-50/50 p-2")}>
-              <Label className={cn("text-[#5a4530]", pagamentoFaltando && "text-red-600")}>
-                Forma de Pagamento
-                {pagamentoFaltando && <span className="ml-1 text-xs font-normal text-red-500">— obrigatória para finalizar</span>}
-              </Label>
-              <div className="flex flex-wrap gap-1.5">
-                {formasPgto.map((f) => (
+              <div className="flex items-center justify-between">
+                <Label className={cn("text-[#5a4530]", pagamentoFaltando && "text-red-600")}>
+                  Forma de Pagamento
+                  {pagamentoFaltando && <span className="ml-1 text-xs font-normal text-red-500">— obrigatória para finalizar</span>}
+                </Label>
+                {pagamentos.length === 0 && (
                   <button
-                    key={f.id}
                     type="button"
                     onClick={() => {
-                      const novaForma = formaPagamento === f.nome ? "" : f.nome;
-                      setFormaPagamento(novaForma);
-                      setParcelas(1);
+                      setPagamentos([{ formaPagamento: "", valor: totalServicos, parcelas: 1 }]);
                       setErroPagamento(false);
                     }}
-                    className={cn(
-                      "px-3 py-1 rounded-full text-xs border transition-colors",
-                      formaPagamento === f.nome
-                        ? "bg-[#B89968] text-white border-[#B89968]"
-                        : "border-[#e8dcc4] text-[#9a7d50] hover:border-[#B89968]/50"
-                    )}
+                    className="text-xs text-[#B89968] border border-[#B89968]/40 px-2 py-0.5 rounded-md hover:bg-[#B89968]/10 font-medium"
                   >
-                    {f.nome}
+                    + ADICIONAR
                   </button>
-                ))}
+                )}
               </div>
 
-              {/* Parcelamento — Cartão de Crédito e Link de Pagamento */}
-              {(formaPagamento === "Cartão de Crédito" || formaPagamento === "Link de Pagamento") && (() => {
+              {/* Modo legado (sem splits): pílulas simples */}
+              {pagamentos.length === 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {formasPgto.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => {
+                        const novaForma = formaPagamento === f.nome ? "" : f.nome;
+                        setFormaPagamento(novaForma);
+                        setParcelas(1);
+                        setErroPagamento(false);
+                      }}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs border transition-colors",
+                        formaPagamento === f.nome
+                          ? "bg-[#B89968] text-white border-[#B89968]"
+                          : "border-[#e8dcc4] text-[#9a7d50] hover:border-[#B89968]/50"
+                      )}
+                    >
+                      {f.nome}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Parcelamento legado */}
+              {pagamentos.length === 0 && (formaPagamento === "Cartão de Crédito" || formaPagamento === "Link de Pagamento") && (() => {
                 const forma = formasPgto.find((f) => f.nome === formaPagamento);
                 const profSelecionada = profissionais.find((p) => p.id === profissionalId);
-                // Config da profissional tem prioridade, mas só para Cartão de Crédito
                 const configJsonAtivo = formaPagamento === "Cartão de Crédito"
                   ? (profSelecionada?.configJsonCartao ?? forma?.configJson ?? null)
                   : (forma?.configJson ?? null);
                 let config: { maxParcelas: number; taxas: Array<{ parcelas: number; taxaPct: number }> } | null = null;
-                if (configJsonAtivo) {
-                  try { config = JSON.parse(configJsonAtivo); } catch {}
-                }
+                if (configJsonAtivo) { try { config = JSON.parse(configJsonAtivo); } catch {} }
                 if (!config) return null;
                 return (
                   <div className="space-y-2 pl-1">
-                    {/* Toggle À Vista / Parcelado */}
                     <div className="inline-flex rounded-lg border border-[#e8dcc4] overflow-hidden text-xs">
-                      <button
-                        type="button"
-                        onClick={() => setParcelas(1)}
-                        className={cn("px-3 py-1.5 transition-colors", parcelas === 1 ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#faf5ee]")}
-                      >
-                        À Vista
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { if (parcelas === 1) setParcelas(2); }}
-                        className={cn("px-3 py-1.5 transition-colors border-l border-[#e8dcc4]", parcelas > 1 ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#faf5ee]")}
-                      >
-                        Parcelado
-                      </button>
+                      <button type="button" onClick={() => setParcelas(1)} className={cn("px-3 py-1.5 transition-colors", parcelas === 1 ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#faf5ee]")}>À Vista</button>
+                      <button type="button" onClick={() => { if (parcelas === 1) setParcelas(2); }} className={cn("px-3 py-1.5 transition-colors border-l border-[#e8dcc4]", parcelas > 1 ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#faf5ee]")}>Parcelado</button>
                     </div>
-
-                    {/* Dropdown de parcelas */}
                     {parcelas > 1 && (
-                      <select
-                        value={parcelas}
-                        onChange={(e) => setParcelas(Number(e.target.value))}
-                        className="w-full border border-[#e8dcc4] rounded-lg px-3 py-2 text-sm text-[#3d2c1e] bg-white focus:outline-none focus:ring-1 focus:ring-[#B89968]"
-                      >
-                        {Array.from({ length: config.maxParcelas - 1 }, (_, i) => i + 2).map((n) => {
-                          const valorParcela = totalServicos > 0
-                            ? `R$ ${(totalServicos / n).toFixed(2).replace(".", ",")}`
-                            : "—";
-                          return (
-                            <option key={n} value={n}>{n}x de {valorParcela}</option>
-                          );
-                        })}
+                      <select value={parcelas} onChange={(e) => setParcelas(Number(e.target.value))} className="w-full border border-[#e8dcc4] rounded-lg px-3 py-2 text-sm text-[#3d2c1e] bg-white focus:outline-none focus:ring-1 focus:ring-[#B89968]">
+                        {Array.from({ length: config.maxParcelas - 1 }, (_, i) => i + 2).map((n) => (
+                          <option key={n} value={n}>{n}x de {totalServicos > 0 ? `R$ ${(totalServicos / n).toFixed(2).replace(".", ",")}` : "—"}</option>
+                        ))}
                       </select>
                     )}
-
-                    {/* Resumo */}
                     {totalServicos > 0 && (() => {
                       const taxaConf = config.taxas.find((t) => t.parcelas === parcelas);
                       const taxaPct = taxaConf?.taxaPct ?? 0;
-                      if (taxaPct === 0) return (
-                        <p className="text-xs text-[#9a7d50]">
-                          Líquido: <span className="font-semibold text-[#5a4530]">R$ {totalServicos.toFixed(2).replace(".", ",")}</span>
-                          {parcelas > 1 && <span> · {parcelas}x de R$ {(totalServicos / parcelas).toFixed(2).replace(".", ",")}</span>}
-                        </p>
-                      );
+                      if (taxaPct === 0) return <p className="text-xs text-[#9a7d50]">Líquido: <span className="font-semibold text-[#5a4530]">R$ {totalServicos.toFixed(2).replace(".", ",")}</span>{parcelas > 1 && <span> · {parcelas}x de R$ {(totalServicos / parcelas).toFixed(2).replace(".", ",")}</span>}</p>;
                       const taxaVal = totalServicos * (taxaPct / 100);
                       const liquido = totalServicos - taxaVal;
-                      return (
-                        <p className="text-xs text-[#9a7d50]">
-                          Taxa {taxaPct}%: <span className="text-red-400">−R$ {taxaVal.toFixed(2).replace(".", ",")}</span> →
-                          Líquido: <span className="font-semibold text-[#5a4530]">R$ {liquido.toFixed(2).replace(".", ",")}</span>
-                          {parcelas > 1 && <span> · {parcelas}x de R$ {(liquido / parcelas).toFixed(2).replace(".", ",")}</span>}
-                        </p>
-                      );
+                      return <p className="text-xs text-[#9a7d50]">Taxa {taxaPct}%: <span className="text-red-400">−R$ {taxaVal.toFixed(2).replace(".", ",")}</span> → Líquido: <span className="font-semibold text-[#5a4530]">R$ {liquido.toFixed(2).replace(".", ",")}</span>{parcelas > 1 && <span> · {parcelas}x de R$ {(liquido / parcelas).toFixed(2).replace(".", ",")}</span>}</p>;
                     })()}
                   </div>
                 );
               })()}
 
-              {/* Taxa para outras formas de pagamento (não cartão/link) */}
-              {formaPagamento !== "Cartão de Crédito" && formaPagamento !== "Link de Pagamento" && (() => {
+              {/* Taxa legado para outras formas */}
+              {pagamentos.length === 0 && formaPagamento !== "Cartão de Crédito" && formaPagamento !== "Link de Pagamento" && (() => {
                 const forma = formasPgto.find((f) => f.nome === formaPagamento);
                 if (!forma || forma.percentualTaxa === 0 || totalServicos === 0) return null;
                 const taxa = totalServicos * (forma.percentualTaxa / 100);
                 const liquido = totalServicos - taxa;
-                return (
-                  <p className="text-xs text-[#9a7d50]">
-                    Taxa {forma.percentualTaxa}%: <span className="text-red-400">−R$ {taxa.toFixed(2).replace(".", ",")}</span> →
-                    Líquido: <span className="font-semibold text-[#5a4530]">R$ {liquido.toFixed(2).replace(".", ",")}</span>
-                  </p>
-                );
+                return <p className="text-xs text-[#9a7d50]">Taxa {forma.percentualTaxa}%: <span className="text-red-400">−R$ {taxa.toFixed(2).replace(".", ",")}</span> → Líquido: <span className="font-semibold text-[#5a4530]">R$ {liquido.toFixed(2).replace(".", ",")}</span></p>;
               })()}
+
+              {/* Modo multi-split */}
+              {pagamentos.length > 0 && (
+                <div className="space-y-2">
+                  {pagamentos.map((split, idx) => {
+                    const forma = formasPgto.find((f) => f.nome === split.formaPagamento);
+                    const profSelecionada = profissionais.find((p) => p.id === profissionalId);
+                    const configJsonAtivo = split.formaPagamento === "Cartão de Crédito"
+                      ? (profSelecionada?.configJsonCartao ?? forma?.configJson ?? null)
+                      : (split.formaPagamento === "Link de Pagamento" ? forma?.configJson ?? null : null);
+                    let config: { maxParcelas: number; taxas: Array<{ parcelas: number; taxaPct: number }> } | null = null;
+                    if (configJsonAtivo) { try { config = JSON.parse(configJsonAtivo); } catch {} }
+
+                    const somaSplitsAnteriores = pagamentos.slice(0, idx).reduce((s, p) => s + (p.valor || 0), 0);
+                    const valorRestante = Math.max(0, totalServicos - somaSplitsAnteriores);
+
+                    // Cálculo de taxa para preview
+                    let taxaPreview = 0;
+                    if (split.formaPagamento && split.valor > 0) {
+                      if (config && (split.formaPagamento === "Cartão de Crédito" || split.formaPagamento === "Link de Pagamento")) {
+                        const taxaConf = config.taxas.find((t) => t.parcelas === split.parcelas);
+                        taxaPreview = split.valor * ((taxaConf?.taxaPct ?? 0) / 100);
+                      } else if (forma && forma.percentualTaxa > 0) {
+                        taxaPreview = split.valor * (forma.percentualTaxa / 100);
+                      }
+                    }
+
+                    return (
+                      <div key={idx} className="rounded-lg border border-[#e8dcc4] p-2.5 space-y-2 bg-[#faf5ee]/50">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-medium text-[#9a7d50]">Pagamento {idx + 1}</span>
+                          <div className="flex items-center gap-1.5">
+                            <div className="relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#9a7d50] text-xs">R$</span>
+                              <input
+                                type="number"
+                                value={split.valor || ""}
+                                onChange={(e) => {
+                                  const novo = [...pagamentos];
+                                  novo[idx] = { ...novo[idx], valor: Number(e.target.value) };
+                                  // Auto-ajusta o próximo split se existir
+                                  if (idx + 1 < novo.length) {
+                                    const somaAntes = novo.slice(0, idx + 1).reduce((s, p) => s + (p.valor || 0), 0);
+                                    novo[idx + 1] = { ...novo[idx + 1], valor: Math.max(0, Math.round((totalServicos - somaAntes) * 100) / 100) };
+                                  }
+                                  setPagamentos(novo);
+                                }}
+                                onFocus={(e) => { if (idx === pagamentos.length - 1 && split.valor === 0) { const novo = [...pagamentos]; novo[idx] = { ...novo[idx], valor: Math.round(valorRestante * 100) / 100 }; setPagamentos(novo); } e.currentTarget.select(); }}
+                                className="pl-6 w-24 h-7 rounded border border-[#B89968]/30 text-sm text-[#5a4530] focus:outline-none focus:ring-1 focus:ring-[#B89968] bg-white"
+                                step="0.01"
+                                min="0"
+                              />
+                            </div>
+                            {pagamentos.length > 1 && (
+                              <button type="button" onClick={() => { const novo = pagamentos.filter((_, i) => i !== idx); setPagamentos(novo.length ? novo : []); }} className="text-red-400 hover:text-red-600">
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Pílulas de forma */}
+                        <div className="flex flex-wrap gap-1">
+                          {formasPgto.map((f) => (
+                            <button
+                              key={f.id}
+                              type="button"
+                              onClick={() => {
+                                const novo = [...pagamentos];
+                                novo[idx] = { ...novo[idx], formaPagamento: f.nome, parcelas: 1 };
+                                setPagamentos(novo);
+                                setErroPagamento(false);
+                              }}
+                              className={cn(
+                                "px-2.5 py-0.5 rounded-full text-xs border transition-colors",
+                                split.formaPagamento === f.nome
+                                  ? "bg-[#B89968] text-white border-[#B89968]"
+                                  : "border-[#e8dcc4] text-[#9a7d50] hover:border-[#B89968]/50"
+                              )}
+                            >
+                              {f.nome}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Parcelamento */}
+                        {config && (split.formaPagamento === "Cartão de Crédito" || split.formaPagamento === "Link de Pagamento") && (
+                          <div className="flex items-center gap-2">
+                            <div className="inline-flex rounded-lg border border-[#e8dcc4] overflow-hidden text-xs">
+                              <button type="button" onClick={() => { const novo = [...pagamentos]; novo[idx] = { ...novo[idx], parcelas: 1 }; setPagamentos(novo); }} className={cn("px-2.5 py-1 transition-colors", split.parcelas === 1 ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#faf5ee]")}>À Vista</button>
+                              <button type="button" onClick={() => { if (split.parcelas === 1) { const novo = [...pagamentos]; novo[idx] = { ...novo[idx], parcelas: 2 }; setPagamentos(novo); } }} className={cn("px-2.5 py-1 transition-colors border-l border-[#e8dcc4]", split.parcelas > 1 ? "bg-[#B89968] text-white" : "text-[#9a7d50] hover:bg-[#faf5ee]")}>Parcelado</button>
+                            </div>
+                            {split.parcelas > 1 && (
+                              <select value={split.parcelas} onChange={(e) => { const novo = [...pagamentos]; novo[idx] = { ...novo[idx], parcelas: Number(e.target.value) }; setPagamentos(novo); }} className="border border-[#e8dcc4] rounded px-2 py-1 text-xs text-[#3d2c1e] bg-white focus:outline-none focus:ring-1 focus:ring-[#B89968]">
+                                {Array.from({ length: config.maxParcelas - 1 }, (_, i) => i + 2).map((n) => (
+                                  <option key={n} value={n}>{n}x {split.valor > 0 ? `R$ ${(split.valor / n).toFixed(2).replace(".", ",")}` : ""}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Preview de taxa */}
+                        {taxaPreview > 0 && split.valor > 0 && (
+                          <p className="text-xs text-[#9a7d50]">
+                            Taxa: <span className="text-red-400">−R$ {taxaPreview.toFixed(2).replace(".", ",")}</span> → Líquido: <span className="font-semibold text-[#5a4530]">R$ {(split.valor - taxaPreview).toFixed(2).replace(".", ",")}</span>
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Indicador de diferença e botão adicionar */}
+                  <div className="flex items-center justify-between gap-2">
+                    {(() => {
+                      const soma = pagamentos.reduce((s, p) => s + (p.valor || 0), 0);
+                      const diff = totalServicos - soma;
+                      if (Math.abs(diff) < 0.01) return <span className="text-xs text-green-600 font-medium">✓ Soma correta</span>;
+                      return <span className="text-xs text-red-500">Faltam R$ {diff.toFixed(2).replace(".", ",")} para fechar o total</span>;
+                    })()}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const soma = pagamentos.reduce((s, p) => s + (p.valor || 0), 0);
+                        const restante = Math.max(0, Math.round((totalServicos - soma) * 100) / 100);
+                        setPagamentos(prev => [...prev, { formaPagamento: "", valor: restante, parcelas: 1 }]);
+                      }}
+                      className="flex items-center gap-1 text-xs text-[#B89968] border border-[#B89968]/40 px-2 py-0.5 rounded-md hover:bg-[#B89968]/10 font-medium flex-shrink-0"
+                    >
+                      <Plus size={11} />
+                      OUTRA FORMA
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1055,6 +1187,7 @@ export function ModalAgendamento({
                     { label: "Prestador (Clínica)", value: nomeClinica ?? "" },
                     { label: "CNPJ da Clínica", value: cnpjClinica ?? "Não cadastrado" },
                     { label: "Serviços", value: itens.filter(i => i.tipo === "servico").map(i => i.nomeServico).join(", ") || "—" },
+                    { label: "Forma(s) de Pagamento", value: pagamentos.length > 0 ? pagamentos.map(p => `${p.formaPagamento}${p.parcelas > 1 ? ` ${p.parcelas}x` : ""}: R$ ${p.valor.toFixed(2).replace(".", ",")}`).join(" | ") : (formaPagamento || "—") },
                     { label: "Valor Total", value: `R$ ${itens.filter(i=>i.tipo==="servico").reduce((s,i)=>s+i.preco,0).toFixed(2).replace(".",",")}` },
                     { label: "Data do Atendimento", value: dataStr ? new Date(dataStr + "T12:00").toLocaleDateString("pt-BR") : "—" },
                   ].map(({ label, value }) => (

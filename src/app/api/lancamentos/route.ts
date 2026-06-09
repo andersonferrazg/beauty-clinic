@@ -45,11 +45,23 @@ export async function GET(req: NextRequest) {
         : {}),
       ...filtroProfissional,
     },
+    include: {
+      agendamento: {
+        select: { pagamentos: { select: { formaPagamento: true, valor: true, parcelas: true } } },
+      },
+    },
     orderBy: [{ vencimento: "asc" }, { criadoEm: "desc" }],
     take: 200,
   });
 
-  return NextResponse.json(lancamentos);
+  // Expõe splits diretamente no lancamento para facilitar breakdown no frontend
+  const resultado = lancamentos.map((l) => ({
+    ...l,
+    pagamentos: l.formaPagamento === "Misto" ? (l.agendamento?.pagamentos ?? []) : undefined,
+    agendamento: undefined, // não expor o agendamento completo
+  }));
+
+  return NextResponse.json(resultado);
 }
 
 export async function POST(req: NextRequest) {

@@ -25,19 +25,20 @@ export async function processarStatusAgendamento(
         },
       },
       profissional: {
-      select: {
-        id: true,
-        nome: true,
-        tipoComissao: true,
-        percentualComissao: true,
-        salarioFixo: true,
-        direcaoComissao: true,
-        profissionalTerceiro: true,
-        comissaoSobre: true,
-        configJsonCartao: true,
+        select: {
+          id: true,
+          nome: true,
+          tipoComissao: true,
+          percentualComissao: true,
+          salarioFixo: true,
+          direcaoComissao: true,
+          profissionalTerceiro: true,
+          comissaoSobre: true,
+          configJsonCartao: true,
+        },
       },
-    },
       cliente: { select: { id: true, nome: true } },
+      pagamentos: true,
     },
   });
 
@@ -83,6 +84,7 @@ type AgendamentoComItens = Awaited<ReturnType<typeof prisma.agendamento.findFirs
   };
   cliente: { id: string; nome: string } | null;
   lancamentoId: string | null;
+  pagamentos: Array<{ id: string; formaPagamento: string; valor: number; parcelas: number }>;
 };
 
 async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
@@ -103,60 +105,66 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
     0,
   );
 
-  // Buscar taxa da forma de pagamento (se houver)
-  let taxaPercentual = 0;
+  // Calcula taxa: se houver splits, calcula por split; caso contrário, usa forma única
   let taxaValor = 0;
   let valorLiquido = valorBruto;
+  let taxaPercentual = 0; // percentual médio ponderado (para Lancamento.percentualTaxa)
+  let formaLancamento: string | null = agendamento.formaPagamento ?? null;
 
-  if (!isRetorno && agendamento.formaPagamento) {
+  async function calcTaxaSplit(forma: string, valor: number, parcs: number): Promise<number> {
     const formaPgto = await prisma.formaPagamento.findFirst({
-      where: { tenantId, nome: agendamento.formaPagamento, ativa: true },
+      where: { tenantId, nome: forma, ativa: true },
       select: { percentualTaxa: true, configJson: true },
     });
-    if (formaPgto) {
-      // Cartão de Crédito: config própria da profissional tem prioridade sobre a global
-      if (agendamento.formaPagamento === "Cartão de Crédito") {
-        const configJson = agendamento.profissional.configJsonCartao ?? formaPgto.configJson;
-        if (configJson) {
-          const config = parsearConfigCartao(configJson);
-          taxaPercentual = taxaParaParcelas(config, agendamento.parcelas ?? 1);
-        }
-      } else if (agendamento.formaPagamento === "Cartão de Débito") {
-        let profTaxaPropria: number | null = null;
-        if (agendamento.profissional.configJsonCartao) {
-          try {
-            const profConfig = JSON.parse(agendamento.profissional.configJsonCartao);
-            if (typeof profConfig.taxaDebito === "number") profTaxaPropria = profConfig.taxaDebito;
-          } catch { /* JSON inválido: ignorar */ }
-        }
-        taxaPercentual = profTaxaPropria !== null ? profTaxaPropria : formaPgto.percentualTaxa;
-      } else if (agendamento.formaPagamento === "Link de Pagamento") {
-        // Prioridade: parcelamento próprio da prof > taxa flat própria > parcelamento global > taxa global
-        let taxaResolvida: number | null = null;
-        if (agendamento.profissional.configJsonCartao) {
-          try {
-            const profConfig = JSON.parse(agendamento.profissional.configJsonCartao);
-            if (Array.isArray(profConfig.taxasLink) && profConfig.taxasLink.length > 0 && (agendamento.parcelas ?? 1) > 1) {
-              taxaResolvida = taxaParaParcelas({ maxParcelas: profConfig.maxParcelasLink ?? 12, taxas: profConfig.taxasLink }, agendamento.parcelas ?? 1);
-            } else if (typeof profConfig.taxaLink === "number") {
-              taxaResolvida = profConfig.taxaLink;
-            }
-          } catch { /* JSON inválido: ignorar */ }
-        }
-        if (taxaResolvida === null) {
-          if (formaPgto.configJson && (agendamento.parcelas ?? 1) > 1) {
-            taxaResolvida = taxaParaParcelas(parsearConfigCartao(formaPgto.configJson), agendamento.parcelas ?? 1);
-          } else {
-            taxaResolvida = formaPgto.percentualTaxa;
-          }
-        }
-        taxaPercentual = taxaResolvida;
-      } else if (formaPgto.percentualTaxa > 0) {
-        taxaPercentual = formaPgto.percentualTaxa;
+    if (!formaPgto) return 0;
+    let pct = 0;
+    if (forma === "Cartão de Crédito") {
+      const configJson = agendamento.profissional.configJsonCartao ?? formaPgto.configJson;
+      if (configJson) { try { pct = taxaParaParcelas(parsearConfigCartao(configJson), parcs); } catch {} }
+    } else if (forma === "Cartão de Débito") {
+      let propria: number | null = null;
+      if (agendamento.profissional.configJsonCartao) {
+        try { const c = JSON.parse(agendamento.profissional.configJsonCartao); if (typeof c.taxaDebito === "number") propria = c.taxaDebito; } catch {}
       }
-      if (taxaPercentual > 0) {
-        taxaValor = Math.round(valorBruto * (taxaPercentual / 100) * 100) / 100;
+      pct = propria !== null ? propria : formaPgto.percentualTaxa;
+    } else if (forma === "Link de Pagamento") {
+      let taxaResolvida: number | null = null;
+      if (agendamento.profissional.configJsonCartao) {
+        try {
+          const c = JSON.parse(agendamento.profissional.configJsonCartao);
+          if (Array.isArray(c.taxasLink) && c.taxasLink.length > 0 && parcs > 1) {
+            taxaResolvida = taxaParaParcelas({ maxParcelas: c.maxParcelasLink ?? 12, taxas: c.taxasLink }, parcs);
+          } else if (typeof c.taxaLink === "number") { taxaResolvida = c.taxaLink; }
+        } catch {}
+      }
+      if (taxaResolvida === null) {
+        if (formaPgto.configJson && parcs > 1) {
+          taxaResolvida = taxaParaParcelas(parsearConfigCartao(formaPgto.configJson), parcs);
+        } else { taxaResolvida = formaPgto.percentualTaxa; }
+      }
+      pct = taxaResolvida;
+    } else { pct = formaPgto.percentualTaxa; }
+    return pct > 0 ? Math.round(valor * (pct / 100) * 100) / 100 : 0;
+  }
+
+  if (!isRetorno) {
+    const splits = agendamento.pagamentos?.length ? agendamento.pagamentos : null;
+    if (splits && splits.length > 0) {
+      // Multi-pagamento: taxa por split
+      let totalTaxa = 0;
+      for (const split of splits) {
+        totalTaxa += await calcTaxaSplit(split.formaPagamento, split.valor, split.parcelas);
+      }
+      taxaValor = Math.round(totalTaxa * 100) / 100;
+      valorLiquido = Math.round((valorBruto - taxaValor) * 100) / 100;
+      taxaPercentual = valorBruto > 0 ? Math.round((taxaValor / valorBruto) * 10000) / 100 : 0;
+      formaLancamento = splits.length > 1 ? "Misto" : splits[0].formaPagamento;
+    } else if (agendamento.formaPagamento) {
+      // Pagamento único: comportamento original
+      taxaValor = await calcTaxaSplit(agendamento.formaPagamento, valorBruto, agendamento.parcelas ?? 1);
+      if (taxaValor > 0) {
         valorLiquido = Math.round((valorBruto - taxaValor) * 100) / 100;
+        taxaPercentual = Math.round((taxaValor / valorBruto) * 10000) / 100;
       }
     }
   }
@@ -182,7 +190,7 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
           pago: true,
           pagoEm: new Date(),
           vencimento: agendamento.inicio,
-          formaPagamento: agendamento.formaPagamento ?? null,
+          formaPagamento: formaLancamento,
           origem: "AUTO_ATENDIMENTO",
         },
       });

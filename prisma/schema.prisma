@@ -286,11 +286,25 @@ model Agendamento {
   mensagensWpp  MensagemWpp[]
   movimentacoes MovimentacaoEstoque[]
   orcamento     Orcamento?        @relation("OrcamentoAgendamento")
+  pagamentos    AgendamentoPagamento[]
 
   @@index([tenantId, inicio])
   @@index([tenantId, profissionalId, inicio])
   @@index([tenantId, dataRealizado])
   @@map("agendamentos")
+}
+
+model AgendamentoPagamento {
+  id             String @id @default(cuid())
+  agendamentoId  String
+  formaPagamento String
+  valor          Float
+  parcelas       Int    @default(1)
+
+  agendamento Agendamento @relation(fields: [agendamentoId], references: [id], onDelete: Cascade)
+
+  @@index([agendamentoId])
+  @@map("agendamentos_pagamento")
 }
 
 model ItemAgendamento {
