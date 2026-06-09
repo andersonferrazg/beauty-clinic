@@ -169,36 +169,42 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
     }
   }
 
+  const isColaboradoraPaga = agendamento.profissional.direcaoComissao === "COLABORADORA_PAGA";
+
   await prisma.$transaction(async (tx) => {
     let lancamentoId: string | null = null;
 
     if (!isRetorno && valorBruto > 0) {
-      const profNome = agendamento.profissional.nome;
-      const cliNome = agendamento.cliente?.nome ?? "Atendimento avulso";
-      const descricao = `${cliNome} — ${profNome}`;
+      // CLINICA_PAGA: clínica recebe o dinheiro diretamente → cria Lancamento RECEITA
+      if (!isColaboradoraPaga) {
+        const profNome = agendamento.profissional.nome;
+        const cliNome = agendamento.cliente?.nome ?? "Atendimento avulso";
+        const descricao = `${cliNome} — ${profNome}`;
 
-      const lancamento = await tx.lancamento.create({
-        data: {
-          tenantId,
-          tipo: "RECEITA",
-          categoria: "Atendimento",
-          descricao,
-          valor: valorLiquido,
-          valorBruto: taxaValor > 0 ? valorBruto : null,
-          taxa: taxaValor > 0 ? taxaValor : null,
-          percentualTaxa: taxaValor > 0 ? taxaPercentual : null,
-          pago: true,
-          pagoEm: new Date(),
-          vencimento: agendamento.inicio,
-          formaPagamento: formaLancamento,
-          origem: "AUTO_ATENDIMENTO",
-        },
-      });
-      lancamentoId = lancamento.id;
+        const lancamento = await tx.lancamento.create({
+          data: {
+            tenantId,
+            tipo: "RECEITA",
+            categoria: "Atendimento",
+            descricao,
+            valor: valorLiquido,
+            valorBruto: taxaValor > 0 ? valorBruto : null,
+            taxa: taxaValor > 0 ? taxaValor : null,
+            percentualTaxa: taxaValor > 0 ? taxaPercentual : null,
+            pago: true,
+            pagoEm: new Date(),
+            vencimento: agendamento.inicio,
+            formaPagamento: formaLancamento,
+            origem: "AUTO_ATENDIMENTO",
+          },
+        });
+        lancamentoId = lancamento.id;
+      }
+      // COLABORADORA_PAGA: profissional recebe da cliente e paga taxa à clínica
+      // → sem Lancamento agora; Lancamento RECEITA é criado só ao receber o repasse em /comissoes/pagar
 
-      // Base para comissão: bruto ou líquido conforme configuração da profissional
+      // Comissão: calculada para ambos os modelos (CLINICA_PAGA e COLABORADORA_PAGA)
       const prof = agendamento.profissional;
-      // Fator de liquidez: se comissaoSobre=LIQUIDO, reduz proporcionalmente
       const liquidFactor = valorBruto > 0 && prof.comissaoSobre === "LIQUIDO"
         ? valorLiquido / valorBruto
         : 1;
@@ -214,7 +220,6 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
         (prof.tipoComissao === "PERCENTUAL" || prof.tipoComissao === "MISTO") &&
         prof.percentualComissao
       ) {
-        // Calcula comissão por item: produto com taxa própria usa ela; demais usam taxa da profissional
         const temTaxaEspecifica = agendamento.itens.some(
           (it) => it.produto?.comissaoPercentual != null,
         );
@@ -225,7 +230,7 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
             soma += item.preco * item.quantidade * (taxa / 100) * liquidFactor;
           }
           valorComissao = Math.round(soma * 100) / 100;
-          percentualUsado = null; // misto — não há um único percentual
+          percentualUsado = null;
         } else {
           valorComissao = baseComissao * (prof.percentualComissao / 100);
           percentualUsado = prof.percentualComissao;
@@ -237,7 +242,8 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
         await tx.comissaoLancamento.create({
           data: {
             tenantId,
-            lancamentoId: lancamento.id,
+            lancamentoId: lancamentoId ?? undefined,
+            agendamentoId: agendamento.id,
             profissionalId: prof.id,
             valorBase: baseComissao,
             percentual: percentualUsado,
@@ -301,15 +307,18 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
 }
 
 async function reverter(agendamento: AgendamentoComItens, tenantId: string) {
+  // Verifica comissões pagas tanto por lancamentoId (CLINICA_PAGA) quanto por agendamentoId (COLABORADORA_PAGA)
+  const orConditions: object[] = [{ agendamentoId: agendamento.id }];
   if (agendamento.lancamentoId) {
-    const comissoesPagas = await prisma.comissaoLancamento.count({
-      where: { lancamentoId: agendamento.lancamentoId, pago: true },
-    });
-    if (comissoesPagas > 0) {
-      throw new Error(
-        "Não é possível reverter: existem comissões já pagas para este atendimento.",
-      );
-    }
+    orConditions.push({ lancamentoId: agendamento.lancamentoId });
+  }
+  const comissoesPagas = await prisma.comissaoLancamento.count({
+    where: { tenantId, pago: true, OR: orConditions },
+  });
+  if (comissoesPagas > 0) {
+    throw new Error(
+      "Não é possível reverter: existem comissões já pagas para este atendimento.",
+    );
   }
 
   await prisma.$transaction(async (tx) => {
@@ -334,9 +343,15 @@ async function reverter(agendamento: AgendamentoComItens, tenantId: string) {
       data: { dataRealizado: null, lancamentoId: null },
     });
 
+    // CLINICA_PAGA: remove comissões pelo lancamentoId e depois o próprio lancamento
     if (lancId) {
       await tx.comissaoLancamento.deleteMany({ where: { lancamentoId: lancId } });
       await tx.lancamento.delete({ where: { id: lancId } });
     }
+
+    // COLABORADORA_PAGA: remove comissões pelo agendamentoId (sem lancamentoId)
+    await tx.comissaoLancamento.deleteMany({
+      where: { agendamentoId: agendamento.id, lancamentoId: null, tenantId },
+    });
   });
 }

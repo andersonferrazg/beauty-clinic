@@ -45,6 +45,13 @@ export async function GET(req: NextRequest) {
           },
         },
       },
+      agendamento: {
+        select: {
+          id: true,
+          inicio: true,
+          cliente: { select: { id: true, nome: true } },
+        },
+      },
     },
     orderBy: { criadoEm: "desc" },
   });

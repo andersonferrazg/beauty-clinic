@@ -7,6 +7,12 @@ import { cn } from "@/lib/utils";
 
 type Profissional = { id: string; nome: string; cor: string };
 
+type AgendamentoInfo = {
+  id: string;
+  inicio: string;
+  cliente: { id: string; nome: string } | null;
+};
+
 type Comissao = {
   id: string;
   valorBase: number;
@@ -22,12 +28,9 @@ type Comissao = {
     valor: number;
     pagoEm: string | null;
     descricao: string;
-    agendamento: {
-      id: string;
-      inicio: string;
-      cliente: { id: string; nome: string } | null;
-    } | null;
-  };
+    agendamento: AgendamentoInfo | null;
+  } | null;
+  agendamento: AgendamentoInfo | null;
 };
 
 function fmt(v: number) {
@@ -100,8 +103,9 @@ function ModalEditar({ comissao, onFechar, onSalvo }: ModalEditarProps) {
     }
   }
 
-  const cliente = comissao.lancamento.agendamento?.cliente?.nome ?? comissao.lancamento.descricao;
-  const data = formatarData(comissao.lancamento.agendamento?.inicio ?? comissao.criadoEm);
+  const ag = comissao.lancamento?.agendamento ?? comissao.agendamento;
+  const cliente = ag?.cliente?.nome ?? comissao.lancamento?.descricao ?? "—";
+  const data = formatarData(ag?.inicio ?? comissao.criadoEm);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -295,10 +299,11 @@ export default function ComissoesPage() {
   function exportarCSV() {
     const linhas = [["Profissional", "Data", "Cliente", "Valor Atend. (R$)", "% Comissão", "Comissão (R$)", "Status", "Pago em"]];
     for (const c of comissoes) {
+      const agCsv = c.lancamento?.agendamento ?? c.agendamento;
       linhas.push([
         c.profissional.nome,
-        formatarData(c.lancamento.agendamento?.inicio ?? c.criadoEm),
-        c.lancamento.agendamento?.cliente?.nome ?? c.lancamento.descricao,
+        formatarData(agCsv?.inicio ?? c.criadoEm),
+        agCsv?.cliente?.nome ?? c.lancamento?.descricao ?? "—",
         c.valorBase.toFixed(2),
         c.percentual ? c.percentual.toString() : "",
         c.valorComissao.toFixed(2),
@@ -517,10 +522,10 @@ export default function ComissoesPage() {
                             )}
                           </td>
                           <td className="px-3 py-2 text-[#5a4530]">
-                            {formatarData(c.lancamento.agendamento?.inicio ?? c.criadoEm)}
+                            {formatarData((c.lancamento?.agendamento ?? c.agendamento)?.inicio ?? c.criadoEm)}
                           </td>
                           <td className="px-3 py-2 text-[#5a4530]">
-                            {c.lancamento.agendamento?.cliente?.nome ?? c.lancamento.descricao}
+                            {(c.lancamento?.agendamento ?? c.agendamento)?.cliente?.nome ?? c.lancamento?.descricao ?? "—"}
                           </td>
                           <td className="px-3 py-2 text-right text-[#5a4530]">{fmt(c.valorBase)}</td>
                           <td className="px-3 py-2 text-right text-[#9a7d50] text-xs">
