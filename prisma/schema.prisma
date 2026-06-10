@@ -1,4 +1,4 @@
-﻿generator client {
+generator client {
   provider = "prisma-client-js"
 }
 
@@ -505,9 +505,9 @@ model ComissaoLancamento {
   direcaoComissao       String    @default("CLINICA_PAGA")
   criadoEm              DateTime  @default(now())
 
-  lancamento          Lancamento?  @relation("ReceitaOrigem", fields: [lancamentoId], references: [id], onDelete: SetNull)
+  lancamento          Lancamento?  @relation("ReceitaOrigem", fields: [lancamentoId], references: [id])
   lancamentoPagamento Lancamento?  @relation("DespesaPagamento", fields: [lancamentoPagamentoId], references: [id])
-  agendamento         Agendamento? @relation(fields: [agendamentoId], references: [id], onDelete: SetNull)
+  agendamento         Agendamento? @relation(fields: [agendamentoId], references: [id])
   profissional        Profissional @relation(fields: [profissionalId], references: [id])
   tenant              Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

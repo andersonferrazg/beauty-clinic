@@ -308,12 +308,10 @@ async function finalizar(agendamento: AgendamentoComItens, tenantId: string) {
 
 async function reverter(agendamento: AgendamentoComItens, tenantId: string) {
   // Verifica comissões pagas tanto por lancamentoId (CLINICA_PAGA) quanto por agendamentoId (COLABORADORA_PAGA)
-  const orConditions: object[] = [{ agendamentoId: agendamento.id }];
-  if (agendamento.lancamentoId) {
-    orConditions.push({ lancamentoId: agendamento.lancamentoId });
-  }
   const comissoesPagas = await prisma.comissaoLancamento.count({
-    where: { tenantId, pago: true, OR: orConditions },
+    where: agendamento.lancamentoId
+      ? { tenantId, pago: true, OR: [{ lancamentoId: agendamento.lancamentoId }, { agendamentoId: agendamento.id }] }
+      : { tenantId, pago: true, agendamentoId: agendamento.id },
   });
   if (comissoesPagas > 0) {
     throw new Error(
