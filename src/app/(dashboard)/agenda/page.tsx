@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ModalAgendamento } from "@/components/modal-agendamento";
-import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, AlertCircle, CalendarDays, Search, SlidersHorizontal, RefreshCw } from "lucide-react";
 import { BuscaCliente } from "@/components/agenda/BuscaCliente";
 import { cn } from "@/lib/utils";
 import { getSessaoCliente } from "@/lib/sessao-cliente";
@@ -1113,6 +1113,13 @@ export default function AgendaPage() {
           )}
         >
           <CalendarDays size={18} />
+        </button>
+        <button
+          onClick={recarregar}
+          className="p-2 rounded-md text-[#9a7d50] hover:bg-[#B89968]/10 active:bg-[#B89968]/20 transition-colors"
+          title="Atualizar agenda"
+        >
+          <RefreshCw size={18} className={carregando ? "animate-spin" : ""} />
         </button>
         <button
           onClick={() => { setDataAtual(hoje); salvarDataLocal(hoje); }}
