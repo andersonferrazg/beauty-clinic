@@ -464,28 +464,32 @@ export default function AgendaPage() {
 
   useEffect(() => {
     try {
-      const salvo = localStorage.getItem("agendaData");
-      const hojeStr = formatarDataISO(new Date());
-      // Só restaura se for o mesmo dia — garante que ao abrir o sistema, a agenda exibe sempre o dia atual
-      if (salvo && salvo === hojeStr) {
-        const d = new Date(salvo + "T12:00");
-        if (!isNaN(d.getTime())) setDataAtual(d);
+      // Usa o relógio do CLIENTE (não do servidor SSR) para garantir o dia local correto
+      const clienteHoje = new Date();
+      const hojeStr = formatarDataISO(clienteHoje);
+
+      const params = new URLSearchParams(window.location.search);
+      const dataParam = params.get("data");
+      const abrirParam = params.get("abrir");
+
+      if (dataParam) {
+        // URL tem data explícita (link de agendamento online)
+        const d = new Date(dataParam + "T12:00");
+        if (!isNaN(d.getTime())) { setDataAtual(d); salvarDataLocal(d); }
+      } else {
+        // Sem parâmetro: sempre inicializa pelo relógio do CLIENTE com T12:00
+        // (evita mismatch SSR→hidratação que exibia um dia errado)
+        setDataAtual(new Date(hojeStr + "T12:00"));
       }
+
+      if (abrirParam) pendingOpenIdRef.current = abrirParam;
+
       const m = localStorage.getItem('beauty-view-mode');
       if (m === 'semanal' || m === 'diario') setModoVista(m);
       const filtroSalvo = localStorage.getItem("beauty-agenda-filtro");
       if (filtroSalvo) {
         try { setProfFiltroIds(JSON.parse(filtroSalvo)); } catch {}
       }
-      // Parâmetros de URL: ?data=YYYY-MM-DD&abrir=ID (link de notificação de agendamento online)
-      const params = new URLSearchParams(window.location.search);
-      const dataParam = params.get("data");
-      const abrirParam = params.get("abrir");
-      if (dataParam) {
-        const d = new Date(dataParam + "T12:00");
-        if (!isNaN(d.getTime())) { setDataAtual(d); salvarDataLocal(d); }
-      }
-      if (abrirParam) pendingOpenIdRef.current = abrirParam;
     } catch {}
     Promise.all([
       fetch("/api/profissionais").then((r) => r.json()) as Promise<Profissional[]>,
