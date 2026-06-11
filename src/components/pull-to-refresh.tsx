@@ -3,12 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
-const LIMIAR = 80;
+const LIMIAR = 120;
 
 // Detecta se algum modal/overlay está aberto na tela.
 // Todos os modais do sistema usam className="fixed inset-0 z-50 ..."
 function temModalAberto(): boolean {
   return document.querySelectorAll(".fixed.inset-0").length > 0;
+}
+
+// Verifica se algum ancestral do elemento já está rolado (evita disparar PTR quando o usuário está scrollando dentro de um container interno como a grade da agenda).
+function algumAncestralRolado(target: EventTarget | null): boolean {
+  let el = target as Element | null;
+  while (el && el !== document.documentElement) {
+    if ((el.scrollTop ?? 0) > 5) return true;
+    if ((el.scrollLeft ?? 0) > 2) return true;
+    el = el.parentElement;
+  }
+  return false;
 }
 
 export function PullToRefresh() {
@@ -18,14 +29,8 @@ export function PullToRefresh() {
   const arrastando = useRef(false);
 
   useEffect(() => {
-    function getMain(): HTMLElement | null {
-      return document.querySelector("main");
-    }
-
     function onTouchStart(e: TouchEvent) {
-      const main = getMain();
-      if (!main) return;
-      if (main.scrollTop > 2) return;
+      if (algumAncestralRolado(e.target)) return;
       // Não ativar se há modal/overlay aberto
       if (temModalAberto()) return;
       inicioY.current = e.touches[0].clientY;
@@ -34,8 +39,9 @@ export function PullToRefresh() {
 
     function onTouchMove(e: TouchEvent) {
       if (inicioY.current === null) return;
-      const main = getMain();
-      if (!main || main.scrollTop > 2) { inicioY.current = null; return; }
+
+      // Cancela se rolagem foi detectada durante o movimento
+      if (algumAncestralRolado(e.target)) { inicioY.current = null; setArrasto(0); return; }
 
       // Cancela se um modal foi aberto durante o arrasto
       if (temModalAberto()) { inicioY.current = null; setArrasto(0); return; }
@@ -47,7 +53,7 @@ export function PullToRefresh() {
       const progresso = Math.min(delta * 0.5, LIMIAR);
       setArrasto(progresso);
 
-      if (delta > 8) e.preventDefault();
+      if (delta > 15) e.preventDefault();
     }
 
     function onTouchEnd() {

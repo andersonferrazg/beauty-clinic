@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
   let fimDia: Date;
 
   if (data) {
-    inicioDia = new Date(data + "T00:00:00");
-    fimDia = new Date(data + "T23:59:59");
+    inicioDia = new Date(data + "T00:00:00-03:00");
+    fimDia = new Date(data + "T23:59:59-03:00");
   } else {
     const hoje = new Date();
     inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
